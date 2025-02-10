@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Entities\Configuration\" />
+    <Folder Include="Entities\Reservation\" />
+  </ItemGroup>
+
 </Project>

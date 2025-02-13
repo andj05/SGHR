@@ -1,9 +1,8 @@
-﻿using SGHR.Domain.Base;
+﻿
 
-
-namespace SGHR.Domain.Entities.Configuration
+namespace SGHR.Model.Models
 {
-    public sealed class Tarifas : AuditEntity
+    public class TarifasModel
     {
         public int IdTarifa { get; set; }
         public DateOnly FechaInicio { get; set; }
@@ -12,8 +11,6 @@ namespace SGHR.Domain.Entities.Configuration
         public decimal Descuento { get; set; }
         public string? Descripcion { get; set; }
 
-        public int IdHabitacion { get; set; }
-
-
+        public int? IdHabitacion { get; set; }
     }
 }

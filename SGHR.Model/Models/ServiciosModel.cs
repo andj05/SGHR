@@ -1,8 +1,8 @@
-﻿using SGHR.Domain.Base;
+﻿
 
-namespace SGHR.Domain.Entities.Configuration
+namespace SGHR.Model.Models
 {
-    public sealed class Servicios : AuditEntity
+    public class ServiciosModel
     {
         public int IdServicios { get; set; }
         public required string Nombre { get; set; }

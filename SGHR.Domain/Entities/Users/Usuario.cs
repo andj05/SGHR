@@ -1,19 +1,19 @@
 ﻿using SGHR.Domain.Base;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SGHR.Domain.Entities.Users
 {
     public sealed class Usuario : AuditEntity
     {
+        [Column("UsuarioID")]
+        [Key]
         public int IdUsuario { get; set; }
         public string NombreCompleto { get; set; }
         public string Correo { get; set; }
+        public int IdRolUsuario { get; set; }
         public string Clave { get; set; }
-        public DateTime FechaCreacion { get; set; }
-
+        public bool Estado { get; set; } = true;
+        public DateTime FechaCreacion { get; set; } = DateTime.Now;
     }
 }

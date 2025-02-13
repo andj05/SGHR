@@ -1,13 +1,11 @@
-﻿
-
-namespace SGHR.Domain.Base
+﻿namespace SGHR.Domain.Base
 {
     public abstract class AuditEntity
     {
-        protected AuditEntity() 
+        protected AuditEntity()
         {
             this.Estado = true;
         }
-        public bool Estado {  get; set; }   
+        public bool Estado { get; set; }
     }
 }

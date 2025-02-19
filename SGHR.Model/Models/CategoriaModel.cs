@@ -2,7 +2,7 @@
 
 namespace SGHR.Model.Models
 {
-    public class CategoriasModel
+    public class CategoriaModel
     {
         public int Id { get; set; }
         public string Descripcion { get; set; }

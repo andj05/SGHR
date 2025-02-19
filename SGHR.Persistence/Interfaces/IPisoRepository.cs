@@ -8,9 +8,6 @@ namespace SGHR.Persistence.Interfaces
         /// Obtiene todos los pisos registrados en el sistema.
         Task<IEnumerable<Piso>> ObtenerTodosLosPisosAsync();
 
-        /// Obtiene todos los pisos activos (Estado = true).
-        Task<IEnumerable<Piso>> ObtenerPisosActivosAsync();
-
         /// Busca un piso por su descripción.
         Task<Piso?> ObtenerPisoPorDescripcionAsync(string descripcion);
 

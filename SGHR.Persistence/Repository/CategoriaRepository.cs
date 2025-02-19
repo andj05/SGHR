@@ -9,14 +9,14 @@ using SGHR.Persistence.Interfaces;
 
 namespace SGHR.Persistence.Repository
 {
-    public class CategoriasRepository : BaseRepository<Categorias>, ICategoriasRepository
+    public class CategoriaRepository : BaseRepository<Categoria>, ICategoriaRepository
     {
         private readonly SGHRContext _context;
-        private readonly ILogger<CategoriasRepository> _logger;
+        private readonly ILogger<CategoriaRepository> _logger;
         private readonly IConfiguration _configuration;
 
-        public CategoriasRepository(SGHRContext context,
-            ILogger<CategoriasRepository> logger,
+        public CategoriaRepository(SGHRContext context,
+            ILogger<CategoriaRepository> logger,
             IConfiguration configuration) : base(context)
         {
             _context = context;
@@ -26,30 +26,24 @@ namespace SGHR.Persistence.Repository
 
         // Implementación de los métodos de la interfaz
 
-        public async Task<IEnumerable<Categorias>> ObtenerTodasLasCategoriasAsync()
+        public async Task<IEnumerable<Categoria>> ObtenerTodasLasCategoriasAsync()
         {
-            return await _context.Categorias.ToListAsync();
-        }
-
-        public async Task<IEnumerable<Categorias>> ObtenerCategoriasActivasAsync()
-        {
-            return await _context.Categorias
-                .Where(c => c.FechaCreacion <= DateTime.Now) // Ejemplo de condición para categorías activas
+            return await _context.Categoria
+                .Where(c => c.Estado == true)
                 .ToListAsync();
         }
 
-        public async Task<Categorias?> ObtenerCategoriaPorDescripcionAsync(string descripcion)
+        public async Task<Categoria?> ObtenerCategoriaPorDescripcionAsync(string descripcion)
         {
-            return await _context.Categorias
+            return await _context.Categoria
                 .FirstOrDefaultAsync(c => c.Descripcion == descripcion);
         }
 
         public async Task<bool> ActualizarEstadoCategoriaAsync(int idCategoria, bool estado)
         {
-            var categoria = await _context.Categorias.FindAsync(idCategoria);
+            var categoria = await _context.Categoria.FindAsync(idCategoria);
             if (categoria != null)
             {
-                // Actualiza el estado de la categoría según el parámetro 'estado'
                 categoria.FechaCreacion = estado ? DateTime.Now : DateTime.MinValue;
                 await _context.SaveChangesAsync();
                 return true;
@@ -57,16 +51,16 @@ namespace SGHR.Persistence.Repository
             return false;
         }
 
-        public async Task<bool> ExisteCategoriaAsync(int idCategoria)
+        public async Task<bool> ExisteCategoriaAsync(int IdCategoria)
         {
-            var categoria = await _context.Categorias
-                .FirstOrDefaultAsync(c => c.Id == idCategoria);
+            var categoria = await _context.Categoria
+                .FirstOrDefaultAsync(c => c.IdCategoria == IdCategoria);
             return categoria != null;
         }
 
         public async Task<bool> ActualizarDescripcionCategoriaAsync(int idCategoria, string nuevaDescripcion)
         {
-            var categoria = await _context.Categorias.FindAsync(idCategoria);
+            var categoria = await _context.Categoria.FindAsync(idCategoria);
             if (categoria != null)
             {
                 categoria.Descripcion = nuevaDescripcion;
@@ -75,9 +69,16 @@ namespace SGHR.Persistence.Repository
             }
             return false;
         }
+        public async Task<OperationResult> DeleteEntityAsync(Categoria entity)
+        {
+            if (entity == null)
+                return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
 
-        // Otros métodos de la clase (como SaveEntityAsync y UpdateEntityAsync)
-        public override async Task<OperationResult> SaveEntityAsync(Categorias entity)
+            _context.Categoria.Remove(entity);
+            await _context.SaveChangesAsync();
+            return new OperationResult { Success = true, Message = "Categoría eliminada correctamente." };
+        }
+        public override async Task<OperationResult> SaveEntityAsync(Categoria entity)
         {
             if (entity == null)
                 return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
@@ -87,7 +88,7 @@ namespace SGHR.Persistence.Repository
             return await base.SaveEntityAsync(entity);
         }
 
-        public override async Task<OperationResult> UpdateEntityAsync(Categorias entity)
+        public override async Task<OperationResult> UpdateEntityAsync(Categoria entity)
         {
             if (entity == null)
                 return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
@@ -96,5 +97,6 @@ namespace SGHR.Persistence.Repository
 
             return await base.UpdateEntityAsync(entity);
         }
+
     }
 }

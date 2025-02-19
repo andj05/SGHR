@@ -27,13 +27,8 @@ namespace SGHR.Persistence.Repository
         // Implementación de los métodos de la interfaz
         public async Task<IEnumerable<EstadoHabitacion>> ObtenerTodosLosEstadosAsync()
         {
-            return await _context.EstadoHabitacion.ToListAsync();
-        }
-
-        public async Task<IEnumerable<EstadoHabitacion>> ObtenerEstadosActivosAsync()
-        {
             return await _context.EstadoHabitacion
-                .Where(e => e.FechaFin == null || e.FechaFin >= DateTime.Now) 
+                .Where(e => e.Estado == true)
                 .ToListAsync();
         }
 
@@ -48,7 +43,7 @@ namespace SGHR.Persistence.Repository
             var estadoHabitacion = await _context.EstadoHabitacion.FindAsync(idEstado);
             if (estadoHabitacion != null)
             {
-                estadoHabitacion.FechaFin = estado ? DateTime.Now.AddMonths(1) : (DateTime?)null;
+                estadoHabitacion.Estado = estado; // Actualiza solo el estado
                 await _context.SaveChangesAsync();
                 return true;
             }
@@ -73,7 +68,6 @@ namespace SGHR.Persistence.Repository
             return false;
         }
 
-        // Otros métodos de la clase (como SaveEntityAsync y UpdateEntityAsync)
         public override async Task<OperationResult> SaveEntityAsync(EstadoHabitacion entity)
         {
             if (entity == null)

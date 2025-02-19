@@ -49,7 +49,7 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
-        public virtual async Task<OperationResult> GetAllAsync(Expression<Func<TEntity, bool>> filter)
+        public virtual async Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter)
         {
             OperationResult result = new OperationResult();
 
@@ -69,13 +69,9 @@ namespace SGHR.Persistence.Base
 
         public virtual async Task<TEntity> GetEntityByIdAsync(int id)
         {
-            var entity = await Entity.FindAsync(id);
-            if (entity == null)
-            {
-                throw new InvalidOperationException($"Entity with id {id} not found.");
-            }
-            return entity;
+            return await Entity.FindAsync(id);
         }
+
         public virtual async Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> filter)
         {
 

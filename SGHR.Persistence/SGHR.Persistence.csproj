@@ -12,14 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SGHR.Api\SGHR.Api.csproj" />
-    <ProjectReference Include="..\SGHR.Application.Test\SGHR.Application.Test.csproj" />
-    <ProjectReference Include="..\SGHR.Application\SGHR.Application.csproj" />
     <ProjectReference Include="..\SGHR.Domain\SGHR.Domain.csproj" />
     <ProjectReference Include="..\SGHR.Infraestructure\SGHR.Infraestructure.csproj" />
-    <ProjectReference Include="..\SGHR.IOC\SGHR.IOC.csproj" />
     <ProjectReference Include="..\SGHR.Model\SGHR.Model.csproj" />
-    <ProjectReference Include="..\SGHR.Persistence.Test\SGHR.Persistence.Test.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,4 @@
-﻿
-
-namespace SGHR.Model.Models
+﻿namespace SGHR.Model.Models
 {
     public class ServiciosModel
     {

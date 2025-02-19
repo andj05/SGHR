@@ -10,10 +10,6 @@ namespace SGHR.Persistence.Interfaces
         /// Obtiene todos los servicios registrados en el sistema.
         Task<IEnumerable<Servicios>> ObtenerTodosLosServiciosAsync();
 
-        /// Obtiene todos los servicios activos (Estado = true).
-
-        Task<IEnumerable<Servicios>> ObtenerServiciosActivosAsync();
-
         /// Busca un servicio por su nombre.
         Task<Servicios?> ObtenerServicioPorNombreAsync(string nombre);
 

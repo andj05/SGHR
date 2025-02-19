@@ -29,15 +29,11 @@ namespace SGHR.Persistence.Repository
 
         public async Task<IEnumerable<Piso>> ObtenerTodosLosPisosAsync()
         {
-            return await _context.Pisos.ToListAsync();
+            return await _context.Pisos
+           .Where(p => p.Estado == true)
+           .ToListAsync();
         }
 
-        public async Task<IEnumerable<Piso>> ObtenerPisosActivosAsync()
-        {
-            return await _context.Pisos
-                .Where(p => p.Estado == true) // Suponiendo que "Estado" es un campo booleano que determina si está activo
-                .ToListAsync();
-        }
 
         public async Task<Piso?> ObtenerPisoPorDescripcionAsync(string descripcion)
         {

@@ -28,13 +28,8 @@ namespace SGHR.Persistence.Repository
 
         public async Task<IEnumerable<Tarifas>> ObtenerTodasLasTarifasAsync()
         {
-            return await _context.Tarifas.ToListAsync();
-        }
-
-        public async Task<IEnumerable<Tarifas>> ObtenerTarifasActivasAsync()
-        {
             return await _context.Tarifas
-                .Where(t => t.FechaFin >= DateOnly.FromDateTime(DateTime.Now)) // Ejemplo de condición para tarifas activas
+                .Where(t => t.FechaFin >= DateOnly.FromDateTime(DateTime.Now))
                 .ToListAsync();
         }
 
@@ -76,7 +71,7 @@ namespace SGHR.Persistence.Repository
             var tarifaExistente = await _context.Tarifas
                 .Where(t => t.IdHabitacion == idHabitacion && t.FechaInicio <= fechaFin && t.FechaFin >= fechaInicio)
                 .AnyAsync();
-            return !tarifaExistente; // Si existe una tarifa, no está disponible
+            return !tarifaExistente;
         }
 
         public async Task<bool> AplicarDescuentoTarifaAsync(int idTarifa, decimal nuevoDescuento)
@@ -91,7 +86,12 @@ namespace SGHR.Persistence.Repository
             return false;
         }
 
-        // Otros métodos de la clase (como SaveEntityAsync y UpdateEntityAsync)
+        public new async Task<List<OperationResult>> GetAllAsync()
+        {
+            var tarifas = await base.GetAllAsync();
+            return tarifas.Select(t => new OperationResult { Success = true, Data = t }).ToList();
+        }
+
         public override async Task<OperationResult> SaveEntityAsync(Tarifas entity)
         {
             if (entity == null)
@@ -100,7 +100,23 @@ namespace SGHR.Persistence.Repository
             if (entity.PrecioPorNoche <= 0)
                 return new OperationResult { Success = false, Message = "El precio por noche debe ser mayor a 0." };
 
-            return await base.SaveEntityAsync(entity);
+            try
+            {
+                _context.Tarifas.Add(entity);
+                await _context.SaveChangesAsync();
+                return new OperationResult { Success = true, Data = entity };
+            }
+            catch (DbUpdateException ex)
+            {
+                var innerExceptionMessage = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "Ocurrió un error guardando los datos: {Message}", innerExceptionMessage);
+                return new OperationResult { Success = false, Message = $"Ocurrió un error guardando los datos: {innerExceptionMessage}" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ocurrió un error inesperado: {Message}", ex.Message);
+                return new OperationResult { Success = false, Message = $"Ocurrió un error inesperado: {ex.Message}" };
+            }
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Tarifas entity)

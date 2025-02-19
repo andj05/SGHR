@@ -28,13 +28,8 @@ namespace SGHR.Persistence.Repository
 
         public async Task<IEnumerable<Servicios>> ObtenerTodosLosServiciosAsync()
         {
-            return await _context.Servicios.ToListAsync();
-        }
-
-        public async Task<IEnumerable<Servicios>> ObtenerServiciosActivosAsync()
-        {
             return await _context.Servicios
-                .Where(s => s.Estado == true) // Suponiendo que 'Estado' es un campo que indica si el servicio está activo.
+                .Where(s => s.Estado == true)
                 .ToListAsync();
         }
 
@@ -59,7 +54,7 @@ namespace SGHR.Persistence.Repository
         public async Task<bool> ExisteServicioAsync(int idServicio)
         {
             return await _context.Servicios
-                .AnyAsync(s => s.IdServicios == idServicio);
+                .AnyAsync(s => s.IdServicio == idServicio);
         }
 
         public async Task<bool> ActualizarDescripcionServicioAsync(int idServicio, string nuevaDescripcion)

@@ -10,6 +10,5 @@ namespace SGHR.Domain.Entities.Configuration
         public required string Descripcion { get; set; }
         public new bool Estado { get; set; } 
     }
-
-    }
+}
 

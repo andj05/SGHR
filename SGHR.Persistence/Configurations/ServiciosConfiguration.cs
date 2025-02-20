@@ -9,7 +9,6 @@ namespace SGHR.Persistence.Configurations
         public void Configure(EntityTypeBuilder<Servicios> builder)
         {
             builder.HasKey(s => s.IdServicio);
-            // Otras configuraciones
         }
     }
 }

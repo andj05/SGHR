@@ -29,7 +29,7 @@ namespace SGHR.Persistence.Repository
         public async Task<IEnumerable<Tarifas>> ObtenerTodasLasTarifasAsync()
         {
             return await _context.Tarifas
-                .Where(t => t.FechaFin >= DateOnly.FromDateTime(DateTime.Now))
+                .Where( t => t.Estado == true) 
                 .ToListAsync();
         }
 
@@ -100,25 +100,21 @@ namespace SGHR.Persistence.Repository
             if (tarifas.PrecioPorNoche <= 0)
                 return new OperationResult { Success = false, Message = "El precio por noche debe ser mayor a 0." };
 
+            if (string.IsNullOrWhiteSpace(tarifas.Descripcion))
+                return new OperationResult { Success = false, Message = "La descripción de la tarifa es obligatoria." };
+
             try
             {
                 _context.Tarifas.Add(tarifas);
                 await _context.SaveChangesAsync();
                 return new OperationResult { Success = true, Data = tarifas };
             }
-            catch (DbUpdateException ex)
-            {
-                var innerExceptionMessage = ex.InnerException?.Message ?? ex.Message;
-                _logger.LogError(ex, "Ocurrió un error guardando los datos: {Message}", innerExceptionMessage);
-                return new OperationResult { Success = false, Message = $"Ocurrió un error guardando los datos: {innerExceptionMessage}" };
-            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ocurrió un error inesperado: {Message}", ex.Message);
-                return new OperationResult { Success = false, Message = $"Ocurrió un error inesperado: {ex.Message}" };
+                _logger.LogError(ex, "Ocurrió un error guardando los datos: {Message}", ex.Message);
+                return new OperationResult { Success = false, Message = $"Ocurrió un error guardando los datos: {ex.Message}" };
             }
         }
-
         public override async Task<OperationResult> UpdateEntityAsync(Tarifas tarifas)
         {
             if (tarifas == null)

@@ -5,7 +5,8 @@ namespace SGHR.Domain.Repository
 {
     public interface IBaseRepository <TEntity> where TEntity : class
     {
-        Task<TEntity> GetByIdAsync(int id);
+        Task<TEntity> GetEntityByIdAsync(int id);
+        Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter);
         Task<OperationResult> UpdateEntityAsync(TEntity entity);
         Task<OperationResult> SaveEntityAsync(TEntity entity);
         Task<List<TEntity>> GetAllAsync();

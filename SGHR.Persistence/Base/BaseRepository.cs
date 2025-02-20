@@ -48,6 +48,25 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
+        public virtual async Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter)
+        {
+            OperationResult result = new OperationResult();
+
+            try
+            {
+                var datos = await Entity.Where(filter).ToListAsync();
+                result.Data = datos;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error obteniendo los datos: {ex.Message}";
+            }
+
+            return result;
+        }
+
+
         public virtual async Task<OperationResult> GetAllAsync(Expression<Func<TEntity, bool>> filter)
         {
             OperationResult result = new OperationResult();
@@ -71,7 +90,7 @@ namespace SGHR.Persistence.Base
             var entity = await Entity.FindAsync(id);
             if (entity == null)
             {
-                throw new InvalidOperationException($"Entity with id {id} not found.");
+                throw new InvalidOperationException($"Entidad con id {id} no encontrada.");
             }
             return entity;
         }
@@ -83,11 +102,6 @@ namespace SGHR.Persistence.Base
         public virtual async Task<List<TEntity>> GetAllAsync()
         {
             return await Entity.ToListAsync();
-        }
-
-        public Task<TEntity> GetByIdAsync(int id)
-        {
-            throw new NotImplementedException();
         }
     }
 }

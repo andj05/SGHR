@@ -6,6 +6,8 @@ namespace SGHR.Domain.Entities.Reservation
     public sealed class Recepcion : AuditEntity
     {
         public int IdRecepcion { get; set; }
+        public int? IdCliente { get; set; }
+        public int? IdHabitacion { get; set; }
         public int? IdEstadoReserva { get; set; }
         public DateTime FechaEntrada { get; set; }
         public DateTime? FechaSalida { get; set; }

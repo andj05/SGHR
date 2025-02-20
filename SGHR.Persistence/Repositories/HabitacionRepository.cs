@@ -24,21 +24,15 @@ namespace SGHR.Persistence.Repositories
             _logger = logger;
             _configuration = configuration;
         }
-
-        public async Task<List<Habitacion>> ObtenerTodasLasHabitacionesAsync()
+        
+        public override async Task<List<Habitacion>> GetAllAsync()
         {
-            try
-            {
-                return await _context.Habitaciones.ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error al obtener todas las habitaciones: {ex.Message}");
-                return new List<Habitacion>();
-            }
+            return await _context.Habitacion
+                                 .Where(c => c.Estado == true)
+                                 .ToListAsync();
         }
 
-        public async Task<Habitacion> ObtenerHabitacionPorIdAsync(int id)
+        public override async Task<Habitacion> GetEntityByIdAsync(int id)
         {
             if (id <= 0)
             {
@@ -46,21 +40,16 @@ namespace SGHR.Persistence.Repositories
                 throw new ArgumentException("El ID de habitación debe ser mayor que cero.");
             }
 
-            var habitacion = await _context.Habitaciones.FindAsync(id);
-            if (habitacion == null)
-            {
-                _logger.LogWarning($"Habitación con ID {id} no encontrada.");
-            }
-            return habitacion;
+            return await base.GetEntityByIdAsync(id);
         }
 
         public async Task<List<Habitacion>> ObtenerHabitacionesPorEstadoIdAsync(int idEstadoHabitacion)
         {
             try
             {
-                return await _context.Habitaciones
-                    .Where(h => h.IdEstadoHabitacion == idEstadoHabitacion)
-                    .ToListAsync();
+                return await _context.Habitacion
+                                     .Where(h => h.IdEstadoHabitacion == idEstadoHabitacion)
+                                     .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -69,89 +58,72 @@ namespace SGHR.Persistence.Repositories
             }
         }
 
-        public async Task<List<Habitacion>> ObtenerHabitacionesPorFilterAsync(Expression<Func<Habitacion, bool>> filter)
+        public override async Task<OperationResult> GetFilteredAsync(Expression<Func<Habitacion, bool>> filter)
         {
+            var result = new OperationResult();
             try
             {
-                return await _context.Habitaciones.Where(filter).ToListAsync();
+                if (filter == null)
+                {
+                    _logger.LogWarning("El filtro no puede ser nulo.");
+                    result.Success = false;
+                    result.Message = "El filtro no puede ser nulo.";
+                    return result;
+                }
+
+                _logger.LogInformation("Aplicando filtro: {Filter}", filter);
+
+                var filteredEntities = await base.GetFilteredAsync(filter);
+                result.Success = true;
+                result.Data = filteredEntities.Data; 
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al obtener habitaciones con filtro: {ex.Message}");
-                return new List<Habitacion>();
+                _logger.LogError(ex, "Error al obtener habitaciones con filtro: {Filter}", filter);
+                result.Success = false;
+                result.Message = "Error al obtener habitaciones con filtro.";
             }
+            return result;
         }
 
         public override async Task<OperationResult> SaveEntityAsync(Habitacion habitacion)
         {
-            var result = new OperationResult();
-            try
-            {
-                if (habitacion == null)
-                {
-                    result.Success = false;
-                    result.Message = "La habitación no puede ser nula.";
-                    return result;
-                }
+            if (habitacion == null)
+                return new OperationResult { Success = false, Message = "La habitacion no puede ser nula." };
+            if (string.IsNullOrWhiteSpace(habitacion.Detalle))
+                return new OperationResult { Success = false, Message = "El detalle de la habitacion no puede estar vacío." };
 
-                if (string.IsNullOrWhiteSpace(habitacion.Numero))
-                {
-                    result.Success = false;
-                    result.Message = "El número de la habitación es obligatorio.";
-                    return result;
-                }
-
-                await _context.Habitaciones.AddAsync(habitacion);
-                await _context.SaveChangesAsync();
-                result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error al guardar habitación: {ex.Message}");
-                result.Success = false;
-                result.Message = "Error al guardar la habitación.";
-            }
-            return result;
+            return await base.SaveEntityAsync(habitacion);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Habitacion habitacion)
         {
-            var result = new OperationResult();
+            if (habitacion == null)
+                return new OperationResult { Success = false, Message = "La habitacion no puede ser nula." };
+            if (string.IsNullOrWhiteSpace(habitacion.Detalle))
+                return new OperationResult { Success = false, Message = "El detalle de la habitacion no puede estar vacío." };
+
+            return await base.UpdateEntityAsync(habitacion);
+        }
+        public override async Task<bool> ExistsAsync(Expression<Func<Habitacion, bool>> filter)
+        {
             try
             {
-                if (habitacion == null || habitacion.IdHabitacion <= 0)
+                if (filter == null)
                 {
-                    result.Success = false;
-                    result.Message = "Datos de habitación inválidos.";
-                    return result;
+                    _logger.LogWarning("El filtro no puede ser nulo.");
+                    throw new ArgumentException("El filtro no puede ser nulo.");
                 }
 
-                _context.Habitaciones.Update(habitacion);
-                await _context.SaveChangesAsync();
-                result.Success = true;
+                _logger.LogInformation("Verificando existencia con filtro: {Filter}", filter);
+
+                return await base.ExistsAsync(filter);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al actualizar habitación: {ex.Message}");
-                result.Success = false;
-                result.Message = "Error al actualizar la habitación.";
+                _logger.LogError(ex, "Error al verificar existencia con filtro: {Filter}", filter);
+                throw;
             }
-            return result;
-        }
-
-        public async Task<bool> ExisteHabitacionAsync(int id)
-        {
-            return await _context.Habitaciones.AnyAsync(h => h.IdHabitacion == id);
-        }
-
-        public async Task<OperationResult> GuardarHabitacionAsync(Habitacion habitacion)
-        {
-            return await SaveEntityAsync(habitacion);
-        }
-
-        public async Task<OperationResult> ActualizarHabitacionAsync(Habitacion habitacion)
-        {
-            return await UpdateEntityAsync(habitacion);
         }
     }
 }

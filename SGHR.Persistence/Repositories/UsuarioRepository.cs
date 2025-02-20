@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
 using SGHR.Persistence.Base;
-using SGHR.Persistence.Contex;
+using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using System;
 using System.Linq;
@@ -19,11 +19,9 @@ namespace SGHR.Persistence.Repositories
         private readonly ILogger<UsuarioRepository> _logger;
         private readonly IConfiguration _configuration;
 
-        public UsuarioRepository(
-            SGHRContext context,
-            ILogger<UsuarioRepository> logger,
-            IConfiguration configuration)
-            : base(context)
+        public UsuarioRepository(SGHRContext context,
+                                ILogger<UsuarioRepository> logger,
+                                IConfiguration configuration) : base(context)
         {
             _context = context;
             _logger = logger;
@@ -66,7 +64,31 @@ namespace SGHR.Persistence.Repositories
             }
             return result;
         }
-
+        public async Task<OperationResult> GetEntityByIdAsync(int idUsuario)
+        {
+            var result = new OperationResult();
+            try
+            {
+                var usuario = await _context.Set<Usuario>().FindAsync(idUsuario);
+                if (usuario != null)
+                {
+                    result.Data = usuario;
+                    result.Success = true;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "Usuario no encontrado.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al obtener el usuario con id {idUsuario}.");
+                result.Success = false;
+                result.Message = $"Error al obtener el usuario: {ex.Message}";
+            }
+            return result;
+        }
         public async Task<OperationResult> ObtenerUsuariosPorFilterAsync(Expression<Func<Usuario, bool>> filter)
         {
             if (filter == null)
@@ -131,20 +153,29 @@ namespace SGHR.Persistence.Repositories
             }
         }
 
-        public async Task<bool> ExisteUsuarioAsync(int id)
+        public async Task<OperationResult> ExisteUsuarioAsync(int idUsuario)
         {
-            if (id <= 0)
-                return false;
+            var result = new OperationResult();
+            if (idUsuario <= 0)
+            {
+                result.Success = false;
+                result.Message = "El ID del usuario es inválido.";
+                return result;
+            }
 
             try
             {
-                return await _context.Set<Usuario>().AnyAsync(u => u.IdUsuario == id);
+                bool exists = await _context.Set<Usuario>().AnyAsync(u => u.IdUsuario == idUsuario);
+                result.Success = exists;
+                result.Message = exists ? "Usuario encontrado." : "Usuario no encontrado.";
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia del usuario con id {id}.");
-                return false;
+                _logger.LogError(ex, $"Error al verificar la existencia del usuario con id {idUsuario}.");
+                result.Success = false;
+                result.Message = $"Error al verificar la existencia del usuario: {ex.Message}";
             }
+            return result;
         }
     }
 }

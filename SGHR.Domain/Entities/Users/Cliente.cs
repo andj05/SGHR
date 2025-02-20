@@ -12,5 +12,6 @@ namespace SGHR.Domain.Entities.Users
         public DateTime FechaCreacion { get; set; }
         public string? Nacionalidad { get; set; }
         public string? Telefono { get; set; }
+        public bool Estado { get; set; } = true;
     }
 }

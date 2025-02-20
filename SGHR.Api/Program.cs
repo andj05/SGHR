@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using SGHR.Persistence.Context;
+using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repositories;
 
 namespace SGHR.Api
 {
@@ -8,6 +12,10 @@ namespace SGHR.Api
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+            builder.Services.AddDbContext<SGHRContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
+
+            builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
+            builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

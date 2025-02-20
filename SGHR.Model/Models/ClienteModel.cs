@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SGHR.Model.Models
+﻿namespace SGHR.Model.Models
 {
     internal class ClienteModel
     {
@@ -17,7 +11,6 @@ namespace SGHR.Model.Models
         public string? Nacionalidad { get; set; }
         public bool Estado { get; set; } = true;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
-
     }
 }
 

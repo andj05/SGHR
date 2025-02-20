@@ -7,11 +7,13 @@ namespace SGHR.Persistence.Interfaces
 {
     public interface IClienteRepository : IBaseRepository<Cliente>
     {
-        Task<OperationResult> ObtenerTodosLosClientesAsync();
+        Task<IEnumerable<Cliente>> ObtenerTodosLosClientesAsync();
+        Task<OperationResult> GetEntityByIdAsync(int idCliente);
         Task<OperationResult> ObtenerClientePorEstadoIdAsync(int idEstadoCliente);
         Task<OperationResult> ObtenerClientePorFilterAsync(Expression<Func<Cliente, bool>> filter);
-        Task<OperationResult> GuardarClienteAsync(Cliente cliente);
-        Task<OperationResult> ActualizarClienteAsync(Cliente cliente);
-        Task<bool> ExisteClienteAsync(int id);
+        Task<OperationResult> SaveEntityAsync(int idCliente);
+        Task<OperationResult> UpdateEntityAsync(int idCliente);
+        Task<OperationResult> DeleteEntityAsync(int idCliente);
+        Task<OperationResult> ExisteClienteAsync(int idCliente);
     }
 }

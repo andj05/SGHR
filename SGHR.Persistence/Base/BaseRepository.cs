@@ -1,8 +1,10 @@
-﻿using System.Linq.Expressions;
+﻿
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using SGHR.Domain.Base;
+using SGHR.Domain.Entities.Users;
 using SGHR.Domain.Repository;
-using SGHR.Persistence.Contex;
+using SGHR.Persistence.Context;
 
 namespace SGHR.Persistence.Base
 {
@@ -48,7 +50,7 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
-        public virtual async Task<OperationResult> GetAllAsync(Expression<Func<TEntity, bool>> filter)
+        public virtual async Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter)
         {
             OperationResult result = new OperationResult();
 
@@ -68,13 +70,9 @@ namespace SGHR.Persistence.Base
 
         public virtual async Task<TEntity> GetEntityByIdAsync(int id)
         {
-            var entity = await Entity.FindAsync(id);
-            if (entity == null)
-            {
-                throw new InvalidOperationException($"Entity with id {id} not found.");
-            }
-            return entity;
+            return await Entity.FindAsync(id);
         }
+
         public virtual async Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> filter)
         {
 
@@ -85,5 +83,29 @@ namespace SGHR.Persistence.Base
             return await Entity.ToListAsync();
         }
 
+        public async Task<OperationResult> DeleteEntityAsync(int id)
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                var entity = await Entity.FindAsync(id);
+                if (entity == null)
+                {
+                    result.Success = false;
+                    result.Message = "Entity not found";
+                    return result;
+                }
+
+                Entity.Remove(entity);
+                await _context.SaveChangesAsync();
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error eliminando los datos: {ex.Message}";
+            }
+            return result;
+        }
     }
 }

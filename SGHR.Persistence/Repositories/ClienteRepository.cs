@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
 using SGHR.Persistence.Base;
-using SGHR.Persistence.Contex;
+using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using System.Linq.Expressions;
 
@@ -16,32 +16,26 @@ namespace SGHR.Persistence.Repositories
         private readonly ILogger<ClienteRepository> _logger;
         private readonly IConfiguration _configuration;
 
-        public ClienteRepository(
-            SGHRContext context,
-            ILogger<ClienteRepository> logger,
-            IConfiguration configuration)
-            : base(context)
+        public ClienteRepository(SGHRContext context,
+                                ILogger<ClienteRepository> logger,
+                                IConfiguration configuration) : base(context)
         {
             _context = context;
             _logger = logger;
             _configuration = configuration;
         }
 
-        public async Task<OperationResult> ObtenerTodosLosClientesAsync()
+        public async Task<IEnumerable<Cliente>> ObtenerTodosLosClientesAsync()
         {
-            var result = new OperationResult();
             try
             {
-                var clientes = await _context.Set<Cliente>().ToListAsync();
-                result.Data = clientes;
+                return await _context.Set<Cliente>().ToListAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al obtener todos los clientes.");
-                result.Success = false;
-                result.Message = $"Error al obtener clientes: {ex.Message}";
+                throw;
             }
-            return result;
         }
 
         public async Task<OperationResult> ObtenerClientePorEstadoIdAsync(int idEstadoCliente)
@@ -86,65 +80,84 @@ namespace SGHR.Persistence.Repositories
             return result;
         }
 
-        public async Task<OperationResult> GuardarClienteAsync(Cliente cliente)
+        public async Task<OperationResult> SaveEntityAsync(int idCliente)
         {
+            var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
             if (cliente == null)
             {
-                return new OperationResult { Success = false, Message = "El cliente no puede ser nulo." };
+                return new OperationResult { Success = false, Message = "El cliente no fue encontrado." };
             }
+            return await SaveEntityAsync(cliente);
+        }
 
-            if (string.IsNullOrWhiteSpace(cliente.NombreCompleto))
+        public async Task<OperationResult> UpdateEntityAsync(int idCliente)
+        {
+            var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
+            if (cliente == null)
             {
-                return new OperationResult { Success = false, Message = "El nombre completo es obligatorio." };
+                return new OperationResult { Success = false, Message = "El cliente no fue encontrado." };
             }
+            return await UpdateEntityAsync(cliente);
+        }
 
+        public async Task<OperationResult> DeleteClienteAsync(int id)
+        {
+            var cliente = await _context.Set<Cliente>().FindAsync(id);
+            if (cliente == null)
+            {
+                return new OperationResult { Success = false, Message = "El cliente no fue encontrado." };
+            }
+            return await DeleteEntityAsync(cliente.IdCliente);
+        }
+
+        public async Task<OperationResult> GetEntityByIdAsync(int idCliente)
+        {
+            var result = new OperationResult();
             try
             {
-                return await SaveEntityAsync(cliente);
+                var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
+                if (cliente == null)
+                {
+                    result.Success = false;
+                    result.Message = "Cliente no encontrado.";
+                }
+                else
+                {
+                    result.Success = true;
+                    result.Data = cliente;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar el cliente.");
-                return new OperationResult { Success = false, Message = $"Error al guardar el cliente: {ex.Message}" };
+                _logger.LogError(ex, $"Error al obtener el cliente con id {idCliente}.");
+                result.Success = false;
+                result.Message = $"Error al obtener el cliente: {ex.Message}";
             }
+            return result;
         }
 
-        public async Task<OperationResult> ActualizarClienteAsync(Cliente cliente)
+        public async Task<OperationResult> ExisteClienteAsync(int id)
         {
-            if (cliente == null)
-            {
-                return new OperationResult { Success = false, Message = "El cliente no puede ser nulo." };
-            }
-            if (cliente.IdCliente <= 0)
-            {
-                return new OperationResult { Success = false, Message = "El ID del cliente es inválido." };
-            }
-            try
-            {
-                return await UpdateEntityAsync(cliente);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al actualizar el cliente.");
-                return new OperationResult { Success = false, Message = $"Error al actualizar el cliente: {ex.Message}" };
-            }
-        }
-
-        public async Task<bool> ExisteClienteAsync(int id)
-        {
+            var result = new OperationResult();
             if (id <= 0)
             {
-                return false;
+                result.Success = false;
+                result.Message = "El ID del cliente es inválido.";
+                return result;
             }
             try
             {
-                return await _context.Set<Cliente>().AnyAsync(c => c.IdCliente == id);
+                bool exists = await _context.Set<Cliente>().AnyAsync(c => c.IdCliente == id);
+                result.Success = exists;
+                result.Data = exists;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error al verificar la existencia del cliente con id {id}.");
-                return false;
+                result.Success = false;
+                result.Message = $"Error al verificar la existencia del cliente: {ex.Message}";
             }
+            return result;
         }
     }
 }

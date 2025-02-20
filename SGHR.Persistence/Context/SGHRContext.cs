@@ -1,7 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SGHR.Domain.Entities.Users;
+using SGHR.Persistence.Configurations;
 
-namespace SGHR.Persistence.Contex
+namespace SGHR.Persistence.Context
 {
     public class SGHRContext : DbContext
     {
@@ -12,5 +13,12 @@ namespace SGHR.Persistence.Contex
 
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.ApplyConfiguration(new ClienteConfiguration());
+            modelBuilder.ApplyConfiguration(new UsuarioConfiguration());
+        }
     }
 }

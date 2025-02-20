@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SGHR.Domain.Entities.Configuration;
 
 namespace SGHR.Persistence.Configurations
 {

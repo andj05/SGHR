@@ -10,5 +10,6 @@ namespace SGHR.Persistence.Configurations
         {
             builder.HasKey(c => c.IdCategoria);
         }
+
     }
 }

@@ -47,7 +47,7 @@ namespace SGHR.Api.Controllers
                 var savedPiso = await _pisoRepository.SaveEntityAsync(piso);
                 if (savedPiso.Success == true)
                 {
-                    return Ok(new { Message = "Piso guardado exitosamente", Piso = savedPiso.Data });
+                    return Ok("Piso guardado exitosamente");
                 }
                 return BadRequest(savedPiso.Message);
             }

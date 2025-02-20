@@ -73,20 +73,20 @@ namespace SGHR.Persistence.Repository
 
         // Métodos adicionales para manejar la entidad de Piso
 
-        public override async Task<OperationResult> SaveEntityAsync(Piso entity)
+        public override async Task<OperationResult> SaveEntityAsync(Piso piso)
         {
-            if (entity == null)
+            if (piso == null)
                 return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
 
-            return await base.SaveEntityAsync(entity);
+            return await base.SaveEntityAsync(piso);
         }
 
-        public override async Task<OperationResult> UpdateEntityAsync(Piso entity)
+        public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
         {
-            if (entity == null)
+            if (piso == null)
                 return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
 
-            return await base.UpdateEntityAsync(entity);
+            return await base.UpdateEntityAsync(piso);
         }
     }
 }

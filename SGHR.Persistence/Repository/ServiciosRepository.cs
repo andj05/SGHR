@@ -71,32 +71,32 @@ namespace SGHR.Persistence.Repository
 
         // Métodos adicionales para SaveEntityAsync y UpdateEntityAsync si es necesario
 
-        public override async Task<OperationResult> SaveEntityAsync(Servicios entity)
+        public override async Task<OperationResult> SaveEntityAsync(Servicios servicio)
         {
-            if (entity == null)
+            if (servicio == null)
                 return new OperationResult { Success = false, Message = "El servicio no puede ser nulo." };
 
-            if (string.IsNullOrWhiteSpace(entity.Nombre))
+            if (string.IsNullOrWhiteSpace(servicio.Nombre))
                 return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio." };
 
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(servicio.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción del servicio es obligatoria." };
 
-            return await base.SaveEntityAsync(entity);
+            return await base.SaveEntityAsync(servicio);
         }
 
-        public override async Task<OperationResult> UpdateEntityAsync(Servicios entity)
+        public override async Task<OperationResult> UpdateEntityAsync(Servicios servicio)
         {
-            if (entity == null)
+            if (servicio == null)
                 return new OperationResult { Success = false, Message = "El servicio no puede ser nulo." };
 
-            if (string.IsNullOrWhiteSpace(entity.Nombre))
+            if (string.IsNullOrWhiteSpace(servicio.Nombre))
                 return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio." };
 
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(servicio.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción del servicio es obligatoria." };
 
-            return await base.UpdateEntityAsync(entity);
+            return await base.UpdateEntityAsync(servicio);
         }
     }
 }

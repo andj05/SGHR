@@ -43,7 +43,7 @@ namespace SGHR.Persistence.Repository
             var estadoHabitacion = await _context.EstadoHabitacion.FindAsync(idEstado);
             if (estadoHabitacion != null)
             {
-                estadoHabitacion.Estado = estado; // Actualiza solo el estado
+                estadoHabitacion.Estado = estado; 
                 await _context.SaveChangesAsync();
                 return true;
             }
@@ -68,22 +68,22 @@ namespace SGHR.Persistence.Repository
             return false;
         }
 
-        public override async Task<OperationResult> SaveEntityAsync(EstadoHabitacion entity)
+        public override async Task<OperationResult> SaveEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            if (entity == null)
+            if (estadoHabitacion == null)
                 return new OperationResult { Success = false, Message = "El estado de habitación no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(estadoHabitacion.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción no puede ser vacía." };
-            return await base.SaveEntityAsync(entity);
+            return await base.SaveEntityAsync(estadoHabitacion);
         }
 
-        public override async Task<OperationResult> UpdateEntityAsync(EstadoHabitacion entity)
+        public override async Task<OperationResult> UpdateEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            if (entity == null)
+            if (estadoHabitacion == null)
                 return new OperationResult { Success = false, Message = "El estado de habitación no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(estadoHabitacion.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción no puede ser vacía." };
-            return await base.UpdateEntityAsync(entity);
+            return await base.UpdateEntityAsync(estadoHabitacion);
         }
     }
 }

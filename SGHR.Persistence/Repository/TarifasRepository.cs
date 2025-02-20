@@ -92,19 +92,19 @@ namespace SGHR.Persistence.Repository
             return tarifas.Select(t => new OperationResult { Success = true, Data = t }).ToList();
         }
 
-        public override async Task<OperationResult> SaveEntityAsync(Tarifas entity)
+        public override async Task<OperationResult> SaveEntityAsync(Tarifas tarifas)
         {
-            if (entity == null)
+            if (tarifas == null)
                 return new OperationResult { Success = false, Message = "La tarifa no puede ser nula." };
 
-            if (entity.PrecioPorNoche <= 0)
+            if (tarifas.PrecioPorNoche <= 0)
                 return new OperationResult { Success = false, Message = "El precio por noche debe ser mayor a 0." };
 
             try
             {
-                _context.Tarifas.Add(entity);
+                _context.Tarifas.Add(tarifas);
                 await _context.SaveChangesAsync();
-                return new OperationResult { Success = true, Data = entity };
+                return new OperationResult { Success = true, Data = tarifas };
             }
             catch (DbUpdateException ex)
             {
@@ -119,15 +119,15 @@ namespace SGHR.Persistence.Repository
             }
         }
 
-        public override async Task<OperationResult> UpdateEntityAsync(Tarifas entity)
+        public override async Task<OperationResult> UpdateEntityAsync(Tarifas tarifas)
         {
-            if (entity == null)
+            if (tarifas == null)
                 return new OperationResult { Success = false, Message = "La tarifa no puede ser nula." };
 
-            if (entity.PrecioPorNoche <= 0)
+            if (tarifas.PrecioPorNoche <= 0)
                 return new OperationResult { Success = false, Message = "El precio por noche debe ser mayor a 0." };
 
-            return await base.UpdateEntityAsync(entity);
+            return await base.UpdateEntityAsync(tarifas);
         }
     }
 }

@@ -69,33 +69,35 @@ namespace SGHR.Persistence.Repository
             }
             return false;
         }
-        public async Task<OperationResult> DeleteEntityAsync(Categoria entity)
+        public async Task<OperationResult> DeleteEntityAsync(Categoria categoria)
         {
-            if (entity == null)
+            if (categoria == null)
                 return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
 
-            _context.Categoria.Remove(entity);
+            _context.Categoria.Remove(categoria);
             await _context.SaveChangesAsync();
             return new OperationResult { Success = true, Message = "Categoría eliminada correctamente." };
         }
-        public override async Task<OperationResult> SaveEntityAsync(Categoria entity)
+
+        // Implementación de los métodos de la clase base
+        public override async Task<OperationResult> SaveEntityAsync(Categoria categoria)
         {
-            if (entity == null)
+            if (categoria == null)
                 return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(categoria.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción de la categoría no puede estar vacía." };
 
-            return await base.SaveEntityAsync(entity);
+            return await base.SaveEntityAsync(categoria);
         }
 
-        public override async Task<OperationResult> UpdateEntityAsync(Categoria entity)
+        public override async Task<OperationResult> UpdateEntityAsync(Categoria categoria)
         {
-            if (entity == null)
+            if (categoria == null)
                 return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(categoria.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción de la categoría no puede estar vacía." };
 
-            return await base.UpdateEntityAsync(entity);
+            return await base.UpdateEntityAsync(categoria);
         }
 
     }

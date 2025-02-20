@@ -81,28 +81,28 @@ namespace SGHR.Persistence.Repository
         }
 
         // Implementación del método SaveEntityAsync
-        public override async Task<OperationResult> SaveEntityAsync(RolUsuario entity)
+        public override async Task<OperationResult> SaveEntityAsync(RolUsuario rolUsuario)
         {
-            if (entity == null)
+            if (rolUsuario == null)
                 return new OperationResult { Success = false, Message = "El rol de usuario no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción del rol no puede estar vacía." };
 
-            _context.RolUsuario.Add(entity);
+            _context.RolUsuario.Add(rolUsuario);
             await _context.SaveChangesAsync();
-            return new OperationResult { Success = true, Data = entity };
+            return new OperationResult { Success = true, Data = rolUsuario };
         }
 
-        public override async Task<OperationResult> UpdateEntityAsync(RolUsuario entity)
+        public override async Task<OperationResult> UpdateEntityAsync(RolUsuario rolUsuario)
         {
-            if (entity == null)
+            if (rolUsuario == null)
                 return new OperationResult { Success = false, Message = "El rol de usuario no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(entity.Descripcion))
+            if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion))
                 return new OperationResult { Success = false, Message = "La descripción del rol no puede estar vacía." };
 
-            _context.RolUsuario.Update(entity);
+            _context.RolUsuario.Update(rolUsuario);
             await _context.SaveChangesAsync();
-            return new OperationResult { Success = true, Message = "Rol de usuario actualizado correctamente.", Data = entity };
+            return new OperationResult { Success = true, Message = "Rol de usuario actualizado correctamente.", Data = rolUsuario };
         }
     }
 }

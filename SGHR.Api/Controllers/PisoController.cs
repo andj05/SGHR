@@ -65,7 +65,7 @@ namespace SGHR.Api.Controllers
             var updatedPiso = await _pisoRepository.UpdateEntityAsync(piso);
             if (updatedPiso.Success == true)
             {
-                return Ok(new { Message = "Piso actualizado correctamente." });
+                return Ok( "Piso actualizado correctamente." );
             }
             return BadRequest(updatedPiso.Message);
 

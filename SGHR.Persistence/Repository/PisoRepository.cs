@@ -7,7 +7,6 @@ using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 
-
 namespace SGHR.Persistence.Repository
 {
     public class PisoRepository : BaseRepository<Piso>, IPisoRepository
@@ -30,27 +29,8 @@ namespace SGHR.Persistence.Repository
         public async Task<IEnumerable<Piso>> ObtenerTodosLosPisosAsync()
         {
             return await _context.Pisos
-           .Where(p => p.Estado == true)
-           .ToListAsync();
-        }
-
-
-        public async Task<Piso?> ObtenerPisoPorDescripcionAsync(string descripcion)
-        {
-            return await _context.Pisos
-                .FirstOrDefaultAsync(p => p.Descripcion == descripcion);
-        }
-
-        public async Task<bool> ActualizarEstadoPisoAsync(int idPiso, bool estado)
-        {
-            var piso = await _context.Pisos.FindAsync(idPiso);
-            if (piso != null)
-            {
-                piso.Estado = estado;
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
+                .Where(p => p.Estado == true)
+                .ToListAsync();
         }
 
         public async Task<bool> ExistePisoAsync(int idPiso)
@@ -71,22 +51,39 @@ namespace SGHR.Persistence.Repository
             return false;
         }
 
-        // Métodos adicionales para manejar la entidad de Piso
-
         public override async Task<OperationResult> SaveEntityAsync(Piso piso)
         {
-            if (piso == null)
-                return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
-
+            var validationResult = ValidatePiso(piso);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.SaveEntityAsync(piso);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
         {
-            if (piso == null)
-                return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
-
+            var validationResult = ValidatePiso(piso);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.UpdateEntityAsync(piso);
+        }
+
+        private OperationResult ValidatePiso(Piso piso)
+        {
+            if (piso == null)
+            {
+                return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
+            }
+
+            if (string.IsNullOrWhiteSpace(piso.Descripcion) || piso.Descripcion.Length > 100)
+            {
+                return new OperationResult { Success = false, Message = "La descripción del piso es obligatoria y debe tener un máximo de 100 caracteres." };
+            }
+
+            return new OperationResult { Success = true };
         }
     }
 }

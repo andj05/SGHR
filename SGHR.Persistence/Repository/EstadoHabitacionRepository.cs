@@ -1,5 +1,4 @@
-﻿
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
@@ -32,58 +31,47 @@ namespace SGHR.Persistence.Repository
                 .ToListAsync();
         }
 
-        public async Task<EstadoHabitacion?> ObtenerEstadoPorDescripcionAsync(string descripcion)
-        {
-            return await _context.EstadoHabitacion
-                .FirstOrDefaultAsync(e => e.Descripcion == descripcion);
-        }
-
-        public async Task<bool> ActualizarEstadoAsync(int idEstado, bool estado)
-        {
-            var estadoHabitacion = await _context.EstadoHabitacion.FindAsync(idEstado);
-            if (estadoHabitacion != null)
-            {
-                estadoHabitacion.Estado = estado; 
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
-        }
-
         public async Task<bool> ExisteEstadoHabitacionAsync(int idEstado)
         {
             return await _context.EstadoHabitacion
                 .AnyAsync(e => e.IdEstadoHabitacion == idEstado);
         }
 
-        public async Task<bool> ActualizarDescripcionEstadoAsync(int idEstado, string nuevaDescripcion)
-        {
-            var estadoHabitacion = await _context.EstadoHabitacion.FindAsync(idEstado);
-            if (estadoHabitacion != null)
-            {
-                estadoHabitacion.Descripcion = nuevaDescripcion;
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
-        }
-
         public override async Task<OperationResult> SaveEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            if (estadoHabitacion == null)
-                return new OperationResult { Success = false, Message = "El estado de habitación no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(estadoHabitacion.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción no puede ser vacía." };
+            var validationResult = ValidateEstadoHabitacion(estadoHabitacion);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.SaveEntityAsync(estadoHabitacion);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            if (estadoHabitacion == null)
-                return new OperationResult { Success = false, Message = "El estado de habitación no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(estadoHabitacion.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción no puede ser vacía." };
+            var validationResult = ValidateEstadoHabitacion(estadoHabitacion);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.UpdateEntityAsync(estadoHabitacion);
+        }
+
+        private OperationResult ValidateEstadoHabitacion(EstadoHabitacion estadoHabitacion)
+        {
+            if (estadoHabitacion == null)
+            {
+                return new OperationResult { Success = false, Message = "El estado de habitación no puede ser nulo." };
+            }
+
+            if (string.IsNullOrWhiteSpace(estadoHabitacion.Descripcion) || estadoHabitacion.Descripcion.Length > 100)
+            {
+                return new OperationResult { Success = false, Message = "La descripción del estado de habitación es obligatoria y debe tener un máximo de 100 caracteres." };
+            }
+
+            return new OperationResult { Success = true };
         }
     }
 }
+
+

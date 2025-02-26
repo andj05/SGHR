@@ -67,7 +67,26 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
-        public virtual async Task<TEntity> GetEntityByIdAsync(int id)
+        public virtual async Task<OperationResult> DeleteEntityAsync(TEntity entity)
+        {
+            OperationResult result = new OperationResult();
+
+            try
+            {
+                Entity.Remove(entity);
+                await _context.SaveChangesAsync();
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error eliminando los datos: {ex.Message}";
+            }
+
+            return result;
+        }
+
+        public virtual async Task<TEntity?> GetEntityByIdAsync(int id)
         {
             return await Entity.FindAsync(id);
         }

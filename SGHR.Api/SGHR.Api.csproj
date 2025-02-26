@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -11,10 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SGHR.Domain\SGHR.Domain.csproj" />
-    <ProjectReference Include="..\SGHR.Infraestructure\SGHR.Infraestructure.csproj" />
-    <ProjectReference Include="..\SGHR.Persistence\SGHR.Persistence.csproj" />
-	
+    <ProjectReference Include="..\SGHR.IOC\SGHR.IOC.csproj" />
   </ItemGroup>
 
 </Project>

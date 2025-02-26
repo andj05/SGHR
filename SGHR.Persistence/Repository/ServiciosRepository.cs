@@ -33,12 +33,6 @@ namespace SGHR.Persistence.Repository
                 .ToListAsync();
         }
 
-        public async Task<Servicios?> ObtenerServicioPorNombreAsync(string nombre)
-        {
-            return await _context.Servicios
-                .FirstOrDefaultAsync(s => s.Nombre.Equals(nombre, StringComparison.OrdinalIgnoreCase));
-        }
-
         public async Task<bool> ActualizarEstadoServicioAsync(int idServicio, bool estado)
         {
             var servicio = await _context.Servicios.FindAsync(idServicio);
@@ -57,47 +51,45 @@ namespace SGHR.Persistence.Repository
                 .AnyAsync(s => s.IdServicio == idServicio);
         }
 
-        public async Task<bool> ActualizarDescripcionServicioAsync(int idServicio, string nuevaDescripcion)
-        {
-            var servicio = await _context.Servicios.FindAsync(idServicio);
-            if (servicio != null)
-            {
-                servicio.Descripcion = nuevaDescripcion;
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
-        }
-
-        // Métodos adicionales para SaveEntityAsync y UpdateEntityAsync si es necesario
 
         public override async Task<OperationResult> SaveEntityAsync(Servicios servicio)
         {
-            if (servicio == null)
-                return new OperationResult { Success = false, Message = "El servicio no puede ser nulo." };
-
-            if (string.IsNullOrWhiteSpace(servicio.Nombre))
-                return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio." };
-
-            if (string.IsNullOrWhiteSpace(servicio.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción del servicio es obligatoria." };
-
+            var validationResult = ValidateServicio(servicio);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.SaveEntityAsync(servicio);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Servicios servicio)
         {
-            if (servicio == null)
-                return new OperationResult { Success = false, Message = "El servicio no puede ser nulo." };
-
-            if (string.IsNullOrWhiteSpace(servicio.Nombre))
-                return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio." };
-
-            if (string.IsNullOrWhiteSpace(servicio.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción del servicio es obligatoria." };
-
+            var validationResult = ValidateServicio(servicio);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.UpdateEntityAsync(servicio);
+        }
+
+        private OperationResult ValidateServicio(Servicios servicio)
+        {
+            if (servicio == null)
+            {
+                return new OperationResult { Success = false, Message = "El servicio no puede ser nulo." };
+            }
+
+            if (string.IsNullOrWhiteSpace(servicio.Nombre) || servicio.Nombre.Length > 50)
+            {
+                return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio y debe tener un máximo de 50 caracteres." };
+            }
+
+            if (string.IsNullOrWhiteSpace(servicio.Descripcion) || servicio.Descripcion.Length > 100)
+            {
+                return new OperationResult { Success = false, Message = "La descripción del servicio es obligatoria y debe tener un máximo de 100 caracteres." };
+            }
+
+            return new OperationResult { Success = true };
         }
     }
 }
-

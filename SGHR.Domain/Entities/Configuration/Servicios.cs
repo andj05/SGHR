@@ -4,7 +4,6 @@ namespace SGHR.Domain.Entities.Configuration
 {
     public sealed class Servicios : AuditEntity
     {
-     
         public int IdServicio { get; set; } 
         public required string Nombre { get; set; } 
         public required string Descripcion { get; set; }

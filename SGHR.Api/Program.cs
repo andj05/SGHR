@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using SGHR.Persistence.Repository;
+using SGHR.IOC.Dependencies;
 
 namespace SGHR.Api
 {
@@ -17,13 +18,13 @@ namespace SGHR.Api
 
             builder.Services.AddDbContext<SGHRContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
             
-            builder.Services.AddScoped<ITarifasRepository, TarifasRepository>();
-            builder.Services.AddScoped<IServiciosRepository, ServiciosRepository>();
-            builder.Services.AddScoped<IRolUsuarioRepository, RolUsuarioRepository>();
-            builder.Services.AddScoped<IPisoRepository, PisoRepository>();
-            builder.Services.AddScoped<ICategoriaRepository, CategoriaRepository>();
-            builder.Services.AddScoped<IEstadoHabitacionRepository, EstadoHabitacionRepository>();  
-
+            builder.Services.AddTarifasDependency();
+            builder.Services.AddServiciosDependency();
+            builder.Services.AddRolUsuarioDependency();
+            builder.Services.AddPisosDependency();
+            builder.Services.AddEstadoHabitacionDependency();
+            builder.Services.AddCategoriasDependency();
+ 
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

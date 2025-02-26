@@ -38,34 +38,10 @@ namespace SGHR.Persistence.Repository
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<bool> ActualizarEstadoRolAsync(int idRolUsuario, bool estado)
-        {
-            var rolUsuario = await _context.RolUsuario.FindAsync(idRolUsuario);
-            if (rolUsuario != null)
-            {
-                rolUsuario.Estado = estado;
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
-        }
-
         public async Task<bool> ExisteRolUsuarioAsync(int idRolUsuario)
         {
             return await _context.RolUsuario
                 .AnyAsync(r => r.IdRolUsuario == idRolUsuario);
-        }
-
-        public async Task<bool> ActualizarDescripcionRolAsync(int idRolUsuario, string nuevaDescripcion)
-        {
-            var rolUsuario = await _context.RolUsuario.FindAsync(idRolUsuario);
-            if (rolUsuario != null)
-            {
-                rolUsuario.Descripcion = nuevaDescripcion;
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
         }
 
         public async Task<OperationResult> EliminarRolAsync(int idRolUsuario)
@@ -80,29 +56,38 @@ namespace SGHR.Persistence.Repository
             return new OperationResult { Success = false, Message = "Rol no encontrado." };
         }
 
-        // Implementación del método SaveEntityAsync
         public override async Task<OperationResult> SaveEntityAsync(RolUsuario rolUsuario)
         {
-            if (rolUsuario == null)
-                return new OperationResult { Success = false, Message = "El rol de usuario no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción del rol no puede estar vacía." };
-
-            _context.RolUsuario.Add(rolUsuario);
-            await _context.SaveChangesAsync();
-            return new OperationResult { Success = true, Data = rolUsuario };
+            var validationResult = ValidateRolUsuario(rolUsuario);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
+            return await base.SaveEntityAsync(rolUsuario);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(RolUsuario rolUsuario)
         {
+            var validationResult = ValidateRolUsuario(rolUsuario);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
+            return await base.UpdateEntityAsync(rolUsuario);
+        }
+        private OperationResult ValidateRolUsuario(RolUsuario rolUsuario)
+        {
             if (rolUsuario == null)
+            {
                 return new OperationResult { Success = false, Message = "El rol de usuario no puede ser nulo." };
-            if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción del rol no puede estar vacía." };
+            }
 
-            _context.RolUsuario.Update(rolUsuario);
-            await _context.SaveChangesAsync();
-            return new OperationResult { Success = true, Message = "Rol de usuario actualizado correctamente.", Data = rolUsuario };
+            if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion) || rolUsuario.Descripcion.Length > 100)
+            {
+                return new OperationResult { Success = false, Message = "La descripción del rol es obligatoria y debe tener un máximo de 100 caracteres." };
+            }
+
+            return new OperationResult { Success = true };
         }
     }
 }

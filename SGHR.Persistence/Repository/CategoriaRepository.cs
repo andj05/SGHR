@@ -33,24 +33,6 @@ namespace SGHR.Persistence.Repository
                 .ToListAsync();
         }
 
-        public async Task<Categoria?> ObtenerCategoriaPorDescripcionAsync(string descripcion)
-        {
-            return await _context.Categoria
-                .FirstOrDefaultAsync(c => c.Descripcion == descripcion);
-        }
-
-        public async Task<bool> ActualizarEstadoCategoriaAsync(int idCategoria, bool estado)
-        {
-            var categoria = await _context.Categoria.FindAsync(idCategoria);
-            if (categoria != null)
-            {
-                categoria.FechaCreacion = estado ? DateTime.Now : DateTime.MinValue;
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
-        }
-
         public async Task<bool> ExisteCategoriaAsync(int IdCategoria)
         {
             var categoria = await _context.Categoria
@@ -58,17 +40,6 @@ namespace SGHR.Persistence.Repository
             return categoria != null;
         }
 
-        public async Task<bool> ActualizarDescripcionCategoriaAsync(int idCategoria, string nuevaDescripcion)
-        {
-            var categoria = await _context.Categoria.FindAsync(idCategoria);
-            if (categoria != null)
-            {
-                categoria.Descripcion = nuevaDescripcion;
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            return false;
-        }
         public async Task<OperationResult> DeleteEntityAsync(Categoria categoria)
         {
             if (categoria == null)
@@ -82,23 +53,39 @@ namespace SGHR.Persistence.Repository
         // Implementación de los métodos de la clase base
         public override async Task<OperationResult> SaveEntityAsync(Categoria categoria)
         {
-            if (categoria == null)
-                return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(categoria.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción de la categoría no puede estar vacía." };
-
+            var validationResult = ValidateCategoria(categoria);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.SaveEntityAsync(categoria);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Categoria categoria)
         {
-            if (categoria == null)
-                return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(categoria.Descripcion))
-                return new OperationResult { Success = false, Message = "La descripción de la categoría no puede estar vacía." };
-
+            var validationResult = ValidateCategoria(categoria);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
             return await base.UpdateEntityAsync(categoria);
         }
 
+        private OperationResult ValidateCategoria(Categoria categoria)
+        {
+            if (categoria == null)
+            {
+                return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
+            }
+
+            if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 100)
+            {
+                return new OperationResult { Success = false, Message = "La descripción de la categoría es obligatoria y debe tener un máximo de 100 caracteres." };
+            }
+
+            return new OperationResult { Success = true };
+        }
     }
 }
+
+

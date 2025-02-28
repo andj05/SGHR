@@ -2,14 +2,11 @@
 
 namespace SGHR.Domain.Entities.Users
 {
-    public sealed class Usuario : AuditEntity
+    public sealed class Usuario : BaseEntity<int>
     {
-        public int IdUsuario { get; set; }
-        public string? NombreCompleto { get; set; }
-        public string? Correo { get; set; }
-        public int? IdRolUsuario { get; set; }
-        public string? Clave { get; set; }
-        public bool? Estado { get; set; } = true;
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public string NombreCompleto { get; set; } = string.Empty;
+        public string Correo { get; set; } = string.Empty;
+        public int IdRolUsuario { get; set; }
+        public string Clave { get; set; } = string.Empty;
     }
 }

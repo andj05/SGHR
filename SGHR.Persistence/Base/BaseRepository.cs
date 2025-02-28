@@ -83,16 +83,15 @@ namespace SGHR.Persistence.Base
             return await Entity.ToListAsync();
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(int id)
+        public virtual async Task<OperationResult> DeleteEntityAsync(TEntity entity)
         {
-            OperationResult result = new OperationResult();
+            var result = new OperationResult();
             try
             {
-                var entity = await Entity.FindAsync(id);
                 if (entity == null)
                 {
                     result.Success = false;
-                    result.Message = "Entity not found";
+                    result.Message = "La entidad no puede ser nula.";
                     return result;
                 }
 
@@ -103,9 +102,14 @@ namespace SGHR.Persistence.Base
             catch (Exception ex)
             {
                 result.Success = false;
-                result.Message = $"Ocurrio un error eliminando los datos: {ex.Message}";
+                result.Message = $"Ocurrió un error eliminando los datos: {ex.Message}";
             }
             return result;
+        }
+
+        public Task<OperationResult> DeleteLogicAsync(TEntity entity)
+        {
+            throw new NotImplementedException();
         }
     }
 }

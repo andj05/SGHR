@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
@@ -25,7 +25,7 @@ namespace SGHR.Persistence.Repositories
             _configuration = configuration;
         }
 
-        public async Task<IEnumerable<Cliente>> GetAllAsync()
+        public async Task<IEnumerable<Cliente>> ObtenerTodosLosClientesAsync()
         {
             try
             {
@@ -38,33 +38,7 @@ namespace SGHR.Persistence.Repositories
             }
         }
 
-        public async Task<OperationResult> GetEntityByIdAsync(int idCliente)
-        {
-            var result = new OperationResult();
-            try
-            {
-                var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
-                if (cliente == null)
-                {
-                    result.Success = false;
-                    result.Message = "Cliente no encontrado.";
-                }
-                else
-                {
-                    result.Success = true;
-                    result.Data = cliente;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al obtener el cliente con id {idCliente}.");
-                result.Success = false;
-                result.Message = $"Error al obtener el cliente: {ex.Message}";
-            }
-            return result;
-        }
-
-        public async Task<OperationResult> GetClientsByStatusAsync(int idEstadoCliente)
+        public async Task<OperationResult> ObtenerClientePorEstadoIdAsync(int idEstadoCliente)
         {
             var result = new OperationResult();
             try
@@ -84,7 +58,7 @@ namespace SGHR.Persistence.Repositories
             return result;
         }
 
-        public async Task<OperationResult> GetClientsByFilterAsync(Expression<Func<Cliente, bool>> filter)
+        public async Task<OperationResult> ObtenerClientePorFilterAsync(Expression<Func<Cliente, bool>> filter)
         {
             if (filter == null)
             {
@@ -116,76 +90,70 @@ namespace SGHR.Persistence.Repositories
             return await SaveEntityAsync(cliente);
         }
 
-        public async Task<OperationResult> UpdateEntityAsync(Cliente cliente)
-        {
-            var result = new OperationResult();
-            try
-            {
-                var existingCliente = await _context.Set<Cliente>().FindAsync(cliente.Id);
-                if (existingCliente == null)
-                {
-                    return new OperationResult { Success = false, Message = "Cliente no encontrado." };
-                }
-
-                // Actualizar los datos modificables
-                existingCliente.TipoDocumento = cliente.TipoDocumento ?? existingCliente.TipoDocumento;
-                existingCliente.Documento = cliente.Documento ?? existingCliente.Documento;
-                existingCliente.NombreCompleto = cliente.NombreCompleto ?? existingCliente.NombreCompleto;
-                existingCliente.Correo = cliente.Correo ?? existingCliente.Correo;
-                existingCliente.Telefono = cliente.Telefono ?? existingCliente.Telefono;
-                existingCliente.Nacionalidad = cliente.Nacionalidad ?? existingCliente.Nacionalidad;
-                existingCliente.ModifyDate = DateTime.Now;
-                existingCliente.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-                // Guardar cambios
-                _context.Update(existingCliente);
-                await _context.SaveChangesAsync();
-
-                result.Success = true;
-                result.Data = existingCliente;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al actualizar el cliente.");
-                result.Success = false;
-                result.Message = $"Error al actualizar el cliente: {ex.Message}";
-            }
-            return result;
-        }
-
-        public async Task<OperationResult> DeleteEntityAsync(int idCliente)
+        public async Task<OperationResult> UpdateEntityAsync(int idCliente)
         {
             var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
             if (cliente == null)
             {
-                return new OperationResult { Success = false, Message = "Cliente no encontrado." };
+                return new OperationResult { Success = false, Message = "El cliente no fue encontrado." };
             }
-
-            _context.Set<Cliente>().Remove(cliente);
-            await _context.SaveChangesAsync();
-
-            return new OperationResult { Success = true, Message = "Cliente eliminado permanentemente." };
+            return await UpdateEntityAsync(cliente);
         }
 
-        public async Task<OperationResult> ExistsAsync(int idCliente)
+        public async Task<OperationResult> DeleteClienteAsync(int id)
+        {
+            var cliente = await _context.Set<Cliente>().FindAsync(id);
+            if (cliente == null)
+            {
+                return new OperationResult { Success = false, Message = "El cliente no fue encontrado." };
+            }
+            return await DeleteEntityAsync(cliente);
+        }
+
+        public async Task<OperationResult> GetEntityByIdAsync(int idCliente)
         {
             var result = new OperationResult();
-            if (idCliente <= 0)
+            try
+            {
+                var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
+                if (cliente == null)
+                {
+                    result.Success = false;
+                    result.Message = "Cliente no encontrado.";
+                }
+                else
+                {
+                    result.Success = true;
+                    result.Data = cliente;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al obtener el cliente con id {idCliente}.");
+                result.Success = false;
+                result.Message = $"Error al obtener el cliente: {ex.Message}";
+            }
+            return result;
+        }
+
+        public async Task<OperationResult> ExisteClienteAsync(int id)
+        {
+            var result = new OperationResult();
+            if (id <= 0)
             {
                 result.Success = false;
-                result.Message = "El ID del cliente es inválido.";
+                result.Message = "El ID del cliente es inv�lido.";
                 return result;
             }
             try
             {
-                bool exists = await _context.Set<Cliente>().AnyAsync(c => c.Id == idCliente);
+                bool exists = await _context.Set<Cliente>().AnyAsync(c => c.IdCliente == id);
                 result.Success = exists;
                 result.Data = exists;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia del cliente con id {idCliente}.");
+                _logger.LogError(ex, $"Error al verificar la existencia del cliente con id {id}.");
                 result.Success = false;
                 result.Message = $"Error al verificar la existencia del cliente: {ex.Message}";
             }

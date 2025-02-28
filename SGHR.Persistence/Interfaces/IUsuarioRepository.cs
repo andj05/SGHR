@@ -7,12 +7,13 @@ namespace SGHR.Persistence.Interfaces
 {
     public interface IUsuarioRepository : IBaseRepository<Usuario>
     {
-        Task<OperationResult> ObtenerTodosLosUsuariosAsync();
+        Task<IEnumerable<Usuario>> GetAllAsync();
         Task<OperationResult> GetEntityByIdAsync(int idUsuario);
-        Task<OperationResult> ObtenerUsuariosPorFilterAsync(Expression<Func<Usuario, bool>> filter);
-        Task<OperationResult> SaveEntityAsync(Usuario usario);
-        Task<OperationResult> UpdateEntityAsync(Usuario usario);
+        Task<OperationResult> GetUsersByStatusAsync(int idEstadoUsuario);
+        Task<OperationResult> GetUsersByFilterAsync(Expression<Func<Usuario, bool>> filter);
+        Task<OperationResult> SaveEntityAsync(Usuario usuario);
+        Task<OperationResult> UpdateEntityAsync(Usuario usuario);
         Task<OperationResult> DeleteEntityAsync(int idUsuario);
-        Task<OperationResult> ExisteUsuarioAsync(int idUsuario);
+        Task<OperationResult> ExistsAsync(int idUsuario);
     }
 }

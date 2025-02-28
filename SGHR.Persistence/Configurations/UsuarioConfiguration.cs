@@ -9,7 +9,10 @@ namespace SGHR.Persistence.Configurations
         public void Configure(EntityTypeBuilder<Usuario> builder)
         {
             builder.ToTable("Usuario");
-            builder.HasKey(c => c.IdUsuario);
+
+            builder.HasKey(u => u.Id);
+            builder.Property(u => u.Id)
+                   .HasColumnName("IdUsuario"); 
         }
     }
 }

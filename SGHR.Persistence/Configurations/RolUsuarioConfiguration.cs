@@ -8,9 +8,11 @@ namespace SGHR.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<RolUsuario> builder)
         {
-            builder.HasKey(r => r.IdRolUsuario);
-            builder.Property(r => r.Descripcion).IsRequired().HasMaxLength(100);
-            builder.Property(r => r.FechaCreacion).IsRequired();
+            builder.ToTable("RolUsuario");
+
+            builder.HasKey(r => r.Id);
+            builder.Property(r => r.Id)
+                   .HasColumnName("IdRolUsuario");
         }
     }
 }

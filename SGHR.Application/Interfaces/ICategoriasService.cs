@@ -8,8 +8,6 @@ namespace SGHR.Application.Interfaces
 {
     public interface ICategoriasService : IBaseService<SaveCategoriasDto,UpdateCategoriasDto,RemoveCategoriasDto>
     {
-        Task<IEnumerable<Categoria>> ObtenerTodasLasCategoriasAsync();
-        Task<bool> ExisteCategoriaAsync(int idCategoria);
-        Task<OperationResult> DeleteEntityAsync(Categoria entity);
+
     }
 }

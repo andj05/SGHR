@@ -8,7 +8,11 @@ namespace SGHR.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Categoria> builder)
         {
-            builder.HasKey(c => c.IdCategoria);
+            builder.ToTable("Categoria");
+
+            builder.HasKey(c => c.Id);
+            builder.Property(c => c.Id)
+                   .HasColumnName("IdCategoria");
         }
 
     }

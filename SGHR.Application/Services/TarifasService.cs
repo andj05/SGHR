@@ -22,49 +22,13 @@ namespace SGHR.Application.Services
             _configuration = configuration;
         }
 
-        public async Task<bool> AplicarDescuentoTarifaAsync(int idTarifa, decimal nuevoDescuento)
-        {
-            OperationResult operationResult = new OperationResult();
-
-            try
-            {
-                var tarifa = await _tarifasRepository.GetEntityByIdAsync(idTarifa);
-                if (tarifa == null)
-                {
-                    operationResult.Message = _configuration["LoggingMessages:AplicarDescuentoNotFound"];
-                    _logger.LogWarning(_configuration["LoggingMessages:AplicarDescuentoNotFound"] + ": {IdTarifa}", idTarifa);
-                    return false;
-                }
-
-                tarifa.Descuento = nuevoDescuento;
-                operationResult = await _tarifasRepository.UpdateEntityAsync(tarifa);
-
-                if (operationResult.Success.HasValue && operationResult.Success.Value)
-                {
-                    _logger.LogInformation("Descuento aplicado correctamente a la tarifa con ID {IdTarifa}.", idTarifa);
-                    return true;
-                }
-                else
-                {
-                    _logger.LogError("Error al aplicar el descuento a la tarifa con ID {IdTarifa}.", idTarifa);
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                operationResult.Message = _configuration["LoggingMessages:AplicarDescuentoError"];
-                _logger.LogError(_configuration["LoggingMessages:AplicarDescuentoError"] + ": {Exception}", ex.ToString());
-                return false;
-            }
-        }
-
         public async Task<OperationResult> GetAll()
         {
             OperationResult operationResult = new OperationResult();
 
             try
             {
-                var tarifas = await _tarifasRepository.ObtenerTodasLasTarifasAsync();
+                var tarifas = await _tarifasRepository.GetAllAsync();
                 operationResult.Data = tarifas;
                 operationResult.Success = true;
             }
@@ -102,35 +66,6 @@ namespace SGHR.Application.Services
             return operationResult;
         }
 
-        public async Task<IEnumerable<Tarifas>> ObtenerTodasLasTarifasAsync()
-        {
-            return await _tarifasRepository.ObtenerTodasLasTarifasAsync();
-        }
-
-        public async Task<OperationResult> Remove(RemoveTarifasDto dto)
-        {
-            OperationResult operationResult = new OperationResult();
-            try
-            {
-                var tarifa = await _tarifasRepository.GetEntityByIdAsync(dto.IdTarifa);
-                if (tarifa == null)
-                {
-                    operationResult.Message = _configuration["LoggingMessages:RemoveNotFound"];
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    operationResult = await _tarifasRepository.DeleteEntityAsync(tarifa);
-                }
-            }
-            catch (Exception ex)
-            {
-                operationResult.Message = _configuration["LoggingMessages:RemoveError"];
-                _logger.LogError(_configuration["LoggingMessages:RemoveError"] + ": {Exception}", ex.ToString());
-            }
-            return operationResult;
-        }
-
         public async Task<OperationResult> Save(SaveTarifasDto dto)
         {
             OperationResult operationResult = new OperationResult();
@@ -138,14 +73,15 @@ namespace SGHR.Application.Services
             {
                 var tarifa = new Tarifas
                 {
-                    IdTarifa = dto.IdTarifa,
+
                     FechaInicio = dto.FechaInicio,
                     FechaFin = dto.FechaFin,
                     PrecioPorNoche = dto.PrecioPorNoche,
                     Descuento = dto.Descuento,
                     Descripcion = dto.Descripcion,
                     IdHabitacion = dto.IdHabitacion,
-                    Estado = dto.Estado
+                    Estado = dto.Estado,
+                    CreationUser = 1
                 };
                 operationResult = await _tarifasRepository.SaveEntityAsync(tarifa);
             }
@@ -159,46 +95,66 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateTarifasDto dto)
         {
-            OperationResult operationResult = new OperationResult();
-            try
-            {
-                var tarifa = await _tarifasRepository.GetEntityByIdAsync(dto.IdTarifa);
-                if (tarifa == null)
-                {
-                    operationResult.Message = _configuration["LoggingMessages:UpdateNotFound"];
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    tarifa.FechaInicio = dto.FechaInicio;
-                    tarifa.FechaFin = dto.FechaFin;
-                    tarifa.PrecioPorNoche = dto.PrecioPorNoche;
-                    tarifa.Descuento = dto.Descuento;
-                    tarifa.Descripcion = dto.Descripcion;
-                    tarifa.IdHabitacion = dto.IdHabitacion;
-                    tarifa.Estado = dto.Estado;
-                    operationResult = await _tarifasRepository.UpdateEntityAsync(tarifa);
-                }
-            }
-            catch (Exception ex)
-            {
-                operationResult.Message = _configuration["LoggingMessages:UpdateError"];
-                _logger.LogError(_configuration["LoggingMessages:UpdateError"] + ": {Exception}", ex.ToString());
-            }
-            return operationResult;
+            if (dto.IdTarifa <= 0)
+                return new OperationResult { Success = false, Message = "ID de tarifa inválido." };
+
+            var tarifaResult = await _tarifasRepository.GetEntityByIdAsync(dto.IdTarifa);
+            if (tarifaResult?.Data is not Tarifas tarifa || tarifa.Deleted)
+                return new OperationResult { Success = false, Message = "Tarifa no encontrada o eliminada." };
+
+            tarifa.FechaInicio = dto.FechaInicio != default ? dto.FechaInicio : tarifa.FechaInicio;
+            tarifa.FechaFin = dto.FechaFin != default ? dto.FechaFin : tarifa.FechaFin;
+            tarifa.PrecioPorNoche = dto.PrecioPorNoche != default ? dto.PrecioPorNoche : tarifa.PrecioPorNoche;
+            tarifa.Descuento = dto.Descuento != default ? dto.Descuento : tarifa.Descuento;
+            tarifa.Descripcion = dto.Descripcion ?? tarifa.Descripcion;
+            tarifa.IdHabitacion = dto.IdHabitacion != default ? dto.IdHabitacion : tarifa.IdHabitacion;
+            tarifa.Estado = dto.Estado != default ? dto.Estado : tarifa.Estado;
+            tarifa.ModifyDate = DateTime.Now;
+            tarifa.ModifyUser = 1; // En producción, obtener el usuario autenticado
+
+            return await _tarifasRepository.UpdateEntityAsync(tarifa);
         }
 
-        public async Task<bool> VerificarDisponibilidadTarifaAsync(int idHabitacion, DateOnly fechaInicio, DateOnly fechaFin)
+        public async Task<OperationResult> Remove(RemoveTarifasDto dto)
         {
-            try
-            {
-                return await _tarifasRepository.VerificarDisponibilidadTarifaAsync(idHabitacion, fechaInicio, fechaFin);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(_configuration["LoggingMessages:VerificarDisponibilidadError"] + ": {Exception}", ex.ToString());
-                return false;
-            }
+            if (dto.IdTarifa <= 0)
+                return new OperationResult { Success = false, Message = "ID de la Tarifa es  inválido." };
+
+            var tarifa = await _tarifasRepository.GetEntityByIdAsync(dto.IdTarifa);
+            if (tarifa.Data is not Tarifas tarifaData || tarifaData.Deleted)
+                return new OperationResult { Success = false, Message = "Tarifa no encontrado o ya eliminado." };
+
+            tarifaData.Deleted = true;
+            tarifaData.DeletedUser = 1;
+            tarifaData.ModifyDate = DateTime.Now;
+
+            return await _tarifasRepository.UpdateEntityAsync(tarifaData);
+        }
+
+
+        public async Task<OperationResult> Restore(int id)
+        {
+            var tarifas = await _tarifasRepository.GetEntityByIdAsync(id);
+            if (tarifas.Data is not Tarifas tarifasData || !tarifasData.Deleted)
+                return new OperationResult { Success = false, Message = "Tarifa no encontrado o ya activo." };
+
+            tarifasData.Deleted = false;
+            tarifasData.ModifyDate = DateTime.Now;
+            tarifasData.ModifyUser = 1;
+
+            return await _tarifasRepository.UpdateEntityAsync(tarifasData);
+        }
+
+        public async Task<OperationResult> DeletePermanent(int id)
+        {
+            if (id <= 0)
+                return new OperationResult { Success = false, Message = "ID de cliente inválido." };
+
+            var tarifas = await _tarifasRepository.GetEntityByIdAsync(id);
+            if (tarifas.Data is not Tarifas tarifasData)
+                return new OperationResult { Success = false, Message = "Cliente no encontrado." };
+
+            return await _tarifasRepository.DeleteEntityAsync(id);
         }
 
     }

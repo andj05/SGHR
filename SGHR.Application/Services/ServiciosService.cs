@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SGHR.Application.Dtos.Servicios;
+using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
@@ -23,27 +24,12 @@ namespace SGHR.Application.Services
             _configuration = configuration;
         }
 
-        public async Task<IEnumerable<Servicios>> ObtenerTodosLosServiciosAsync()
-        {
-            return await _serviciosRepository.ObtenerTodosLosServiciosAsync();
-        }
-
-        public async Task<bool> ActualizarEstadoServicioAsync(int idServicio, bool estado)
-        {
-            return await _serviciosRepository.ActualizarEstadoServicioAsync(idServicio, estado);
-        }
-
-        public async Task<bool> ExisteServicioAsync(int idServicio)
-        {
-            return await _serviciosRepository.ExisteServicioAsync(idServicio);
-        }
-
         public async Task<OperationResult> GetAll()
         {
             var operationResult = new OperationResult();
             try
             {
-                var servicios = await _serviciosRepository.ObtenerTodosLosServiciosAsync();
+                var servicios = await _serviciosRepository.GetAllAsync();
                 operationResult.Data = servicios;
                 operationResult.Success = true;
             }
@@ -89,7 +75,8 @@ namespace SGHR.Application.Services
                 {
                     Nombre = dto.Nombre,
                     Descripcion = dto.Descripcion,
-                    Estado = dto.Estado
+                    Estado = dto.Estado,
+                    CreationUser = 1
                 };
                 operationResult = await _serviciosRepository.SaveEntityAsync(servicio);
             }
@@ -103,54 +90,64 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateServiciosDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var servicio = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
-                if (servicio == null)
-                {
-                    operationResult.Message = "Servicio no encontrado";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    servicio.Nombre = dto.Nombre;
-                    servicio.Descripcion = dto.Descripcion;
-                    servicio.Estado = dto.Estado;
-                    operationResult = await _serviciosRepository.UpdateEntityAsync(servicio);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al actualizar el servicio";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdServicio <= 0)
+                return new OperationResult { Success = false, Message = "ID de servicio inválido." };
+
+            var servicioResult = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
+            if (servicioResult?.Data is not Servicios servicio || servicio.Deleted)
+                return new OperationResult { Success = false, Message = "Servicio no encontrado o eliminado." };
+
+            servicio.Nombre = dto.Nombre ?? servicio.Nombre;
+            servicio.Descripcion = dto.Descripcion ?? servicio.Descripcion;
+            servicio.Estado = dto.Estado != default ? dto.Estado : servicio.Estado;
+            servicio.ModifyDate = DateTime.Now;
+            servicio.ModifyUser = 1; // En producción, obtener el usuario autenticado
+
+            return await _serviciosRepository.UpdateEntityAsync(servicio);
         }
+
 
         public async Task<OperationResult> Remove(RemoveServiciosDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var servicio = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
-                if (servicio == null)
-                {
-                    operationResult.Message = "Servicio no encontrado";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    operationResult = await _serviciosRepository.DeleteEntityAsync(servicio);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al eliminar el servicio";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdServicio <= 0)
+                return new OperationResult { Success = false, Message = "ID del Servicio es  inválido." };
+
+            var servicio = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
+            if (servicio.Data is not Servicios servicioData || servicioData.Deleted)
+                return new OperationResult { Success = false, Message = "Servico no encontrado o ya eliminado." };
+
+            servicioData.Deleted = true;
+            servicioData.DeletedUser = 1;
+            servicioData.ModifyDate = DateTime.Now;
+
+            return await _serviciosRepository.UpdateEntityAsync(servicioData);
         }
+
+        public async Task<OperationResult> Restore(int id)
+        {
+            var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
+            if (servicio.Data is not Servicios servicioData || !servicioData.Deleted)
+                return new OperationResult { Success = false, Message = "Servicio no encontrado o ya activo." };
+
+            servicioData.Deleted = false;
+            servicioData.ModifyDate = DateTime.Now;
+            servicioData.ModifyUser = 1;
+
+            return await _serviciosRepository.UpdateEntityAsync(servicioData);
+        }
+
+        public async Task<OperationResult> DeletePermanent(int id)
+        {
+            if (id <= 0)
+                return new OperationResult { Success = false, Message = "ID de cliente inválido." };
+
+            var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
+            if (servicio.Data is not Servicios servicioData)
+                return new OperationResult { Success = false, Message = "Cliente no encontrado." };
+
+            return await _serviciosRepository.DeleteEntityAsync(id);
+        }
+
     }
 }
 

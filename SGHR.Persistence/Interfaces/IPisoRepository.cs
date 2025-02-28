@@ -1,15 +1,17 @@
-﻿using SGHR.Domain.Entities.Configuration;
+﻿using SGHR.Domain.Base;
+using SGHR.Domain.Entities.Configuration;
 using SGHR.Domain.Repository;
 
 namespace SGHR.Persistence.Interfaces
 {
     public interface IPisoRepository : IBaseRepository<Piso>
     {
-        /// Obtiene todos los pisos registrados en el sistema.
-        Task<IEnumerable<Piso>> ObtenerTodosLosPisosAsync();
+        Task<IEnumerable<Piso>> GetAllAsync();
+        Task<OperationResult> GetEntityByIdAsync(int id);
+        Task<OperationResult> SaveEntityAsync(Piso piso);
+        Task<OperationResult> UpdateEntityAsync(Piso piso);
+        Task<OperationResult> DeleteEntityAsync(int id);
+        Task<OperationResult> ExistsAsync(int id);
 
-        /// Verifica si un piso existe en la base de datos.
-        Task<bool> ExistePisoAsync(int idPiso);
-        
     }
 }

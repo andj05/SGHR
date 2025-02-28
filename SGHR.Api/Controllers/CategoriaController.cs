@@ -21,8 +21,8 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetCategorias")]
         public async Task<IActionResult> Get()
         {
-            var categorias = await _categoriaRepository.ObtenerTodasLasCategoriasAsync();
-            return Ok(categorias);
+            var categorias = await _categoriaRepository.GetAllAsync();
+            return Ok(categorias.Where(c => !c.Deleted));
         }
 
         // GET api/Categoria/GetCategoriaByID/5
@@ -30,9 +30,9 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Get(int id)
         {
             var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-            if (categoria == null)
+            if (categoria == null || categoria.Data is Categoria c && c.Deleted)
             {
-                return NotFound("Categoría No Existe");
+                return NotFound("Categoría no existe o ha sido eliminada.");
             }
             return Ok(categoria);
         }
@@ -43,49 +43,138 @@ namespace SGHR.Api.Controllers
         {
             try
             {
-                var savedCategoria = await _categoriaRepository.SaveEntityAsync(categoria);
-                if (savedCategoria.Success == true)
+                var saveCategoria = await _categoriaRepository.SaveEntityAsync(categoria);
+                if (saveCategoria.Success == true)
                 {
-                    var savedCategoriaData = savedCategoria.Data as Categoria;
-                    return Ok("Categoría guardada correctamente");
+                    return Ok(new { Message = "Categoría guardada exitosamente", Data = saveCategoria.Data });
                 }
-                return BadRequest(savedCategoria.Message);
+                return BadRequest(new { Message = "Error al guardar la categoría", Error = saveCategoria.Message });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ocurrió un error guardando los datos");
-                return BadRequest($"Ocurrió un error guardando los datos: {ex.Message}");
+                return StatusCode(500, new { Message = "Error interno al guardar la categoría.", Error = ex.Message });
             }
         }
 
-        // PUT api/Categoria/UpdateCategoria
-        [HttpPut("UpdateCategoria")]
-        public async Task<IActionResult> Put([FromBody] Categoria categoria)
+        // PUT api/Categoria/UpdateCategoria/5
+        [HttpPut("UpdateCategoria/{id}")]
+        public async Task<IActionResult> Put(int id, [FromBody] Categoria categoria)
         {
-            var updatedCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
-            if (updatedCategoria.Success == true)
+            if (id <= 0)
+                return BadRequest("ID de categoría inválido.");
+
+            var existingCategoria = await _categoriaRepository.GetEntityByIdAsync(id);
+            if (existingCategoria.Data is not Categoria categoriaData || categoriaData.Deleted)
             {
-                return Ok("Categoría actualizada correctamente.");
+                return NotFound("Categoría no encontrada o ha sido eliminada.");
             }
-            return BadRequest(updatedCategoria.Message);
+
+            categoria.Id = id; // Asegurar que el ID es correcto
+            var updateCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
+            if (updateCategoria.Success == true)
+            {
+                return Ok(new { Message = "Categoría actualizada exitosamente", Data = updateCategoria.Data });
+            }
+            return BadRequest(new { Message = "Error al actualizar la categoría", Error = updateCategoria.Message ?? "Error desconocido" });
         }
 
         // DELETE api/Categoria/DeleteCategoria/5
         [HttpDelete("DeleteCategoria/{id}")]
+        public async Task<IActionResult> DeleteLogic(int id)
+        {
+            if (id <= 0)
+                return BadRequest("ID de categoría inválido.");
+
+            try
+            {
+                var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
+                if (categoria.Data is not Categoria categoriaData)
+                {
+                    return NotFound("Categoría no encontrada.");
+                }
+
+                categoriaData.Deleted = true;
+                categoriaData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
+                categoriaData.ModifyDate = DateTime.Now;
+
+                var deleteCategoria = await _categoriaRepository.UpdateEntityAsync(categoriaData);
+                if (deleteCategoria.Success == true)
+                {
+                    return Ok(new { Message = "Categoría eliminada lógicamente.", Data = deleteCategoria.Data });
+                }
+                return BadRequest(new { Message = "Error al eliminar la categoría", Error = deleteCategoria.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar la categoría.");
+                return StatusCode(500, new { Message = "Error interno al eliminar la categoría.", Error = ex.Message });
+            }
+        }
+
+        // PUT api/Categoria/RestoreCategoria/5
+        [HttpPut("RestoreCategoria/{id}")]
+        public async Task<IActionResult> Restore(int id)
+        {
+            if (id <= 0)
+                return BadRequest("ID de categoría inválido.");
+
+            try
+            {
+                var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
+                if (categoria.Data is not Categoria categoriaData)
+                    return NotFound("Categoría no encontrada.");
+
+                if (!categoriaData.Deleted)
+                    return BadRequest("La categoría ya está activa.");
+
+                // Restaurar categoría
+                categoriaData.Deleted = false;
+                categoriaData.ModifyDate = DateTime.Now;
+                categoriaData.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
+                var restoreCategoria = await _categoriaRepository.UpdateEntityAsync(categoriaData);
+                if (restoreCategoria.Success == true)
+                {
+                    return Ok(new { Message = "Categoría restaurada exitosamente.", Data = restoreCategoria.Data });
+                }
+                return BadRequest(new { Message = "Error al restaurar la categoría", Error = restoreCategoria.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al restaurar la categoría.");
+                return StatusCode(500, new { Message = "Error interno al restaurar la categoría.", Error = ex.Message });
+            }
+        }
+
+        // DELETE api/Categoria/DeleteCategoriaPermanente/5
+        [HttpDelete("DeleteCategoriaPermanente/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-            if (categoria == null)
-            {
-                return NotFound("Categoría No Existe");
-            }
+            if (id <= 0)
+                return BadRequest("ID de categoría inválido.");
 
-            var result = await _categoriaRepository.DeleteEntityAsync(categoria);
-            if (result.Success == true)
+            try
             {
-                return Ok("Categoría eliminada correctamente.");
+                var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
+                if (categoria.Data is not Categoria categoriaData)
+                {
+                    return NotFound("Categoría no encontrada.");
+                }
+
+                var deleteResult = await _categoriaRepository.DeleteEntityAsync(id);
+                if (deleteResult.Success != null)
+                {
+                    return Ok(new { Message = "Categoría eliminada permanentemente.", Data = deleteResult.Data });
+                }
+
+                return BadRequest(new { Message = "Error al eliminar la categoría permanentemente.", Error = deleteResult.Message });
             }
-            return BadRequest(result.Message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar la categoría permanentemente.");
+                return StatusCode(500, new { Message = "Error interno al eliminar la categoría permanentemente.", Error = ex.Message });
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 ﻿using SGHR.Domain.Base;
 
-public sealed class EstadoHabitacion : AuditEntity
+public sealed class EstadoHabitacion : BaseEntity<int>
 {
-    public int IdEstadoHabitacion { get; set; } 
     public string? Descripcion { get; set; }
     public DateTime FechaCreacion { get; set; }
+
 }

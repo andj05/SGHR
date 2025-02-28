@@ -4,8 +4,11 @@ using SGHR.Domain.Repository;
 
 public interface ITarifasRepository : IBaseRepository<Tarifas>
 {
-    Task<IEnumerable<Tarifas>> ObtenerTodasLasTarifasAsync();
-    Task<bool> VerificarDisponibilidadTarifaAsync(int idHabitacion, DateOnly fechaInicio, DateOnly fechaFin);
-    Task<bool> AplicarDescuentoTarifaAsync(int idTarifa, decimal nuevoDescuento);
+    Task<IEnumerable<Tarifas>> GetAllAsync();
+    Task<OperationResult> GetEntityByIdAsync(int id);
+    Task<OperationResult> SaveEntityAsync(Tarifas tarifas);
+    Task<OperationResult> UpdateEntityAsync(Tarifas tarifas);
+    Task<OperationResult> DeleteEntityAsync(int id);
+    Task<OperationResult> ExistsAsync(int id);
 }
 

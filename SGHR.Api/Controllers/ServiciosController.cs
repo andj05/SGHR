@@ -21,8 +21,8 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetServicios")]
         public async Task<IActionResult> Get()
         {
-            var servicios = await _serviciosRepository.ObtenerTodosLosServiciosAsync();
-            return Ok(servicios); 
+            var servicios = await _serviciosRepository.GetAllAsync();
+            return Ok(servicios.Where(s => !s.Deleted));
         }
 
         // GET api/Servicios/GetServiciosByID/5
@@ -30,9 +30,9 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Get(int id)
         {
             var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
-            if (servicio == null)
+            if (servicio == null || servicio.Data is Servicios s && s.Deleted)
             {
-                return NotFound();
+                return NotFound("Servicio no existe o ha sido eliminado.");
             }
             return Ok(servicio);
         }
@@ -41,24 +41,141 @@ namespace SGHR.Api.Controllers
         [HttpPost("SaveServicios")]
         public async Task<IActionResult> Post([FromBody] Servicios servicio)
         {
-            var savedServicio = await _serviciosRepository.SaveEntityAsync(servicio);
-            if (savedServicio.Success == true)
+            try
             {
-                return Ok("Servicio guardado exitosamente");
+                var saveServicio = await _serviciosRepository.SaveEntityAsync(servicio);
+                if (saveServicio.Success == true)
+                {
+                    return Ok(new { Message = "Servicio guardado exitosamente", Data = saveServicio.Data });
+                }
+                return BadRequest(new { Message = "Error al guardar el servicio", Error = saveServicio.Message });
             }
-            return BadRequest(savedServicio.Message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al guardar el servicio.");
+                return StatusCode(500, new { Message = "Error interno al guardar el servicio.", Error = ex.Message });
+            }
         }
 
-        // PUT api/Servicios/UpdateServicios
-        [HttpPut("UpdateServicios")]
-        public async Task<IActionResult> Put([FromBody] Servicios servicio)
+        // PUT api/Servicios/UpdateServicios/5
+        [HttpPut("UpdateServicios/{id}")]
+        public async Task<IActionResult> Put(int id, [FromBody] Servicios servicio)
         {
-            var updatedServicio = await _serviciosRepository.UpdateEntityAsync(servicio);
-            if (updatedServicio.Success == true)
+            if (id <= 0)
+                return BadRequest("ID de servicio inválido.");
+
+            var existingServicio = await _serviciosRepository.GetEntityByIdAsync(id);
+            if (existingServicio.Data is not Servicios servicioData || servicioData.Deleted)
             {
-                return Ok("Servicio actualizado exitosamente");
+                return NotFound("Servicio no encontrado o ha sido eliminado.");
             }
-            return BadRequest(updatedServicio.Message);
+
+            servicio.Id = id; // Asegurar que el ID es correcto
+            var updateServicio = await _serviciosRepository.UpdateEntityAsync(servicio);
+            if (updateServicio.Success == true)
+            {
+                return Ok(new { Message = "Servicio actualizado exitosamente", Data = updateServicio.Data });
+            }
+            return BadRequest(new { Message = "Error al actualizar el servicio", Error = updateServicio.Message ?? "Error desconocido" });
+        }
+
+        // DELETE api/Servicios/DeleteServicio/5
+        [HttpDelete("DeleteServicio/{id}")]
+        public async Task<IActionResult> DeleteLogic(int id)
+        {
+            if (id <= 0)
+                return BadRequest("ID de servicio inválido.");
+
+            try
+            {
+                var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
+                if (servicio.Data is not Servicios servicioData)
+                {
+                    return NotFound("Servicio no encontrado.");
+                }
+
+                servicioData.Deleted = true;
+                servicioData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
+                servicioData.ModifyDate = DateTime.Now;
+
+                var deleteServicio = await _serviciosRepository.UpdateEntityAsync(servicioData);
+                if (deleteServicio.Success == true)
+                {
+                    return Ok(new { Message = "Servicio eliminado lógicamente.", Data = deleteServicio.Data });
+                }
+                return BadRequest(new { Message = "Error al eliminar el servicio", Error = deleteServicio.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar el servicio.");
+                return StatusCode(500, new { Message = "Error interno al eliminar el servicio.", Error = ex.Message });
+            }
+        }
+
+        // PUT api/Servicios/RestoreServicio/5
+        [HttpPut("RestoreServicio/{id}")]
+        public async Task<IActionResult> Restore(int id)
+        {
+            if (id <= 0)
+                return BadRequest("ID de servicio inválido.");
+
+            try
+            {
+                var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
+                if (servicio.Data is not Servicios servicioData)
+                    return NotFound("Servicio no encontrado.");
+
+                if (!servicioData.Deleted)
+                    return BadRequest("El servicio ya está activo.");
+
+                // Restaurar servicio
+                servicioData.Deleted = false;
+                servicioData.ModifyDate = DateTime.Now;
+                servicioData.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
+                var restoreServicio = await _serviciosRepository.UpdateEntityAsync(servicioData);
+                if (restoreServicio.Success == true)
+                {
+                    return Ok(new { Message = "Servicio restaurado exitosamente.", Data = restoreServicio.Data });
+                }
+                return BadRequest(new { Message = "Error al restaurar el servicio", Error = restoreServicio.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al restaurar el servicio.");
+                return StatusCode(500, new { Message = "Error interno al restaurar el servicio.", Error = ex.Message });
+            }
+        }
+
+        // DELETE api/Servicios/DeleteServicioPermanente/5
+        [HttpDelete("DeleteServicioPermanente/{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            if (id <= 0)
+                return BadRequest("ID de servicio inválido.");
+
+            try
+            {
+                var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
+                if (servicio.Data is not Servicios servicioData)
+                {
+                    return NotFound("Servicio no encontrado.");
+                }
+
+                var deleteResult = await _serviciosRepository.DeleteEntityAsync(id);
+                if (deleteResult.Success != null)
+                {
+                    return Ok(new { Message = "Servicio eliminado permanentemente.", Data = deleteResult.Data });
+                }
+
+                return BadRequest(new { Message = "Error al eliminar el servicio permanentemente.", Error = deleteResult.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar el servicio permanentemente.");
+                return StatusCode(500, new { Message = "Error interno al eliminar el servicio permanentemente.", Error = ex.Message });
+            }
         }
     }
 }
+

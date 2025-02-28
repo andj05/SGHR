@@ -30,12 +30,13 @@ namespace SGHR.Application.Services
             try
             {
                 var categorias = await _categoriaRepository.GetAllAsync();
-                operationResult.Data = categorias;
+                operationResult.Data = categorias.Where(c => !c.Deleted).ToList(); 
                 operationResult.Success = true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al obtener todas las categorías";
+                _logger.LogError(ex, "Error al obtener todas las categorías.");
+                operationResult.Message = "Error al obtener todas las categorías.";
                 operationResult.Success = false;
             }
             return operationResult;
@@ -47,20 +48,18 @@ namespace SGHR.Application.Services
             try
             {
                 var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria == null)
+                if (categoria.Data is Categoria categoriaData && categoriaData.Deleted)
                 {
-                    operationResult.Message = "Categoría no encontrada";
-                    operationResult.Success = false;
+                    return new OperationResult { Success = false, Message = "Categoría eliminada." };
                 }
-                else
-                {
-                    operationResult.Data = categoria;
-                    operationResult.Success = true;
-                }
+
+                operationResult.Data = categoria.Data;
+                operationResult.Success = true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al obtener la categoría por ID";
+                _logger.LogError(ex, $"Error al obtener la categoría con ID {id}.");
+                operationResult.Message = "Error al obtener la categoría por ID.";
                 operationResult.Success = false;
             }
             return operationResult;
@@ -68,85 +67,94 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SaveCategoriasDto dto)
         {
-            var operationResult = new OperationResult();
+            var validationResult = ValidateCategoria(dto);
+            if (!validationResult.Success != null)
+                return validationResult;
+
             try
             {
                 var categoria = new Categoria
                 {
-                    Descripcion = dto.Descripcion
+                    Descripcion = dto.Descripcion,
+                    CreationUser = 1 // En producción, obtener el usuario autenticado
                 };
-                operationResult = await _categoriaRepository.SaveEntityAsync(categoria);
+
+                return await _categoriaRepository.SaveEntityAsync(categoria);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al guardar la categoría";
-                operationResult.Success = false;
+                _logger.LogError(ex, "Error al guardar la categoría.");
+                return new OperationResult { Success = false, Message = "Error al guardar la categoría." };
             }
-            return operationResult;
         }
 
         public async Task<OperationResult> Update(UpdateCategoriasDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var categoria = await _categoriaRepository.GetEntityByIdAsync(dto.IdCategoria);
-                if (categoria == null)
-                {
-                    operationResult.Message = "Categoría no encontrada";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    categoria.Descripcion = dto.Descripcion;
-                    operationResult = await _categoriaRepository.UpdateEntityAsync(categoria);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al actualizar la categoría";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdCategoria <= 0)
+                return new OperationResult { Success = false, Message = "ID de categoría inválido." };
+
+            var categoria = await _categoriaRepository.GetEntityByIdAsync(dto.IdCategoria);
+            if (categoria.Data is not Categoria categoriaData || categoriaData.Deleted)
+                return new OperationResult { Success = false, Message = "Categoría no encontrada o eliminada." };
+
+            categoriaData.Descripcion = dto.Descripcion ?? categoriaData.Descripcion;
+            categoriaData.ModifyDate = DateTime.Now;
+            categoriaData.ModifyUser = 1; // En producción, obtener el usuario autenticado
+
+            return await _categoriaRepository.UpdateEntityAsync(categoriaData);
         }
 
         public async Task<OperationResult> Remove(RemoveCategoriasDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var categoria = await _categoriaRepository.GetEntityByIdAsync(dto.IdCategoria);
-                if (categoria == null)
-                {
-                    operationResult.Message = "Categoría no encontrada";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    operationResult = await _categoriaRepository.DeleteEntityAsync(categoria);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al eliminar la categoría";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdCategoria <= 0)
+                return new OperationResult { Success = false, Message = "ID de categoría inválido." };
+
+            var categoria = await _categoriaRepository.GetEntityByIdAsync(dto.IdCategoria);
+            if (categoria.Data is not Categoria categoriaData || categoriaData.Deleted)
+                return new OperationResult { Success = false, Message = "Categoría no encontrada o ya eliminada." };
+
+            categoriaData.Deleted = true;
+            categoriaData.DeletedUser = 1;
+            categoriaData.ModifyDate = DateTime.Now;
+
+            return await _categoriaRepository.UpdateEntityAsync(categoriaData);
         }
 
-        public async Task<IEnumerable<Categoria>> ObtenerTodasLasCategoriasAsync()
+        public async Task<OperationResult> Restore(int id)
         {
-            return await _categoriaRepository.ObtenerTodasLasCategoriasAsync();
+            var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
+            if (categoria.Data is not Categoria categoriaData || !categoriaData.Deleted)
+                return new OperationResult { Success = false, Message = "Categoría no encontrada o ya activa." };
+
+            categoriaData.Deleted = false;
+            categoriaData.ModifyDate = DateTime.Now;
+            categoriaData.ModifyUser = 1; // En producción, obtener el usuario autenticado
+
+            return await _categoriaRepository.UpdateEntityAsync(categoriaData);
         }
 
-        public async Task<bool> ExisteCategoriaAsync(int idCategoria)
+        public async Task<OperationResult> DeletePermanent(int id)
         {
-            return await _categoriaRepository.ExisteCategoriaAsync(idCategoria);
+            if (id <= 0)
+                return new OperationResult { Success = false, Message = "ID de categoría inválido." };
+
+            var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
+            if (categoria.Data is not Categoria categoriaData)
+                return new OperationResult { Success = false, Message = "Categoría no encontrada." };
+
+            return await _categoriaRepository.DeleteEntityAsync(id);
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(Categoria entity)
+
+        private OperationResult ValidateCategoria(dynamic categoria)
         {
-            return await _categoriaRepository.DeleteEntityAsync(entity);
+            if (categoria == null)
+                return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
+
+            if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 50)
+                return new OperationResult { Success = false, Message = "La descripción no puede estar vacía y debe tener un máximo de 50 caracteres." };
+
+            return new OperationResult { Success = true };
         }
     }
 }

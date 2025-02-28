@@ -2,9 +2,8 @@
 {
     using SGHR.Domain.Base;
 
-    public sealed class Tarifas : AuditEntity
+    public sealed class Tarifas : BaseEntity<int>
     {
-        public int IdTarifa { get; set; }
         public DateOnly FechaInicio { get; set; }
         public DateOnly FechaFin { get; set; }
         public decimal PrecioPorNoche { get; set; }
@@ -12,5 +11,6 @@
         public required string Descripcion { get; set; }
         public int IdHabitacion { get; set; }
         public bool Estado { get; set; }
+
     }
 }

@@ -1,8 +1,6 @@
 
 using Microsoft.EntityFrameworkCore;
 using SGHR.Persistence.Context;
-using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repository;
 using SGHR.IOC.Dependencies;
 
 namespace SGHR.Api

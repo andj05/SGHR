@@ -29,12 +29,13 @@ namespace SGHR.Application.Services
             try
             {
                 var pisos = await _pisoRepository.GetAllAsync();
-                operationResult.Data = pisos;
+                operationResult.Data = pisos.Where(p => !p.Deleted).ToList(); 
                 operationResult.Success = true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al obtener todos los pisos";
+                _logger.LogError(ex, "Error al obtener todos los pisos.");
+                operationResult.Message = "Error al obtener los pisos.";
                 operationResult.Success = false;
             }
             return operationResult;
@@ -46,105 +47,114 @@ namespace SGHR.Application.Services
             try
             {
                 var piso = await _pisoRepository.GetEntityByIdAsync(id);
-                if (piso == null)
+                if (piso.Data is Piso pisoData && pisoData.Deleted)
                 {
-                    operationResult.Message = "Piso no encontrado";
-                    operationResult.Success = false;
+                    return new OperationResult { Success = false, Message = "Piso eliminado." };
                 }
-                else
-                {
-                    operationResult.Data = piso;
-                    operationResult.Success = true;
-                }
+
+                operationResult.Data = piso.Data;
+                operationResult.Success = true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al obtener el piso por ID";
+                _logger.LogError(ex, $"Error al obtener el piso con ID {id}.");
+                operationResult.Message = "Error al obtener el piso por ID.";
                 operationResult.Success = false;
             }
             return operationResult;
         }
 
+
         public async Task<OperationResult> Save(SavePisosDto dto)
         {
-            var operationResult = new OperationResult();
+            var validationResult = ValidatePiso(dto);
+            if (!validationResult.Success != null)
+                return validationResult;
+
             try
             {
                 var piso = new Piso
                 {
                     Descripcion = dto.Descripcion,
                     Estado = dto.Estado,
-                    FechaCreacion = dto.FechaCreacion
+                    CreationUser = 1 
                 };
-                operationResult = await _pisoRepository.SaveEntityAsync(piso);
+
+                return await _pisoRepository.SaveEntityAsync(piso);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al guardar el piso";
-                operationResult.Success = false;
+                _logger.LogError(ex, "Error al guardar el piso.");
+                return new OperationResult { Success = false, Message = "Error al guardar el piso." };
             }
-            return operationResult;
         }
 
         public async Task<OperationResult> Update(UpdatePisosDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
-                if (piso == null)
-                {
-                    operationResult.Message = "Piso no encontrado";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    piso.Descripcion = dto.Descripcion;
-                    piso.Estado = dto.Estado;
-                    piso.FechaCreacion = dto.FechaCreacion;
-                    operationResult = await _pisoRepository.UpdateEntityAsync(piso);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al actualizar el piso";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdPiso <= 0)
+                return new OperationResult { Success = false, Message = "ID de piso inválido." };
+
+            var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
+            if (piso.Data is not Piso pisoData || pisoData.Deleted)
+                return new OperationResult { Success = false, Message = "Piso no encontrado o eliminado." };
+
+            pisoData.Descripcion = dto.Descripcion ?? pisoData.Descripcion;
+            pisoData.Estado = pisoData.Estado = dto.Estado;
+            pisoData.ModifyDate = DateTime.Now;
+            pisoData.ModifyUser = 1; 
+            return await _pisoRepository.UpdateEntityAsync(pisoData);
         }
 
         public async Task<OperationResult> Remove(RemovePisosDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
-                if (piso == null)
-                {
-                    operationResult.Message = "Piso no encontrado";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    operationResult = await _pisoRepository.DeleteEntityAsync(piso);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al eliminar el piso";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdPiso <= 0)
+                return new OperationResult { Success = false, Message = "ID de piso inválido." };
+
+            var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
+            if (piso.Data is not Piso pisoData || pisoData.Deleted)
+                return new OperationResult { Success = false, Message = "Piso no encontrado o ya eliminado." };
+
+            pisoData.Deleted = true;
+            pisoData.DeletedUser = 1;
+            pisoData.ModifyDate = DateTime.Now;
+
+            return await _pisoRepository.UpdateEntityAsync(pisoData);
         }
 
-        public async Task<IEnumerable<Piso>> ObtenerTodosLosPisosAsync()
+        public async Task<OperationResult> Restore(int id)
         {
-            return await _pisoRepository.ObtenerTodosLosPisosAsync();
+            var piso = await _pisoRepository.GetEntityByIdAsync(id);
+            if (piso.Data is not Piso pisoData || !pisoData.Deleted)
+                return new OperationResult { Success = false, Message = "Piso no encontrado o ya activo." };
+
+            pisoData.Deleted = false;
+            pisoData.ModifyDate = DateTime.Now;
+            pisoData.ModifyUser = 1; 
+
+            return await _pisoRepository.UpdateEntityAsync(pisoData);
         }
 
-        public async Task<bool> ExistePisoAsync(int idPiso)
+        public async Task<OperationResult> DeletePermanent(int id)
         {
-            return await _pisoRepository.ExistePisoAsync(idPiso);
+            if (id <= 0)
+                return new OperationResult { Success = false, Message = "ID de piso inválido." };
+
+            var piso = await _pisoRepository.GetEntityByIdAsync(id);
+            if (piso.Data is not Piso pisoData)
+                return new OperationResult { Success = false, Message = "Piso no encontrado." };
+
+            return await _pisoRepository.DeleteEntityAsync(id);
+        }
+
+        private OperationResult ValidatePiso(dynamic piso)
+        {
+            if (piso == null)
+                return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
+
+            if (string.IsNullOrWhiteSpace(piso.Descripcion) || piso.Descripcion.Length > 50)
+                return new OperationResult { Success = false, Message = "La descripción no puede estar vacía y debe tener un máximo de 50 caracteres." };
+
+            return new OperationResult { Success = true };
         }
     }
 }

@@ -29,13 +29,14 @@ namespace SGHR.Application.Services
             var operationResult = new OperationResult();
             try
             {
-                var roles = await _rolUsuarioRepository.ObtenerTodosLosRolesAsync();
-                operationResult.Data = roles;
+                var roles = await _rolUsuarioRepository.GetAllAsync();
+                operationResult.Data = roles.Where(r => !r.Deleted).ToList(); // Filtrar roles eliminados
                 operationResult.Success = true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al obtener todos los roles de usuario";
+                _logger.LogError(ex, "Error al obtener todos los roles de usuario.");
+                operationResult.Message = "Error al obtener todos los roles de usuario.";
                 operationResult.Success = false;
             }
             return operationResult;
@@ -47,20 +48,18 @@ namespace SGHR.Application.Services
             try
             {
                 var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-                if (rolUsuario == null)
+                if (rolUsuario.Data is RolUsuario rolData && rolData.Deleted)
                 {
-                    operationResult.Message = "Rol de usuario no encontrado";
-                    operationResult.Success = false;
+                    return new OperationResult { Success = false, Message = "Rol de usuario eliminado." };
                 }
-                else
-                {
-                    operationResult.Data = rolUsuario;
-                    operationResult.Success = true;
-                }
+
+                operationResult.Data = rolUsuario.Data;
+                operationResult.Success = true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al obtener el rol de usuario por ID";
+                _logger.LogError(ex, $"Error al obtener el rol de usuario con ID {id}.");
+                operationResult.Message = "Error al obtener el rol de usuario por ID.";
                 operationResult.Success = false;
             }
             return operationResult;
@@ -68,86 +67,96 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SaveRolUsuarioDto dto)
         {
-            var operationResult = new OperationResult();
+            var validationResult = ValidateRolUsuario(dto);
+            if (!validationResult.Success != null)
+                return validationResult;
+
             try
             {
                 var rolUsuario = new RolUsuario
                 {
                     Descripcion = dto.Descripcion,
                     Estado = dto.Estado,
-                    FechaCreacion = dto.FechaCreacion
+                    CreationUser = 1 // En producción, obtener el usuario autenticado
                 };
-                operationResult = await _rolUsuarioRepository.SaveEntityAsync(rolUsuario);
+
+                return await _rolUsuarioRepository.SaveEntityAsync(rolUsuario);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al guardar el rol de usuario";
-                operationResult.Success = false;
+                _logger.LogError(ex, "Error al guardar el rol de usuario.");
+                return new OperationResult { Success = false, Message = "Error al guardar el rol de usuario." };
             }
-            return operationResult;
         }
 
         public async Task<OperationResult> Update(UpdateRolUsuarioDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
-                if (rolUsuario == null)
-                {
-                    operationResult.Message = "Rol de usuario no encontrado";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    rolUsuario.Descripcion = dto.Descripcion;
-                    rolUsuario.Estado = dto.Estado;
-                    rolUsuario.FechaCreacion = dto.FechaCreacion;
-                    operationResult = await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al actualizar el rol de usuario";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdRolUsuario <= 0)
+                return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
+
+            var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
+            if (rolUsuario?.Data is not RolUsuario rolData || rolData.Deleted)
+                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o eliminado." };
+
+            rolData.Descripcion = dto.Descripcion ?? rolData.Descripcion;
+            rolData.Estado = dto.Estado ?? rolData.Estado;
+            rolData.ModifyDate = DateTime.Now;
+            rolData.ModifyUser = 1; // En producción, obtener el usuario autenticado
+
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolData);
         }
 
         public async Task<OperationResult> Remove(RemoveRolUsuarioDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
-                if (rolUsuario == null)
-                {
-                    operationResult.Message = "Rol de usuario no encontrado";
-                    operationResult.Success = false;
-                }
-                else
-                {
-                    operationResult = await _rolUsuarioRepository.DeleteEntityAsync(rolUsuario);
-                }
-            }
-            catch (Exception)
-            {
-                operationResult.Message = "Error al eliminar el rol de usuario";
-                operationResult.Success = false;
-            }
-            return operationResult;
+            if (dto.IdRolUsuario <= 0)
+                return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
+
+            var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
+            if (rolUsuario.Data is not RolUsuario rolData || rolData.Deleted)
+                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o ya eliminado." };
+
+            rolData.Deleted = true;
+            rolData.DeletedUser = 1;
+            rolData.ModifyDate = DateTime.Now;
+
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolData);
         }
 
-        public async Task<IEnumerable<RolUsuario>> ObtenerTodosLosRolesAsync()
+        public async Task<OperationResult> Restore(int id)
         {
-            return await _rolUsuarioRepository.ObtenerTodosLosRolesAsync();
+            var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
+            if (rolUsuario.Data is not RolUsuario rolData || !rolData.Deleted)
+                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o ya activo." };
+
+            rolData.Deleted = false;
+            rolData.ModifyDate = DateTime.Now;
+            rolData.ModifyUser = 1; // En producción, obtener el usuario autenticado
+
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolData);
         }
 
-        public async Task<bool> ExisteRolUsuarioAsync(int idRolUsuario)
+        public async Task<OperationResult> DeletePermanent(int id)
         {
-            return await _rolUsuarioRepository.ExisteRolUsuarioAsync(idRolUsuario);
+            if (id <= 0)
+                return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
+
+            var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
+            if (rolUsuario.Data is not RolUsuario rolUsuarioData)
+                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado." };
+
+            return await _rolUsuarioRepository.DeleteEntityAsync(id);
+        }
+
+        private OperationResult ValidateRolUsuario(dynamic rolUsuario)
+        {
+            if (rolUsuario == null)
+                return new OperationResult { Success = false, Message = "El rol de usuario no puede ser nulo." };
+
+            if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion) || rolUsuario.Descripcion.Length > 50)
+                return new OperationResult { Success = false, Message = "La descripción no puede estar vacía y debe tener un máximo de 50 caracteres." };
+
+            return new OperationResult { Success = true };
         }
 
     }
 }
-

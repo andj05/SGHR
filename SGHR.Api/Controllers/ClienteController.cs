@@ -2,8 +2,6 @@
 using SGHR.Persistence.Interfaces;
 using SGHR.Domain.Entities.Users;
 
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-
 namespace SGHR.Api.Controllers
 {
     [Route("api/[controller]")]
@@ -26,6 +24,14 @@ namespace SGHR.Api.Controllers
             return Ok(clientes.Where(c => !c.Deleted));
         }
 
+        // GET api/Cliente/GetDeletedClientes
+        [HttpGet("GetDeletedClientes")]
+        public async Task<IActionResult> GetDeletedClientes()
+        {
+            var clientes = await _clienteRepository.GetAllAsync();
+            return Ok(clientes.Where(c => c.Deleted));
+        }
+
         // GET api/Cliente/GetClienteByID/5
         [HttpGet("GetClienteByID/{id}")]
         public async Task<IActionResult> Get(int id)
@@ -38,15 +44,26 @@ namespace SGHR.Api.Controllers
             return Ok(cliente);
         }
 
+        // GET api/Cliente/GetDeletedClienteByID/5
+        [HttpGet("GetDeletedClienteByID/{id}")]
+        public async Task<IActionResult> GetDeletedClienteByID(int id)
+        {
+            var cliente = await _clienteRepository.GetEntityByIdAsync(id);
+            if (cliente.Data is not Cliente c || !c.Deleted)
+            {
+                return NotFound("Cliente no encontrado o no está eliminado.");
+            }
+            return Ok(cliente);
+        }
 
-        // POST api/Cliente/Post
+        // POST api/Cliente/SaveCliente
         [HttpPost("SaveCliente")]
         public async Task<IActionResult> Post([FromBody] Cliente cliente)
         {
             try
             {
                 var saveCliente = await _clienteRepository.SaveEntityAsync(cliente);
-                if (saveCliente.Success != true)
+                if (saveCliente.Success == true)
                 {
                     return Ok(new { Message = "Cliente guardado exitosamente", Data = saveCliente.Data });
                 }
@@ -59,8 +76,8 @@ namespace SGHR.Api.Controllers
             }
         }
 
-        // PUT api/Cliente/UptadeCliente/5
-        [HttpPut("UptadeCliente/{id}")]
+        // PUT api/Cliente/UpdateCliente/{id}
+        [HttpPut("UpdateCliente/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] Cliente cliente)
         {
             if (id <= 0)
@@ -74,14 +91,14 @@ namespace SGHR.Api.Controllers
 
             cliente.Id = id;
             var updateCliente = await _clienteRepository.UpdateEntityAsync(cliente);
-            if (updateCliente.Success != true)
+            if (updateCliente.Success == true)
             {
                 return Ok(new { Message = "Cliente actualizado exitosamente", Data = updateCliente.Data });
             }
-            return BadRequest(new { Message = "Error al actualizar el cliente", Error = updateCliente.Message });
+            return BadRequest(new { Message = "Error al actualizar el cliente", Error = updateCliente.Message ?? "Error desconocido" });
         }
 
-        // DELETE api/Cliente/DeleteCliente/5
+        // DELETE api/Cliente/DeleteCliente/{id}
         [HttpDelete("DeleteCliente/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
@@ -96,17 +113,12 @@ namespace SGHR.Api.Controllers
                     return NotFound("Cliente no encontrado.");
                 }
 
-                if (clienteData.Deleted)
-                {
-                    return BadRequest("El cliente ya está eliminado.");
-                }
-
                 clienteData.Deleted = true;
                 clienteData.DeletedUser = 1;
                 clienteData.ModifyDate = DateTime.Now;
 
                 var deleteCliente = await _clienteRepository.UpdateEntityAsync(clienteData);
-                if (deleteCliente.Success != true)
+                if (deleteCliente.Success == true)
                 {
                     return Ok(new { Message = "Cliente eliminado lógicamente.", Data = deleteCliente.Data });
                 }
@@ -119,7 +131,7 @@ namespace SGHR.Api.Controllers
             }
         }
 
-        // PUT api/Cliente/RestoreCliente/5
+        // PUT api/Cliente/RestoreCliente/{id}
         [HttpPut("RestoreCliente/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
@@ -135,13 +147,12 @@ namespace SGHR.Api.Controllers
                 if (!clienteData.Deleted)
                     return BadRequest("El cliente ya está activo.");
 
-                // Restaurar cliente
                 clienteData.Deleted = false;
                 clienteData.ModifyDate = DateTime.Now;
                 clienteData.ModifyUser = 1;
 
                 var restoreCliente = await _clienteRepository.UpdateEntityAsync(clienteData);
-                if (restoreCliente.Success != true)
+                if (restoreCliente.Success == true)
                 {
                     return Ok(new { Message = "Cliente restaurado exitosamente.", Data = restoreCliente.Data });
                 }
@@ -154,7 +165,7 @@ namespace SGHR.Api.Controllers
             }
         }
 
-        // DELETE api/Cliente/DeleteClientePermanente/5
+        // DELETE api/Cliente/DeleteClientePermanente/{id}
         [HttpDelete("DeleteClientePermanente/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -167,11 +178,6 @@ namespace SGHR.Api.Controllers
                 if (cliente.Data is not Cliente clienteData)
                 {
                     return NotFound("Cliente no encontrado.");
-                }
-
-                if (!clienteData.Deleted)
-                {
-                    return BadRequest("Debe eliminar lógicamente el cliente antes de eliminarlo permanentemente.");
                 }
 
                 var deleteResult = await _clienteRepository.DeleteEntityAsync(id);

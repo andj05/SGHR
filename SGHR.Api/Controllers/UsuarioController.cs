@@ -28,6 +28,15 @@ namespace SGHR.Api.Controllers
             return Ok(usuarios.Where(c => !c.Deleted));
         }
 
+        // GET api/Usuario/GetDeletedUsuarios
+        [HttpGet("GetDeletedUsuarios")]
+        public async Task<IActionResult> GetDeletedUsuarios()
+        {
+            var usuarios = await _usuarioRepository.GetAllAsync();
+            return Ok(usuarios.Where(c => c.Deleted));
+        }
+
+
         // GET api/Usuario/GetUsuarioBayID/5
         [HttpGet("GetUsuarioBayID/{id}")]
         public async Task<IActionResult> Get(int id)
@@ -36,6 +45,18 @@ namespace SGHR.Api.Controllers
             if (usuario == null || usuario.Data is Usuario u && u.Deleted)
             {
                 return NotFound("Usuario no existe o ha sido eliminado.");
+            }
+            return Ok(usuario);
+        }
+
+        // GET api/Usuario/GetDeletedUsuarioByID/5
+        [HttpGet("GetDeletedUsuarioByID/{id}")]
+        public async Task<IActionResult> GetDeletedUsuarioByID(int id)
+        {
+            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
+            if (usuario.Data is not Usuario u || !u.Deleted)
+            {
+                return NotFound("Usuario no encontrado o no está eliminado.");
             }
             return Ok(usuario);
         }

@@ -89,112 +89,77 @@ namespace SGHR.Persistence.Repository
             return result;
         }
 
-
-        public async Task<OperationResult> AplicarDescuentoTarifaEntityAsync(int idTarifa, decimal nuevoDescuento)
+        public async Task<OperationResult> SaveEntityAsync(int idtarifas)
         {
-            var result = new OperationResult();
-            try
+            var tarifas = await _context.Set<Tarifas>().FindAsync(idtarifas);
+            if (tarifas == null)
             {
-                var tarifa = await _context.Tarifas.FindAsync(idTarifa);
-                if (tarifa == null)
-                {
-                    return new OperationResult { Success = false, Message = "Tarifa no encontrada." };
-                }
-
-                tarifa.Descuento = nuevoDescuento;
-                await _context.SaveChangesAsync();
-
-                result.Success = true;
-                result.Message = "Descuento aplicado correctamente.";
-                return result;
+                return new OperationResult { Success = false, Message = "El rol de usuario no fue encontrado." };
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al aplicar el descuento en la tarifa con ID {idTarifa}.");
-                result.Success = false;
-                result.Message = $"Error al aplicar el descuento: {ex.Message}";
-            }
-            return result;
-        }
-
-        public override async Task<OperationResult> SaveEntityAsync(Tarifas tarifa)
-        {
-            var validationResult = ValidateTarifas(tarifa);
-            if (!validationResult.Success != null)
-            {
-                return validationResult;
-            }
-
-            try
-            {
-                await _context.Tarifas.AddAsync(tarifa);
-                await _context.SaveChangesAsync();
-                return new OperationResult { Success = true, Message = "Tarifa guardada correctamente.", Data = tarifa };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al guardar la tarifa.");
-                return new OperationResult { Success = false, Message = $"Error al guardar la tarifa: {ex.Message}" };
-            }
+            return await SaveEntityAsync(tarifas);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Tarifas tarifa)
         {
-            var validationResult = ValidateTarifas(tarifa);
-            if (!validationResult.Success != null)
-            {
-                return validationResult;
-            }
-
+            var result = new OperationResult();
             try
             {
-                var existingTarifa = await _context.Tarifas.FindAsync(tarifa.Id);
+                var existingTarifa = await _context.Set<Tarifas>().FindAsync(tarifa.Id);
                 if (existingTarifa == null)
                 {
                     return new OperationResult { Success = false, Message = "Tarifa no encontrada." };
                 }
 
+                // Actualizar los datos modificables
                 existingTarifa.FechaInicio = tarifa.FechaInicio;
                 existingTarifa.FechaFin = tarifa.FechaFin;
                 existingTarifa.PrecioPorNoche = tarifa.PrecioPorNoche;
                 existingTarifa.Descuento = tarifa.Descuento;
-                existingTarifa.Descripcion = tarifa.Descripcion;
+                existingTarifa.Descripcion = tarifa.Descripcion ?? existingTarifa.Descripcion;
                 existingTarifa.IdHabitacion = tarifa.IdHabitacion;
                 existingTarifa.Estado = tarifa.Estado;
-                existingTarifa.ModifyDate = DateTime.Now;
-                existingTarifa.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                existingTarifa.Deleted = tarifa.Deleted;
+                existingTarifa.DeletedUser = tarifa.DeletedUser;
+                existingTarifa.ModifyDate = tarifa.ModifyDate;
+                existingTarifa.ModifyUser = tarifa.ModifyUser;
 
-                _context.Tarifas.Update(existingTarifa);
+                // Guardar cambios
+                _context.Update(existingTarifa);
                 await _context.SaveChangesAsync();
 
-                return new OperationResult { Success = true, Message = "Tarifa actualizada correctamente.", Data = existingTarifa };
+                result.Success = true;
+                result.Data = existingTarifa;
+                return result;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al actualizar la tarifa.");
-                return new OperationResult { Success = false, Message = $"Error al actualizar la tarifa: {ex.Message}" };
+                result.Success = false;
+                result.Message = $"Error al actualizar la tarifa: {ex.Message}";
             }
+            return result;
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(int idTarifa)
+
+        public async Task<OperationResult> DeleteEntityAsync(int id)
         {
             try
             {
-                var tarifa = await _context.Tarifas.FindAsync(idTarifa);
-                if (tarifa == null)
+                var tarifas = await _context.Tarifas.FindAsync(id);
+                if (tarifas == null)
                 {
-                    return new OperationResult { Success = false, Message = "Tarifa no encontrada." };
+                    return new OperationResult { Success = false, Message = "Rol de usuario no encontrado." };
                 }
 
-                _context.Tarifas.Remove(tarifa);
+                _context.Tarifas.Remove(tarifas);
                 await _context.SaveChangesAsync();
 
-                return new OperationResult { Success = true, Message = "Tarifa eliminada permanentemente." };
+                return new OperationResult { Success = true, Message = "Rol de usuario eliminado permanentemente." };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar la tarifa.");
-                return new OperationResult { Success = false, Message = $"Error al eliminar la tarifa: {ex.Message}" };
+                _logger.LogError(ex, "Error al eliminar el rol de usuario.");
+                return new OperationResult { Success = false, Message = $"Error al eliminar el rol de usuario: {ex.Message}" };
             }
         }
 

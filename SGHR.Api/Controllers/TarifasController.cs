@@ -111,6 +111,7 @@ namespace SGHR.Api.Controllers
             }
         }
 
+
         // PUT api/Tarifas/RestoreTarifa/5
         [HttpPut("RestoreTarifa/{id}")]
         public async Task<IActionResult> Restore(int id)

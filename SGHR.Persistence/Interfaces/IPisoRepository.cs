@@ -8,7 +8,7 @@ namespace SGHR.Persistence.Interfaces
     {
         Task<IEnumerable<Piso>> GetAllAsync();
         Task<OperationResult> GetEntityByIdAsync(int id);
-        Task<OperationResult> SaveEntityAsync(Piso piso);
+        Task<OperationResult> SaveEntityAsync(int idpiso);
         Task<OperationResult> UpdateEntityAsync(Piso piso);
         Task<OperationResult> DeleteEntityAsync(int id);
         Task<OperationResult> ExistsAsync(int id);

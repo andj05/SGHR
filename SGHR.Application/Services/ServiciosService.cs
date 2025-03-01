@@ -68,7 +68,10 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SaveServiciosDto dto)
         {
-            var operationResult = new OperationResult();
+            var validationResult = ValidateServicios(dto);
+            if (!validationResult.Success !=null)
+                return validationResult;
+
             try
             {
                 var servicio = new Servicios
@@ -76,16 +79,36 @@ namespace SGHR.Application.Services
                     Nombre = dto.Nombre,
                     Descripcion = dto.Descripcion,
                     Estado = dto.Estado,
-                    CreationUser = 1
+                    CreationUser = 1 
                 };
-                operationResult = await _serviciosRepository.SaveEntityAsync(servicio);
+
+                return await _serviciosRepository.SaveEntityAsync(servicio);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                operationResult.Message = "Error al guardar el servicio";
-                operationResult.Success = false;
+                _logger.LogError(ex, "Error al guardar el servicio.");
+                return new OperationResult { Success = false, Message = "Error al guardar el servicio." };
             }
-            return operationResult;
+        }
+
+        private OperationResult ValidateServicios(SaveServiciosDto dto)
+        {
+            if (dto == null)
+            {
+                return new OperationResult { Success = false, Message = "El servicio no puede ser nulo." };
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Nombre) || dto.Nombre.Length > 200)
+            {
+                return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio y debe tener un máximo de 200 caracteres." };
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Descripcion))
+            {
+                return new OperationResult { Success = false, Message = "La descripción del servicio es obligatoria." };
+            }
+
+            return new OperationResult { Success = true };
         }
 
         public async Task<OperationResult> Update(UpdateServiciosDto dto)

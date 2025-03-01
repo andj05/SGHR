@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repository;
 
 namespace SGHR.Api.Controllers
 {
@@ -58,26 +59,30 @@ namespace SGHR.Api.Controllers
         }
 
         // PUT api/EstadoHabitacion/UpdateEstado/5
-        [HttpPut("UpdateEstado/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] EstadoHabitacion estado)
+        [HttpPut("UpdateEstadoHabitacion/{id}")]
+        public async Task<IActionResult> Put(int id, [FromBody] EstadoHabitacion estadoHabitacion)
         {
             if (id <= 0)
-                return BadRequest("ID de estado de habitación inválido.");
+                return BadRequest("ID del Estado de Habitación inválido.");
 
-            var existingEstado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-            if (existingEstado.Data is not EstadoHabitacion estadoData || estadoData.Deleted)
+            var existingEstadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
+            if (existingEstadoHabitacion.Data is not EstadoHabitacion estadoHabitacionData || estadoHabitacionData.Deleted)
             {
-                return NotFound("Estado de habitación no encontrado o ha sido eliminado.");
+                return NotFound("Estado de Habitación no encontrado o ha sido eliminado.");
             }
 
-            estado.Id = id; // Asegurar que el ID es correcto
-            var updateEstado = await _estadoHabitacionRepository.UpdateEntityAsync(estado);
-            if (updateEstado.Success == true)
+            estadoHabitacion.Id = id; // Asegurar que el ID es correcto
+
+            var updateEstadoHabitacion = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
+            if (updateEstadoHabitacion.Success == true)
             {
-                return Ok(new { Message = "Estado de habitación actualizado exitosamente", Data = updateEstado.Data });
+                return Ok(new { Message = "Estado de Habitación actualizado exitosamente", Data = updateEstadoHabitacion.Data });
             }
-            return BadRequest(new { Message = "Error al actualizar el estado de habitación", Error = updateEstado.Message ?? "Error desconocido" });
+
+            return BadRequest(new { Message = "Error al actualizar el Estado de Habitación", Error = updateEstadoHabitacion.Message ?? "Error desconocido" });
         }
+
+
 
         // DELETE api/EstadoHabitacion/DeleteEstado/5
         [HttpDelete("DeleteEstado/{id}")]

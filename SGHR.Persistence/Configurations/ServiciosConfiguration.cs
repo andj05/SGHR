@@ -10,9 +10,11 @@ namespace SGHR.Persistence.Configurations
         {
             builder.ToTable("Servicios");
 
-            builder.HasKey(s => s.Id);
-            builder.Property(s => s.Id)
-                   .HasColumnName("IdServicio");
+          builder.Property(s => s.Id)
+            .HasColumnName("IdServicio")
+            .ValueGeneratedOnAdd(); 
+
+
         }
     }
 }

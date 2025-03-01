@@ -94,6 +94,11 @@ namespace SGHR.Api.Controllers
                     return NotFound("Categoría no encontrada.");
                 }
 
+                if (categoriaData.Deleted)
+                {
+                    return BadRequest("La categoría ya está eliminada.");
+                }
+
                 categoriaData.Deleted = true;
                 categoriaData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
                 categoriaData.ModifyDate = DateTime.Now;
@@ -162,6 +167,11 @@ namespace SGHR.Api.Controllers
                     return NotFound("Categoría no encontrada.");
                 }
 
+                if (!categoriaData.Deleted)
+                {
+                    return BadRequest("Debe eliminar lógicamente la categoría antes de eliminarla permanentemente.");
+                }
+
                 var deleteResult = await _categoriaRepository.DeleteEntityAsync(id);
                 if (deleteResult.Success != null)
                 {
@@ -178,3 +188,4 @@ namespace SGHR.Api.Controllers
         }
     }
 }
+

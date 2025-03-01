@@ -6,10 +6,6 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace SGHR.Persistence.Repository
 {
@@ -93,81 +89,50 @@ namespace SGHR.Persistence.Repository
             return result;
         }
 
-        public async Task<OperationResult> ActualizarDescripcionPisoAsync(int idPiso, string nuevaDescripcion)
+
+        public async Task<OperationResult> SaveEntityAsync(int idpiso)
+        {
+            var piso = await _context.Set<Piso>().FindAsync(idpiso);
+            if (piso == null)
+            {
+                return new OperationResult { Success = false, Message = "La categoria no fue encontrado." };
+            }
+            return await SaveEntityAsync(piso);
+        }
+
+
+        public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
         {
             var result = new OperationResult();
             try
             {
-                var piso = await _context.Pisos.FindAsync(idPiso);
-                if (piso == null)
-                {
-                    return new OperationResult { Success = false, Message = "Piso no encontrado." };
-                }
-
-                piso.Descripcion = nuevaDescripcion;
-                await _context.SaveChangesAsync();
-
-                return new OperationResult { Success = true, Message = "Descripción del piso actualizada correctamente." };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al actualizar la descripción del piso con ID {idPiso}.");
-                return new OperationResult { Success = false, Message = $"Error al actualizar la descripción del piso: {ex.Message}" };
-            }
-        }
-
-        public override async Task<OperationResult> SaveEntityAsync(Piso piso)
-        {
-            var validationResult = ValidatePiso(piso);
-            if (!validationResult.Success != null)
-            {
-                return validationResult;
-            }
-
-            try
-            {
-                await _context.Pisos.AddAsync(piso);
-                await _context.SaveChangesAsync();
-                return new OperationResult { Success = true, Message = "Piso guardado correctamente.", Data = piso };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al guardar el piso.");
-                return new OperationResult { Success = false, Message = $"Error al guardar el piso: {ex.Message}" };
-            }
-        }
-
-        public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
-        {
-            var validationResult = ValidatePiso(piso);
-            if (!validationResult.Success != null)
-            {
-                return validationResult;
-            }
-
-            try
-            {
-                var existingPiso = await _context.Pisos.FindAsync(piso.Id);
+                var existingPiso = await _context.Set<Piso>().FindAsync(piso.Id);
                 if (existingPiso == null)
                 {
                     return new OperationResult { Success = false, Message = "Piso no encontrado." };
                 }
 
+                // Actualizar los datos modificables
                 existingPiso.Descripcion = piso.Descripcion ?? existingPiso.Descripcion;
                 existingPiso.Estado = piso.Estado;
                 existingPiso.ModifyDate = DateTime.Now;
-                existingPiso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                existingPiso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                _context.Pisos.Update(existingPiso);
+                // Guardar cambios
+                _context.Update(existingPiso);
                 await _context.SaveChangesAsync();
 
-                return new OperationResult { Success = true, Message = "Piso actualizado correctamente.", Data = existingPiso };
+                result.Success = true;
+                result.Data = existingPiso;
+                return result;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al actualizar el piso.");
-                return new OperationResult { Success = false, Message = $"Error al actualizar el piso: {ex.Message}" };
+                result.Success = false;
+                result.Message = $"Error al actualizar el piso: {ex.Message}";
             }
+            return result;
         }
 
         public async Task<OperationResult> DeleteEntityAsync(int idPiso)

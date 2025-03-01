@@ -94,60 +94,50 @@ namespace SGHR.Persistence.Repository
         }
 
         // Guardar una nueva categoría
-        public override async Task<OperationResult> SaveEntityAsync(Categoria categoria)
+        public async Task<OperationResult> SaveEntityAsync(int idCategoria)
         {
-            var validationResult = ValidateCategoria(categoria);
-            if (!validationResult.Success != null)
+            var categoria = await _context.Set<Categoria>().FindAsync(idCategoria);
+            if (categoria == null)
             {
-                return validationResult;
+                return new OperationResult { Success = false, Message = "La categoria no fue encontrado." };
             }
-
-            try
-            {
-                await _context.Categoria.AddAsync(categoria);
-                await _context.SaveChangesAsync();
-                return new OperationResult { Success = true, Message = "Categoría guardada correctamente.", Data = categoria };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al guardar la categoría.");
-                return new OperationResult { Success = false, Message = $"Error al guardar la categoría: {ex.Message}" };
-            }
+            return await SaveEntityAsync(categoria);
         }
 
         // Actualizar una categoría
         public override async Task<OperationResult> UpdateEntityAsync(Categoria categoria)
+{
+         var result = new OperationResult();
+        try
         {
-            var validationResult = ValidateCategoria(categoria);
-            if (!validationResult.Success != null)
-            {
-                return validationResult;
-            }
-
-            try
-            {
-                var existingCategoria = await _context.Categoria.FindAsync(categoria.Id);
-                if (existingCategoria == null)
-                {
-                    return new OperationResult { Success = false, Message = "Categoría no encontrada." };
-                }
-
-                existingCategoria.Descripcion = categoria.Descripcion ?? existingCategoria.Descripcion;
-                existingCategoria.Estado = categoria.Estado;
-                existingCategoria.ModifyDate = DateTime.Now;
-                existingCategoria.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-                _context.Categoria.Update(existingCategoria);
-                await _context.SaveChangesAsync();
-
-                return new OperationResult { Success = true, Message = "Categoría actualizada correctamente.", Data = existingCategoria };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al actualizar la categoría.");
-                return new OperationResult { Success = false, Message = $"Error al actualizar la categoría: {ex.Message}" };
-            }
+        var existingCategoria = await _context.Set<Categoria>().FindAsync(categoria.Id);
+        if (existingCategoria == null)
+        {
+            return new OperationResult { Success = false, Message = "Categoría no encontrada." };
         }
+
+        // Actualizar los datos modificables
+        existingCategoria.Descripcion = categoria.Descripcion ?? existingCategoria.Descripcion;
+        existingCategoria.Estado = categoria.Estado;
+        existingCategoria.ModifyDate = DateTime.Now;
+        existingCategoria.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
+        // Guardar cambios
+        _context.Update(existingCategoria);
+        await _context.SaveChangesAsync();
+
+        result.Success = true;
+        result.Data = existingCategoria;
+        return result;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error al actualizar la categoría.");
+        result.Success = false;
+        result.Message = $"Error al actualizar la categoría: {ex.Message}";
+    }
+    return result;
+    }
 
         // Eliminar una categoría permanentemente
         public async Task<OperationResult> DeleteEntityAsync(int id)

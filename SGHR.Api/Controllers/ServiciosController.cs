@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repository;
 
 namespace SGHR.Api.Controllers
 {
@@ -38,7 +39,7 @@ namespace SGHR.Api.Controllers
         }
 
         // POST api/Servicios/SaveServicios
-        [HttpPost("SaveServicios")]
+        [HttpPost("SaveServicio")]
         public async Task<IActionResult> Post([FromBody] Servicios servicio)
         {
             try
@@ -46,14 +47,14 @@ namespace SGHR.Api.Controllers
                 var saveServicio = await _serviciosRepository.SaveEntityAsync(servicio);
                 if (saveServicio.Success == true)
                 {
-                    return Ok(new { Message = "Servicio guardado exitosamente", Data = saveServicio.Data });
+                    return Ok(new { Message = "Servicio Guardado", Data = saveServicio.Data });
                 }
-                return BadRequest(new { Message = "Error al guardar el servicio", Error = saveServicio.Message });
+                return BadRequest(new { Message = "Error al guardar servicio", Error = saveServicio.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar el servicio.");
-                return StatusCode(500, new { Message = "Error interno al guardar el servicio.", Error = ex.Message });
+                _logger.LogError(ex, "Error guardando el servicio");
+                return StatusCode(500, new { Message = "Error.", Error = ex.Message });
             }
         }
 

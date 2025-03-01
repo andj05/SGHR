@@ -19,10 +19,10 @@ namespace SGHR.Persistence.Context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.ApplyConfiguration(new CategoriasConfiguration());
             modelBuilder.ApplyConfiguration(new EstadoHabitacionConfiguration());
             modelBuilder.ApplyConfiguration(new PisoConfiguration());
             modelBuilder.ApplyConfiguration(new ServiciosConfiguration());
-            modelBuilder.ApplyConfiguration(new CategoriasConfiguration());
             modelBuilder.ApplyConfiguration(new TarifasConfiguration());
             modelBuilder.ApplyConfiguration(new RolUsuarioConfiguration());
         }

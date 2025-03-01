@@ -1,7 +1,6 @@
 ﻿using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Domain.Repository;
-using System.Linq.Expressions;
 
 namespace SGHR.Persistence.Interfaces
 {
@@ -9,10 +8,10 @@ namespace SGHR.Persistence.Interfaces
     {
         Task<IEnumerable<Categoria>> GetAllAsync();
         Task<OperationResult> GetEntityByIdAsync(int idCategoria);
-        Task<OperationResult> SaveEntityAsync(Categoria categoria);
+        Task<OperationResult> SaveEntityAsync(int idCategoria);
         Task<OperationResult> UpdateEntityAsync(Categoria categoria);
-        Task<OperationResult> DeleteEntityAsync(int idCategoria);
-        Task<OperationResult> ExistsAsync(int idCategoria);
+        Task<OperationResult> DeleteEntityAsync(int id);
+        Task<OperationResult> ExistsAsync(int id);
 
     }
 }

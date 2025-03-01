@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
+using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
@@ -44,11 +45,11 @@ namespace SGHR.Persistence.Repository
             var result = new OperationResult();
             try
             {
-                var estadoHabitacion = await _context.Categoria.FindAsync(id);
+                var estadoHabitacion = await _context.EstadoHabitacion.FindAsync(id);
                 if (estadoHabitacion == null)
                 {
                     result.Success = false;
-                    result.Message = "Categoría no encontrada.";
+                    result.Message = "Estado de habitación no encontrado.";
                 }
                 else
                 {
@@ -58,12 +59,13 @@ namespace SGHR.Persistence.Repository
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener la categoría con ID {id}.");
+                _logger.LogError(ex, $"Error al obtener el estado de habitación con ID {id}.");
                 result.Success = false;
-                result.Message = $"Error al obtener la categoría: {ex.Message}";
+                result.Message = $"Error al obtener el estado de habitación: {ex.Message}";
             }
             return result;
         }
+       
 
         // Verificar si un estado de habitación existe
         public async Task<OperationResult> ExistsAsync(int IdEstadoHabitacion)
@@ -94,61 +96,53 @@ namespace SGHR.Persistence.Repository
         }
 
         // Guardar un estado de habitación
-        public override async Task<OperationResult> SaveEntityAsync(EstadoHabitacion estadoHabitacion)
+        public async Task<OperationResult> SaveEntityAsync(int idestadoHabitacion)
         {
-            var validationResult = ValidateEstadoHabitacion(estadoHabitacion);
-            if (!validationResult.Success != null)
+            var estadoHabitacion = await _context.Set<EstadoHabitacion>().FindAsync(idestadoHabitacion);
+            if (estadoHabitacion == null)
             {
-                return validationResult;
+                return new OperationResult { Success = false, Message = "La categoria no fue encontrado." };
             }
-
-            try
-            {
-                await _context.EstadoHabitacion.AddAsync(estadoHabitacion);
-                await _context.SaveChangesAsync();
-                return new OperationResult { Success = true, Message = "Estado de habitación guardado correctamente.", Data = estadoHabitacion };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al guardar el estado de habitación.");
-                return new OperationResult { Success = false, Message = $"Error al guardar el estado de habitación: {ex.Message}" };
-            }
+            return await SaveEntityAsync(estadoHabitacion);
         }
 
         // Actualizar un estado de habitación
-         public override async Task<OperationResult> UpdateEntityAsync(EstadoHabitacion estadoHabitacion)
+        public override async Task<OperationResult> UpdateEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            var validationResult = ValidateEstadoHabitacion(estadoHabitacion);
-            if (!validationResult.Success != null)
-            {
-                return validationResult;
-            }
-
+            var result = new OperationResult();
             try
             {
-                var existingEstado = await _context.EstadoHabitacion.FindAsync(estadoHabitacion.Id);
+                // Buscar el Estado de Habitación por su ID
+                var existingEstado = await _context.Set<EstadoHabitacion>().FindAsync(estadoHabitacion.Id);
+
+                // Verificar si no se encuentra el Estado de Habitación
                 if (existingEstado == null)
                 {
-                    return new OperationResult { Success = false, Message = "Estado de habitación no encontrado." };
+                    return new OperationResult { Success = false, Message = "Estado de habitación no encontrado o ha sido eliminado." };
                 }
 
                 // Actualizar los datos modificables
                 existingEstado.Descripcion = estadoHabitacion.Descripcion ?? existingEstado.Descripcion;
                 existingEstado.Estado = estadoHabitacion.Estado;
                 existingEstado.ModifyDate = DateTime.Now;
-                existingEstado.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                existingEstado.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                // Guardar cambios
-                _context.EstadoHabitacion.Update(existingEstado);
+                // Guardar los cambios en la base de datos
+                _context.Update(existingEstado);
                 await _context.SaveChangesAsync();
 
-                return new OperationResult { Success = true, Message = "Estado de habitación actualizado correctamente.", Data = existingEstado };
+                result.Success = true;
+                result.Data = existingEstado;
+                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al actualizar el estado de habitación.");
-                return new OperationResult { Success = false, Message = $"Error al actualizar el estado de habitación: {ex.Message}" };
+                _logger.LogError(ex, "Error al actualizar el estado de habitación.");
+                result.Success = false;
+                result.Message = $"Error al actualizar el estado de habitación: {ex.Message}";
             }
+
+            return result;
         }
 
         // Eliminar un estado de habitación permanentemente

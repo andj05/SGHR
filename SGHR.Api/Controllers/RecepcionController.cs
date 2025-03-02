@@ -55,7 +55,7 @@ namespace SGHR.Api.Controllers
         [HttpPut("ActualizarRecepcion/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] Recepcion recepcion)
         {
-            if (id != recepcion.IdRecepcion)
+            if (id != recepcion.Id)
             {
                 return BadRequest("Recepcion no encontrada.");
             }
@@ -78,7 +78,7 @@ namespace SGHR.Api.Controllers
                 return NotFound("Recepcion no encontrada.");
             }
 
-            var result = await _recepcionRepository.BorrarRecepcionAsync(id);
+            var result = await _recepcionRepository.DeleteEntityAsync(recepcion);
             if (result.Success == true)
             {
                 return Ok("Recepcion borrada.");

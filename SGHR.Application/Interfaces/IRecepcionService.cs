@@ -1,12 +1,10 @@
-﻿using SGHR.Domain.Base;
+﻿using SGHR.Application.Base;
+using SGHR.Application.Dtos.Recepcion;
 using SGHR.Domain.Entities.Reservation;
-using SGHR.Domain.Repository;
-using System.Linq.Expressions;
 
-
-namespace SGHR.Persistence.Interfaces
+namespace SGHR.Application.Interfaces
 {
-    public interface IRecepcionRepository : IBaseRepository<Recepcion>
+    public interface IRecepcionService : IBaseService<SaveRecepcionDto, UpdateRecepcionDto, RemoveRecepcionDto>
     {
         Task<List<Recepcion>> ObtenerRecepcionesPorEstadoReservaAsync(int idEstadoReserva);
         Task<List<Recepcion>> ObtenerRecepcionesPorClienteIdAsync(int idCliente);

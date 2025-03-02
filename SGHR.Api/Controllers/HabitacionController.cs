@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Domain.Entities.Reservation;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repositories;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -56,15 +57,31 @@ namespace SGHR.Api.Controllers
         [HttpPut("ActualizarHabitacion")]
         public async Task<IActionResult> Put(int id, [FromBody] Habitacion habitacion)
         {
-            if (id != habitacion.IdHabitacion)
+            var existingHabitacion = await _habitacionRepository.GetEntityByIdAsync(id);
+            if (existingHabitacion == null)
             {
-                return BadRequest("Habitacion no encontrada.");
+                return NotFound("Habitacion no encontrada.");
             }
-
             var result = await _habitacionRepository.UpdateEntityAsync(habitacion);
             if (result.Success == true)
             {
                 return Ok("Habitacion actualizada.");
+            }
+                return BadRequest("Habitacion no encontrada.");
+        }
+        // DELETE api/<HabitacionController>/5
+        [HttpDelete("BorrarHabitacion/{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var habitacion = await _habitacionRepository.GetEntityByIdAsync(id);
+            if (habitacion == null)
+            {
+                return NotFound("Habitacion no encontrada.");
+            }
+            var result = await _habitacionRepository.DeleteEntityAsync(habitacion);
+            if (result.Success == true)
+            {
+                return Ok("Habitacion borrada.");
             }
             return BadRequest(result.Message);
         }

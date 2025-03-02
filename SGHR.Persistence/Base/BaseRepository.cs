@@ -66,25 +66,6 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
-
-        public virtual async Task<OperationResult> GetAllAsync(Expression<Func<TEntity, bool>> filter)
-        {
-            OperationResult result = new OperationResult();
-
-            try
-            {
-                var datos = await Entity.Where(filter).ToListAsync();
-                result.Data = datos;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.Message = $"Ocurrio un error obteniendo los datos: {ex.Message}";
-            }
-
-            return result;
-        }
-
         public virtual async Task<TEntity> GetEntityByIdAsync(int id)
         {
             var entity = await Entity.FindAsync(id);
@@ -102,6 +83,28 @@ namespace SGHR.Persistence.Base
         public virtual async Task<List<TEntity>> GetAllAsync()
         {
             return await Entity.ToListAsync();
+        }
+        public virtual async Task<OperationResult> DeleteEntityAsync(TEntity entity)
+        {
+            var result = new OperationResult();
+            try
+            {
+                if (entity == null)
+                {
+                    result.Success = false;
+                    result.Message = "La entidad no puede ser nula.";
+                    return result;
+                }
+                Entity.Remove(entity);
+                await _context.SaveChangesAsync();
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error eliminando los datos: {ex.Message}";
+            }
+            return result;
         }
     }
 }

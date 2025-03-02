@@ -8,7 +8,8 @@ namespace SGHR.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Recepcion> builder)
         {
-            builder.HasKey(r => r.IdRecepcion);
+            builder.HasKey(r => r.Id);
+            builder.Property(r => r.Id).HasColumnName("IdRecepcion");
             builder.Property(r => r.FechaEntrada).IsRequired();
         }
     }

@@ -8,8 +8,7 @@ namespace SGHR.Persistence.Context
     public class SGHRContext : DbContext
     {
         public SGHRContext(DbContextOptions<SGHRContext> options) : base(options) 
-        {
-            
+        { 
         }
         public DbSet<Habitacion> Habitacion { get; set; }
         public DbSet<Recepcion> Recepcion { get; set; }
@@ -20,6 +19,5 @@ namespace SGHR.Persistence.Context
             modelBuilder.ApplyConfiguration(new HabitacionConfiguration());
             modelBuilder.ApplyConfiguration(new RecepcionConfiguration());
         }
-
         }
 }

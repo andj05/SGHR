@@ -8,9 +8,9 @@ namespace SGHR.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Habitacion> builder)
         {
-            builder.HasKey(h => h.IdHabitacion); 
+            builder.HasKey(h => h.Id);
+            builder.Property(h => h.Id).HasColumnName("IdHabitacion");
             builder.Property(h => h.Numero).IsRequired();
-            
         }
     }
 }

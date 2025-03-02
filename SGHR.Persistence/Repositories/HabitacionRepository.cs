@@ -24,12 +24,18 @@ namespace SGHR.Persistence.Repositories
             _logger = logger;
             _configuration = configuration;
         }
-        
+
         public override async Task<List<Habitacion>> GetAllAsync()
         {
-            return await _context.Habitacion
-                                 .Where(c => c.Estado == true)
-                                 .ToListAsync();
+            try
+            {
+                return await _context.Set<Habitacion>().ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener todos los clientes.");
+                throw;
+            }
         }
 
         public override async Task<Habitacion> GetEntityByIdAsync(int id)
@@ -88,23 +94,48 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> SaveEntityAsync(Habitacion habitacion)
         {
-            if (habitacion == null)
-                return new OperationResult { Success = false, Message = "La habitacion no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(habitacion.Detalle))
-                return new OperationResult { Success = false, Message = "El detalle de la habitacion no puede estar vacío." };
+            var validationResult = ValidateHabitacion(habitacion);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
 
             return await base.SaveEntityAsync(habitacion);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Habitacion habitacion)
         {
-            if (habitacion == null)
-                return new OperationResult { Success = false, Message = "La habitacion no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(habitacion.Detalle))
-                return new OperationResult { Success = false, Message = "El detalle de la habitacion no puede estar vacío." };
+            var validationResult = ValidateHabitacion(habitacion);
+            if (validationResult.Success.HasValue && !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
 
             return await base.UpdateEntityAsync(habitacion);
         }
+
+        public override async Task<OperationResult> DeleteEntityAsync(Habitacion habitacion)
+        {
+            var result = new OperationResult();
+            try
+            {
+                //Esta validacion confirma si el idestadohabitacion es igual a 2, lo que significa que esta reservada
+                if (habitacion.IdEstadoHabitacion == 2)
+                {
+                    result.Success = false;
+                    result.Message = "La habitación está reservada y no puede ser eliminada.";
+                    return result;
+                }
+                return await base.DeleteEntityAsync(habitacion);
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrió un error eliminando la habitación: {ex.Message}";
+            }
+            return result;
+        }
+
         public override async Task<bool> ExistsAsync(Expression<Func<Habitacion, bool>> filter)
         {
             try
@@ -124,6 +155,42 @@ namespace SGHR.Persistence.Repositories
                 _logger.LogError(ex, "Error al verificar existencia con filtro: {Filter}", filter);
                 throw;
             }
+        }
+        private OperationResult ValidateHabitacion(Habitacion habitacion)
+        {
+            if (habitacion == null)
+            {
+                return new OperationResult { Success = false, Message = "La habitacion no puede ser nula." };
+            }
+            if (string.IsNullOrWhiteSpace(habitacion.Numero) || habitacion.Numero.Length > 50)
+            {
+                return new OperationResult { Success = false, Message = "El número de la habitacion no puede estar vacío y debe tener un máximo de 50 caracteres." };
+            }
+            if (habitacion.Detalle != null && habitacion.Detalle.Length > 100)
+            {
+                return new OperationResult { Success = false, Message = "El detalle de la habitacion debe tener un máximo de 100 caracteres." };
+            }
+            if (habitacion.IdEstadoHabitacion <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El ID del estado de la habitacion debe ser mayor que cero." };
+            }
+            if (habitacion.IdPiso <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El ID del piso debe ser mayor que cero." };
+            }
+            if (habitacion.IdCategoria <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El ID de la categoría debe ser mayor que cero." };
+            }
+            if (habitacion.FechaCreacion == default)
+            {
+                return new OperationResult { Success = false, Message = "La fecha de creación es obligatoria." };
+            }
+            if (habitacion.Deleted == true)
+            {
+                return new OperationResult { Success = false, Message = "La habitacion ya ha sido borrada." };
+            }
+            return new OperationResult { Success = true };
         }
     }
 }

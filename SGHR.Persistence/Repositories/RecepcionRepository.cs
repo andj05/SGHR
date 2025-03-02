@@ -89,46 +89,43 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> SaveEntityAsync(Recepcion recepcion)
         {
-            if (recepcion == null)
-                return new OperationResult { Success = false, Message = "La recepcion no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(recepcion.Observacion))
-                return new OperationResult { Success = false, Message = "La observacion de la recepcion no puede estar vacía." };
+            var validationResult = ValidateRecepcion(recepcion);
+            if (!validationResult.Success.HasValue || !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
 
             return await base.SaveEntityAsync(recepcion);
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Recepcion recepcion)
         {
-            if (recepcion == null)
-                return new OperationResult { Success = false, Message = "La recepcion no puede ser nula." };
-            if (string.IsNullOrWhiteSpace(recepcion.Observacion))
-                return new OperationResult { Success = false, Message = "La observacion de la recepcion no puede estar vacía." };
+            var validationResult = ValidateRecepcion(recepcion);
+            if (!validationResult.Success.HasValue || !validationResult.Success.Value)
+            {
+                return validationResult;
+            }
 
             return await base.UpdateEntityAsync(recepcion);
         }
 
-        public async Task<OperationResult> BorrarRecepcionAsync(int id)
+        public override async Task<OperationResult> DeleteEntityAsync(Recepcion recepcion)
         {
             var result = new OperationResult();
             try
             {
-                var recepcion = await _context.Recepcion.FindAsync(id);
-                if (recepcion == null)
+                if (recepcion.IdEstadoReserva == null || recepcion.IdEstadoReserva == 2)
                 {
                     result.Success = false;
-                    result.Message = "Recepción no encontrada.";
+                    result.Message = "No se puede eliminar una recepcion nula o en progreso.";
                     return result;
                 }
-
-                _context.Recepcion.Remove(recepcion);
-                await _context.SaveChangesAsync();
-                result.Success = true;
+                return await base.DeleteEntityAsync(recepcion);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al eliminar recepción: {ex.Message}");
                 result.Success = false;
-                result.Message = "Error al eliminar la recepción.";
+                result.Message = $"Ocurrió un error eliminando la recepción: {ex.Message}";
             }
             return result;
         }
@@ -179,6 +176,38 @@ namespace SGHR.Persistence.Repositories
                 _logger.LogError(ex, "Error al verificar existencia con filtro: {Filter}", filter);
                 throw;
             }
+        }
+        private OperationResult ValidateRecepcion(Recepcion recepcion)
+        {
+            if (recepcion == null)
+            {
+                return new OperationResult { Success = false, Message = "La recepcion no puede ser nula." };
+            }
+            if (recepcion.FechaEntrada == default)
+            {
+                return new OperationResult { Success = false, Message = "La fecha de entrada es obligatoria." };
+            }
+            if (recepcion.IdCliente.HasValue && recepcion.IdCliente <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El ID del cliente debe ser mayor que cero o nulo." };
+            }
+            if (recepcion.IdHabitacion.HasValue && recepcion.IdHabitacion <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El ID de la habitacion debe ser mayor que cero o nulo." };
+            }
+            if (recepcion.IdEstadoReserva.HasValue && recepcion.IdEstadoReserva <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El ID del estado de la reserva debe ser mayor que cero o nulo." };
+            }
+            if (recepcion.Observacion != null && recepcion.Observacion.Length > 500)
+            {
+                return new OperationResult { Success = false, Message = "La observacion de la recepcion debe tener un máximo de 500 caracteres." };
+            }
+            if (recepcion.Deleted == true)
+            {
+                return new OperationResult { Success = false, Message = "La recepcion ha sido borrada." };
+            }
+            return new OperationResult { Success = true };
         }
     }
 }

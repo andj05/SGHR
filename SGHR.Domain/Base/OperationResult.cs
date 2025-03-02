@@ -1,5 +1,4 @@
-﻿
-namespace SGHR.Domain.Base
+﻿namespace SGHR.Domain.Base
 {
     public class OperationResult
     {

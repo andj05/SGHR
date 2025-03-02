@@ -131,6 +131,7 @@ namespace SGHR.Persistence.Repositories
                 existingCliente.TipoDocumento = cliente.TipoDocumento ?? existingCliente.TipoDocumento;
                 existingCliente.Documento = cliente.Documento ?? existingCliente.Documento;
                 existingCliente.NombreCompleto = cliente.NombreCompleto ?? existingCliente.NombreCompleto;
+                existingCliente.Clave = cliente.Clave ?? existingCliente.Clave;
                 existingCliente.Correo = cliente.Correo ?? existingCliente.Correo;
                 existingCliente.Telefono = cliente.Telefono ?? existingCliente.Telefono;
                 existingCliente.Nacionalidad = cliente.Nacionalidad ?? existingCliente.Nacionalidad;

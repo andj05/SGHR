@@ -63,6 +63,7 @@ namespace SGHR.Application.Services
                     Documento = dto.Documento,
                     NombreCompleto = dto.NombreCompleto,
                     Correo = dto.Correo,
+                    Clave = dto.Clave,
                     Telefono = dto.Telefono,
                     Nacionalidad = dto.Nacionalidad,
                     CreationUser = 1
@@ -90,6 +91,7 @@ namespace SGHR.Application.Services
             clienteData.Documento = dto.Documento ?? clienteData.Documento;
             clienteData.NombreCompleto = dto.NombreCompleto ?? clienteData.NombreCompleto;
             clienteData.Correo = dto.Correo ?? clienteData.Correo;
+            clienteData.Clave = dto.Clave ?? clienteData.Clave;
             clienteData.Telefono = dto.Telefono ?? clienteData.Telefono;
             clienteData.Nacionalidad = dto.Nacionalidad ?? clienteData.Nacionalidad;
             clienteData.ModifyDate = DateTime.Now;
@@ -140,6 +142,9 @@ namespace SGHR.Application.Services
 
             if (!string.IsNullOrWhiteSpace(cliente.Telefono) && cliente.Telefono.Length > 20)
                 return new OperationResult { Success = false, Message = "El teléfono debe tener un máximo de 20 caracteres." };
+
+            if (string.IsNullOrWhiteSpace(cliente.Clave) || cliente.Clave.Length < 6)
+                return new OperationResult { Success = false, Message = "La clave es obligatoria y debe tener al menos 6 caracteres." };
 
             return new OperationResult { Success = true };
         }

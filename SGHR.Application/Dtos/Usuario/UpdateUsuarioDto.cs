@@ -6,6 +6,5 @@ namespace SGHR.Application.Dtos.Usuario
     {
         public int IdUsuario { get; set; }
         public int? IdRolUsuario { get; set; }
-        public string? Clave { get; set; }
     }
 }

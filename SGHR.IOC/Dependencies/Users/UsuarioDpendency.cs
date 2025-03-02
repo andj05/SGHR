@@ -6,7 +6,7 @@ namespace SGHR.IOC.Dependencies.Users
 {
     public static class UsuarioDpendency
     {
-        public static void AddUsuarioDpendency(this IServiceCollection services)
+        public static void AddUsuarioDependency(this IServiceCollection services)
         {
             services.AddScoped<IUsuarioRepository, UsuarioRepository>();
             services.AddTransient<IUsuarioRepository, UsuarioRepository>();

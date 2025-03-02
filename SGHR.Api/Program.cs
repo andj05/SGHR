@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using SGHR.Persistence.Context;
-using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
 using SGHR.IOC.Dependencies.Users;
+using System.Text;
+
 namespace SGHR.Api
 {
     public class Program
@@ -11,28 +13,64 @@ namespace SGHR.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-            builder.Services.AddDbContext<SGHRContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
+            // Configuración de la Base de Datos
+            builder.Services.AddDbContext<SGHRContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
 
+            // Agregar Dependencias de Repositorios
             builder.Services.AddClienteDependency();
-            builder.Services.AddUsuarioDpendency();
+            builder.Services.AddUsuarioDependency();
 
+            // Configuración de CORS para permitir peticiones desde el frontend
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAllOrigins",
+                    builder => builder.AllowAnyOrigin()
+                                      .AllowAnyMethod()
+                                      .AllowAnyHeader());
+            });
+
+            // Configuración de JWT
+            var jwtSettings = builder.Configuration.GetSection("Jwt");
+            var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
+
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.RequireHttpsMetadata = false;
+                    options.SaveToken = true;
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(key),
+                        ValidateIssuer = true,
+                        ValidIssuer = jwtSettings["Issuer"],
+                        ValidateAudience = true,
+                        ValidAudience = jwtSettings["Audience"],
+                        ValidateLifetime = true
+                    };
+                });
+
+            builder.Services.AddAuthorization();
+
+            // Agregar Controladores y Swagger
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+            // Configuración del Middleware
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
-            app.UseAuthorization();
+            app.UseCors("AllowAllOrigins"); // Habilitar CORS
 
+            app.UseAuthentication(); // Habilitar autenticación con JWT
+            app.UseAuthorization();
 
             app.MapControllers();
 

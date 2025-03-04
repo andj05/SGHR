@@ -107,9 +107,37 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
-        public Task<OperationResult> DeleteLogicAsync(TEntity entity)
+        public virtual async Task<OperationResult> DeleteLogicAsync(TEntity entity)
         {
-            throw new NotImplementedException();
+            var result = new OperationResult();
+            try
+            {
+                if (entity is AuditEntity auditEntity)
+                {
+                    auditEntity.Deleted = true;
+                    auditEntity.ModifyDate = DateTime.Now;
+                    Entity.Update(entity);
+                    await _context.SaveChangesAsync();
+                    result.Success = true;
+                    result.Data = entity;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "La entidad no soporta eliminación lógica.";
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrió un error eliminando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
+        public virtual async Task<TEntity?> GetByEmailAsync(string email)
+        {
+            return await Entity.OfType<Usuario>().FirstOrDefaultAsync(u => u.Correo == email) as TEntity;
         }
     }
 }

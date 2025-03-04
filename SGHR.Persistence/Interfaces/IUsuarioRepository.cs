@@ -10,6 +10,7 @@ namespace SGHR.Persistence.Interfaces
         Task<IEnumerable<Usuario>> GetAllAsync();
         Task<OperationResult> GetEntityByIdAsync(int idUsuario);
         Task<OperationResult> GetUsersByStatusAsync(int idEstadoUsuario);
+        Task<OperationResult> GetByEmailAsync(string email);
         Task<OperationResult> GetUsersByFilterAsync(Expression<Func<Usuario, bool>> filter);
         Task<OperationResult> SaveEntityAsync(Usuario usuario);
         Task<OperationResult> UpdateEntityAsync(Usuario usuario);

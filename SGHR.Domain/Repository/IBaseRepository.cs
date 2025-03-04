@@ -12,6 +12,7 @@ namespace SGHR.Domain.Repository
     {
         Task<List<TEntity>> GetAllAsync();
         Task<TEntity?> GetEntityByIdAsync(int id);
+        Task<TEntity?> GetByEmailAsync(string email);
         Task<OperationResult> UpdateEntityAsync(TEntity entity);
         Task<OperationResult> SaveEntityAsync(TEntity entity);
         Task<OperationResult> DeleteEntityAsync(TEntity entity);

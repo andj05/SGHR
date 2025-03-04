@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace SGHR.Api.Controllers
 {
@@ -13,12 +16,78 @@ namespace SGHR.Api.Controllers
     {
         private readonly IUsuarioRepository _usuarioRepository;
         private readonly ILogger<UsuarioController> _logger;
-        public UsuarioController(IUsuarioRepository usuarioRepository,
-                                 ILogger<UsuarioController> logger)
+        private readonly IConfiguration _configuration;
+
+        public UsuarioController(IUsuarioRepository usuarioRepository, ILogger<UsuarioController> logger, IConfiguration configuration)
         {
             _usuarioRepository = usuarioRepository;
             _logger = logger;
+            _configuration = configuration;
         }
+
+        // POST: api/Usuarios/Login
+        [HttpPost("Login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            var usuario = await _usuarioRepository.GetByEmailAsync(request.Correo);
+            if (usuario.Data is not Usuario usuarioData)
+            {
+                return NotFound(new { message = "Usuario no encontrado." });
+            }
+            if (usuarioData.Clave != request.Clave)
+            {
+                return BadRequest(new { message = "Contraseña incorrecta." });
+            }
+
+            // Generar token JWT
+            var token = GenerateJwtToken(usuarioData);
+
+            return Ok(new
+            {
+                token,
+                message = "Usuario autenticado.",
+                usuario = new
+                {
+                    usuarioData.Id,
+                    usuarioData.NombreCompleto,
+                    usuarioData.Correo,
+                    usuarioData.IdRolUsuario
+                }
+            });
+        }
+
+        private string GenerateJwtToken(Usuario usuario)
+        {
+            var keyBytes = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]);
+
+            // Verifica que la clave tiene al menos 32 bytes
+            if (keyBytes.Length < 32)
+            {
+                throw new ArgumentException("La clave JWT debe tener al menos 32 bytes.");
+            }
+
+            var key = new SymmetricSecurityKey(keyBytes);
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var claims = new List<Claim>
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
+                new Claim(ClaimTypes.Name, usuario.NombreCompleto),
+                new Claim(ClaimTypes.Email, usuario.Correo),
+                new Claim("Rol", usuario.IdRolUsuario.ToString())
+            };
+
+            var token = new JwtSecurityToken(
+                _configuration["Jwt:Issuer"],
+                _configuration["Jwt:Audience"],
+                claims,
+
+                expires: DateTime.UtcNow.AddHours(1),
+                signingCredentials: creds);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
 
         // GET: api/Usuario/GetUsuarios
         [HttpGet("GetUsuarios")]

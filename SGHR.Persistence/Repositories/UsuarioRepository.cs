@@ -102,6 +102,32 @@ namespace SGHR.Persistence.Repositories
             return result;
         }
 
+        public async Task<OperationResult> GetByEmailAsync(string email)
+        {
+            var result = new OperationResult();
+            try
+            {
+                var usuario = await _context.Set<Usuario>().FirstOrDefaultAsync(u => u.Correo == email);
+                if (usuario != null)
+                {
+                    result.Data = usuario;
+                    result.Success = true;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "Usuario no encontrado.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al obtener el usuario con correo {email}.");
+                result.Success = false;
+                result.Message = $"Error al obtener el usuario: {ex.Message}";
+            }
+            return result;
+        }
+
         public async Task<OperationResult> SaveEntityAsync(int idUsuario)
         {
             var usario = await _context.Set<Usuario>().FindAsync(idUsuario);
@@ -192,5 +218,6 @@ namespace SGHR.Persistence.Repositories
             }
             return result;
         }
+
     }
 }

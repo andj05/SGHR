@@ -153,8 +153,6 @@ namespace SGHR.Persistence.Repository
             return result;
         }
 
-
-
         public async Task<OperationResult> DeleteEntityAsync(int id)
         {
             try

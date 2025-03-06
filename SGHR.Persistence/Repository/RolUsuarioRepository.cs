@@ -6,6 +6,7 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
+using System.Linq.Expressions;
 
 namespace SGHR.Persistence.Repository
 {
@@ -24,103 +25,116 @@ namespace SGHR.Persistence.Repository
             _configuration = configuration;
         }
 
-        public async Task<IEnumerable<RolUsuario>> GetAllAsync()
+        public override async Task<List<RolUsuario>> GetAllAsync()
         {
             try
             {
-                return await _context.RolUsuario
-                    .Where(r => r.Estado == true)
-                    .ToListAsync();
+                return await _context.Set<RolUsuario>().Where(h => !h.Deleted).ToListAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener los roles de usuario.");
+                _logger.LogError(ex, "Error al obtener todos los Rol Usuario.");
                 throw;
             }
         }
 
-        public async Task<OperationResult> GetEntityByIdAsync(int id)
+        public override async Task<RolUsuario> GetEntityByIdAsync(int id)
         {
-            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _logger.LogWarning($"ID del rol de usuario inválido: {id}");
+                return null;
+            }
+
             try
             {
-                var rolUsuario = await _context.RolUsuario.FindAsync(id);
-                if (rolUsuario == null)
+                var rolUsuario = await _context.Set<RolUsuario>().FindAsync(id);
+                if (rolUsuario == null || rolUsuario.Deleted)
                 {
-                    result.Success = false;
-                    result.Message = "Rol de usuario no encontrado.";
+                    _logger.LogWarning($"El rol de usuario con ID {id} no encontrado o eliminado.");
+                    return null;
                 }
-                else
-                {
-                    result.Success = true;
-                    result.Data = rolUsuario;
-                }
+                return rolUsuario;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error al obtener el rol de usuario con ID {id}.");
-                result.Success = false;
-                result.Message = $"Error al obtener el rol de usuario: {ex.Message}";
+                throw;
             }
-            return result;
         }
 
-        public async Task<OperationResult> ExistsAsync(int id)
+        public override async Task<bool> ExistsAsync(Expression<Func<RolUsuario, bool>> filter)
         {
-            var result = new OperationResult();
-            if (id <= 0)
+            if (filter == null)
             {
-                result.Success = false;
-                result.Message = "El ID del rol de usuario es inválido.";
-                return result;
+                _logger.LogWarning("El filtro no puede ser nulo.");
+                return false;
             }
 
             try
             {
-                bool exists = await _context.RolUsuario.AnyAsync(r => r.Id == id);
-                result.Success = exists;
-                result.Data = exists;
+                return await _context.Set<RolUsuario>().AnyAsync(filter);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia del rol de usuario con ID {id}.");
-                result.Success = false;
-                result.Message = $"Error al verificar la existencia del rol de usuario: {ex.Message}";
+                _logger.LogError(ex, "Error al verificar la existencia del rol de usuario.");
+                throw;
             }
+        }
 
+        public override async Task<OperationResult> SaveEntityAsync(RolUsuario rolUsuario)
+        {
+            var validation = ValidateRolUsuario(rolUsuario);
+            if (!validation.Success != null)
+                return validation;
+
+            var result = new OperationResult();
+            try
+            {
+                rolUsuario.FechaCreacion = DateTime.Now;
+                rolUsuario.ModifyDate = DateTime.Now;
+                rolUsuario.ModifyUser = 1;
+
+                await _context.Set<RolUsuario>().AddAsync(rolUsuario);
+                await _context.SaveChangesAsync();
+
+                result.Success = true;
+                result.Data = rolUsuario;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al guardar el rol de usuario.");
+                result.Success = false;
+                result.Message = $"Error al guardar el rol de usuario: {ex.Message}";
+            }
             return result;
         }
 
-        public async Task<OperationResult> SaveEntityAsync(int idrolUsuario)
-        {
-            var rolUsuario = await _context.Set<RolUsuario>().FindAsync(idrolUsuario);
-            if (rolUsuario == null)
-            {
-                return new OperationResult { Success = false, Message = "El rol de usuario no fue encontrado." };
-            }
-            return await SaveEntityAsync(rolUsuario);
-        }
-
-
         public override async Task<OperationResult> UpdateEntityAsync(RolUsuario rolUsuario)
         {
+            var validationResult = ValidateRolUsuario(rolUsuario);
+            if (!validationResult.Success != null)
+            {
+                return validationResult;
+            }
+
             var result = new OperationResult();
             try
             {
                 var existingRolUsuario = await _context.Set<RolUsuario>().FindAsync(rolUsuario.Id);
                 if (existingRolUsuario == null)
                 {
-                    return new OperationResult { Success = false, Message = "Rol de Usuario no encontrado." };
+                    return new OperationResult { Success = false, Message = "Rol de usuario no encontrado." };
                 }
 
                 // Actualizar los datos modificables
                 existingRolUsuario.Descripcion = rolUsuario.Descripcion ?? existingRolUsuario.Descripcion;
                 existingRolUsuario.Estado = rolUsuario.Estado;
                 existingRolUsuario.ModifyDate = DateTime.Now;
-                existingRolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                existingRolUsuario.ModifyUser = 1;
 
                 // Guardar cambios
-                _context.Update(existingRolUsuario);
+                _context.Entry(existingRolUsuario).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
@@ -129,31 +143,31 @@ namespace SGHR.Persistence.Repository
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al actualizar el Rol de Usuarioo.");
+                _logger.LogError(ex, "Error al actualizar el rol de usuario.");
                 result.Success = false;
-                result.Message = $"Error al actualizar el Rol de Usuario: {ex.Message}";
+                result.Message = $"Error al actualizar el rol de usuario: {ex.Message}";
             }
             return result;
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(int id)
+        public override async Task<OperationResult> DeleteEntityAsync(RolUsuario rolUsuario)
         {
+            if (rolUsuario == null || rolUsuario.Id <= 0)
+                return new OperationResult { Success = false, Message = "El ID del rol de usuario es inválido." };
+
             try
             {
-                var rolUsuario = await _context.RolUsuario.FindAsync(id);
-                if (rolUsuario == null)
-                {
+                var existingRolUsuario = await _context.Set<RolUsuario>().FindAsync(rolUsuario.Id);
+                if (existingRolUsuario == null)
                     return new OperationResult { Success = false, Message = "Rol de usuario no encontrado." };
-                }
 
-                _context.RolUsuario.Remove(rolUsuario);
+                _context.Set<RolUsuario>().Remove(existingRolUsuario);
                 await _context.SaveChangesAsync();
-
-                return new OperationResult { Success = true, Message = "Rol de usuario eliminado permanentemente." };
+                return new OperationResult { Success = true, Message = "Rol de usuario eliminado exitosamente." };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar el rol de usuario.");
+                _logger.LogError(ex, $"Error al eliminar el rol de usuario con ID {rolUsuario.Id}.");
                 return new OperationResult { Success = false, Message = $"Error al eliminar el rol de usuario: {ex.Message}" };
             }
         }
@@ -165,9 +179,14 @@ namespace SGHR.Persistence.Repository
                 return new OperationResult { Success = false, Message = "El rol de usuario no puede ser nulo." };
             }
 
-            if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion) || rolUsuario.Descripcion.Length > 100)
+            if (rolUsuario.Descripcion != null && rolUsuario.Descripcion.Length > 50)
             {
-                return new OperationResult { Success = false, Message = "La descripción del rol es obligatoria y debe tener un máximo de 100 caracteres." };
+                return new OperationResult { Success = false, Message = "La descripción del rol debe tener un máximo de 50 caracteres." };
+            }
+
+            if (rolUsuario.CreationUser <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El usuario de creación debe ser mayor que cero." };
             }
 
             return new OperationResult { Success = true };

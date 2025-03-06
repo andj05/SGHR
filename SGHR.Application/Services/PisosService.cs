@@ -29,7 +29,7 @@ namespace SGHR.Application.Services
             try
             {
                 var pisos = await _pisoRepository.GetAllAsync();
-                operationResult.Data = pisos.Where(p => !p.Deleted).ToList(); 
+                operationResult.Data = pisos.Where(p => !p.Deleted).ToList();
                 operationResult.Success = true;
             }
             catch (Exception ex)
@@ -47,12 +47,12 @@ namespace SGHR.Application.Services
             try
             {
                 var piso = await _pisoRepository.GetEntityByIdAsync(id);
-                if (piso.Data is Piso pisoData && pisoData.Deleted)
+                if (piso.Deleted)
                 {
                     return new OperationResult { Success = false, Message = "Piso eliminado." };
                 }
 
-                operationResult.Data = piso.Data;
+                operationResult.Data = piso;
                 operationResult.Success = true;
             }
             catch (Exception ex)
@@ -63,7 +63,6 @@ namespace SGHR.Application.Services
             }
             return operationResult;
         }
-
 
         public async Task<OperationResult> Save(SavePisosDto dto)
         {
@@ -77,7 +76,7 @@ namespace SGHR.Application.Services
                 {
                     Descripcion = dto.Descripcion,
                     Estado = dto.Estado,
-                    CreationUser = 1 
+                    CreationUser = 1 // Usar el usuario autenticado en producción
                 };
 
                 return await _pisoRepository.SaveEntityAsync(piso);
@@ -95,14 +94,15 @@ namespace SGHR.Application.Services
                 return new OperationResult { Success = false, Message = "ID de piso inválido." };
 
             var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
-            if (piso.Data is not Piso pisoData || pisoData.Deleted)
+            if (piso == null || piso.Deleted)
                 return new OperationResult { Success = false, Message = "Piso no encontrado o eliminado." };
 
-            pisoData.Descripcion = dto.Descripcion ?? pisoData.Descripcion;
-            pisoData.Estado = pisoData.Estado = dto.Estado;
-            pisoData.ModifyDate = DateTime.Now;
-            pisoData.ModifyUser = 1; 
-            return await _pisoRepository.UpdateEntityAsync(pisoData);
+            piso.Descripcion = dto.Descripcion ?? piso.Descripcion;
+            piso.Estado = dto.Estado != default ? dto.Estado : piso.Estado;
+            piso.ModifyDate = DateTime.Now;
+            piso.ModifyUser = 1; // En producción, obtener el usuario autenticado
+
+            return await _pisoRepository.UpdateEntityAsync(piso);
         }
 
         public async Task<OperationResult> Remove(RemovePisosDto dto)
@@ -111,39 +111,27 @@ namespace SGHR.Application.Services
                 return new OperationResult { Success = false, Message = "ID de piso inválido." };
 
             var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
-            if (piso.Data is not Piso pisoData || pisoData.Deleted)
+            if (piso == null || piso.Deleted)
                 return new OperationResult { Success = false, Message = "Piso no encontrado o ya eliminado." };
 
-            pisoData.Deleted = true;
-            pisoData.DeletedUser = 1;
-            pisoData.ModifyDate = DateTime.Now;
+            piso.Deleted = true;
+            piso.DeletedUser = 1;
+            piso.ModifyDate = DateTime.Now;
 
-            return await _pisoRepository.UpdateEntityAsync(pisoData);
+            return await _pisoRepository.UpdateEntityAsync(piso);
         }
 
         public async Task<OperationResult> Restore(int id)
         {
             var piso = await _pisoRepository.GetEntityByIdAsync(id);
-            if (piso.Data is not Piso pisoData || !pisoData.Deleted)
+            if (piso == null || !piso.Deleted)
                 return new OperationResult { Success = false, Message = "Piso no encontrado o ya activo." };
 
-            pisoData.Deleted = false;
-            pisoData.ModifyDate = DateTime.Now;
-            pisoData.ModifyUser = 1; 
+            piso.Deleted = false;
+            piso.ModifyDate = DateTime.Now;
+            piso.ModifyUser = 1;
 
-            return await _pisoRepository.UpdateEntityAsync(pisoData);
-        }
-
-        public async Task<OperationResult> DeletePermanent(int id)
-        {
-            if (id <= 0)
-                return new OperationResult { Success = false, Message = "ID de piso inválido." };
-
-            var piso = await _pisoRepository.GetEntityByIdAsync(id);
-            if (piso.Data is not Piso pisoData)
-                return new OperationResult { Success = false, Message = "Piso no encontrado." };
-
-            return await _pisoRepository.DeleteEntityAsync(id);
+            return await _pisoRepository.UpdateEntityAsync(piso);
         }
 
         private OperationResult ValidatePiso(dynamic piso)

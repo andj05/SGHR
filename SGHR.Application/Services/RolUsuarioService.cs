@@ -6,7 +6,6 @@ using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Interfaces;
 
-
 namespace SGHR.Application.Services
 {
     public class RolUsuarioService : IRolUsuarioService
@@ -30,8 +29,8 @@ namespace SGHR.Application.Services
             try
             {
                 var roles = await _rolUsuarioRepository.GetAllAsync();
-                operationResult.Data = roles.Where(r => !r.Deleted).ToList(); // Filtrar roles eliminados
                 operationResult.Success = true;
+                operationResult.Message = "Roles obtenidos correctamente.";
             }
             catch (Exception ex)
             {
@@ -48,13 +47,16 @@ namespace SGHR.Application.Services
             try
             {
                 var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-                if (rolUsuario.Data is RolUsuario rolData && rolData.Deleted)
+                if (rolUsuario == null || rolUsuario.Deleted)
                 {
-                    return new OperationResult { Success = false, Message = "Rol de usuario eliminado." };
+                    operationResult.Message = "Rol de usuario no encontrado o eliminado.";
+                    operationResult.Success = false;
                 }
-
-                operationResult.Data = rolUsuario.Data;
-                operationResult.Success = true;
+                else
+                {
+                    operationResult.Message = "Rol de usuario obtenido correctamente.";
+                    operationResult.Success = true;
+                }
             }
             catch (Exception ex)
             {
@@ -95,15 +97,15 @@ namespace SGHR.Application.Services
                 return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
 
             var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
-            if (rolUsuario?.Data is not RolUsuario rolData || rolData.Deleted)
+            if (rolUsuario == null || rolUsuario.Deleted)
                 return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o eliminado." };
 
-            rolData.Descripcion = dto.Descripcion ?? rolData.Descripcion;
-            rolData.Estado = dto.Estado ?? rolData.Estado;
-            rolData.ModifyDate = DateTime.Now;
-            rolData.ModifyUser = 1; // En producción, obtener el usuario autenticado
+            rolUsuario.Descripcion = dto.Descripcion ?? rolUsuario.Descripcion;
+            rolUsuario.Estado = dto.Estado ?? rolUsuario.Estado;
+            rolUsuario.ModifyDate = DateTime.Now;
+            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
-            return await _rolUsuarioRepository.UpdateEntityAsync(rolData);
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
         }
 
         public async Task<OperationResult> Remove(RemoveRolUsuarioDto dto)
@@ -112,39 +114,27 @@ namespace SGHR.Application.Services
                 return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
 
             var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
-            if (rolUsuario.Data is not RolUsuario rolData || rolData.Deleted)
+            if (rolUsuario == null || rolUsuario.Deleted)
                 return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o ya eliminado." };
 
-            rolData.Deleted = true;
-            rolData.DeletedUser = 1;
-            rolData.ModifyDate = DateTime.Now;
+            rolUsuario.Deleted = true;
+            rolUsuario.DeletedUser = 1;
+            rolUsuario.ModifyDate = DateTime.Now;
 
-            return await _rolUsuarioRepository.UpdateEntityAsync(rolData);
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
         }
 
         public async Task<OperationResult> Restore(int id)
         {
             var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-            if (rolUsuario.Data is not RolUsuario rolData || !rolData.Deleted)
+            if (rolUsuario == null || !rolUsuario.Deleted)
                 return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o ya activo." };
 
-            rolData.Deleted = false;
-            rolData.ModifyDate = DateTime.Now;
-            rolData.ModifyUser = 1; // En producción, obtener el usuario autenticado
+            rolUsuario.Deleted = false;
+            rolUsuario.ModifyDate = DateTime.Now;
+            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
-            return await _rolUsuarioRepository.UpdateEntityAsync(rolData);
-        }
-
-        public async Task<OperationResult> DeletePermanent(int id)
-        {
-            if (id <= 0)
-                return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
-
-            var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-            if (rolUsuario.Data is not RolUsuario rolUsuarioData)
-                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado." };
-
-            return await _rolUsuarioRepository.DeleteEntityAsync(id);
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
         }
 
         private OperationResult ValidateRolUsuario(dynamic rolUsuario)
@@ -157,6 +147,5 @@ namespace SGHR.Application.Services
 
             return new OperationResult { Success = true };
         }
-
     }
 }

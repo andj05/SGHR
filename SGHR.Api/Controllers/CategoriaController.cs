@@ -17,7 +17,6 @@ namespace SGHR.Api.Controllers
             _logger = logger;
         }
 
-        // GET: api/Categoria/GetCategorias
         [HttpGet("GetCategorias")]
         public async Task<IActionResult> Get()
         {
@@ -25,26 +24,27 @@ namespace SGHR.Api.Controllers
             return Ok(categorias.Where(c => !c.Deleted));
         }
 
-        // GET api/Categoria/GetCategoriaByID/5
         [HttpGet("GetCategoriaByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
             var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-            if (categoria == null || categoria.Data is Categoria c && c.Deleted)
+            if (categoria == null || categoria.Deleted)
             {
                 return NotFound("Categoría no existe o ha sido eliminada.");
             }
             return Ok(categoria);
         }
 
-        // POST api/Categoria/SaveCategoria
         [HttpPost("SaveCategoria")]
         public async Task<IActionResult> Post([FromBody] Categoria categoria)
         {
             try
             {
+                _logger.LogInformation("Intentando guardar categoría: {@categoria}", categoria);
                 var saveCategoria = await _categoriaRepository.SaveEntityAsync(categoria);
-                if (saveCategoria.Success == true)
+                _logger.LogInformation("Respuesta del repositorio: {@saveCategoria}", saveCategoria);
+
+                if (saveCategoria.Success != null)
                 {
                     return Ok(new { Message = "Categoría guardada exitosamente", Data = saveCategoria.Data });
                 }
@@ -57,56 +57,58 @@ namespace SGHR.Api.Controllers
             }
         }
 
-        // PUT api/Categoria/UpdateCategoria/5
         [HttpPut("UpdateCategoria/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] Categoria categoria)
         {
             if (id <= 0)
-                return BadRequest("ID de categoría inválido.");
+                return BadRequest("ID de categoría inválido.");
 
             var existingCategoria = await _categoriaRepository.GetEntityByIdAsync(id);
-            if (existingCategoria.Data is not Categoria categoriaData || categoriaData.Deleted)
+            if (existingCategoria == null || existingCategoria.Deleted)
             {
                 return NotFound("Categoría no encontrada o ha sido eliminada.");
             }
 
-            categoria.Id = id; // Asegurar que el ID es correcto
+            categoria.Id = id;
             var updateCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
-            if (updateCategoria.Success == true)
+            _logger.LogInformation("Respuesta del repositorio: {@updateCategoria}", updateCategoria);
+
+            if (updateCategoria.Success != null)
             {
                 return Ok(new { Message = "Categoría actualizada exitosamente", Data = updateCategoria.Data });
             }
             return BadRequest(new { Message = "Error al actualizar la categoría", Error = updateCategoria.Message ?? "Error desconocido" });
         }
 
-        // DELETE api/Categoria/DeleteCategoria/5
         [HttpDelete("DeleteCategoria/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de categoría inválido.");
+                return BadRequest("ID de categoría inválido.");
 
             try
             {
                 var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria.Data is not Categoria categoriaData)
+                if (categoria == null)
                 {
                     return NotFound("Categoría no encontrada.");
                 }
 
-                if (categoriaData.Deleted)
+                if (categoria.Deleted)
                 {
                     return BadRequest("La categoría ya está eliminada.");
                 }
 
-                categoriaData.Deleted = true;
-                categoriaData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-                categoriaData.ModifyDate = DateTime.Now;
+                categoria.Deleted = true;
+                categoria.DeletedUser = 1;
+                categoria.ModifyDate = DateTime.Now;
 
-                var deleteCategoria = await _categoriaRepository.UpdateEntityAsync(categoriaData);
-                if (deleteCategoria.Success == true)
+                _logger.LogInformation("Actualizando estado de eliminado para categoría: {@categoria}", categoria);
+
+                var deleteCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
+                if (deleteCategoria.Success != null)
                 {
-                    return Ok(new { Message = "Categoría eliminada lógicamente.", Data = deleteCategoria.Data });
+                    return Ok(new { Message = "Categoría eliminada lógicamente.", Data = deleteCategoria.Data });
                 }
                 return BadRequest(new { Message = "Error al eliminar la categoría", Error = deleteCategoria.Message });
             }
@@ -117,31 +119,31 @@ namespace SGHR.Api.Controllers
             }
         }
 
-        // PUT api/Categoria/RestoreCategoria/5
         [HttpPut("RestoreCategoria/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de categoría inválido.");
+                return BadRequest("ID de categoría inválido.");
 
             try
             {
                 var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria.Data is not Categoria categoriaData)
+                if (categoria == null)
                     return NotFound("Categoría no encontrada.");
 
-                if (!categoriaData.Deleted)
-                    return BadRequest("La categoría ya está activa.");
+                if (!categoria.Deleted)
+                    return BadRequest("La categoría ya está activa.");
 
-                // Restaurar categoría
-                categoriaData.Deleted = false;
-                categoriaData.ModifyDate = DateTime.Now;
-                categoriaData.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                categoria.Deleted = false;
+                categoria.ModifyDate = DateTime.Now;
+                categoria.ModifyUser = 1;
 
-                var restoreCategoria = await _categoriaRepository.UpdateEntityAsync(categoriaData);
-                if (restoreCategoria.Success == true)
+                _logger.LogInformation("Restaurando categoría: {@categoria}", categoria);
+
+                var restoreCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
+                if (restoreCategoria.Success != null)
                 {
-                    return Ok(new { Message = "Categoría restaurada exitosamente.", Data = restoreCategoria.Data });
+                    return Ok(new { Message = "Categoría restaurada exitosamente." });
                 }
                 return BadRequest(new { Message = "Error al restaurar la categoría", Error = restoreCategoria.Message });
             }
@@ -151,41 +153,5 @@ namespace SGHR.Api.Controllers
                 return StatusCode(500, new { Message = "Error interno al restaurar la categoría.", Error = ex.Message });
             }
         }
-
-        // DELETE api/Categoria/DeleteCategoriaPermanente/5
-        [HttpDelete("DeleteCategoriaPermanente/{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            if (id <= 0)
-                return BadRequest("ID de categoría inválido.");
-
-            try
-            {
-                var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria.Data is not Categoria categoriaData)
-                {
-                    return NotFound("Categoría no encontrada.");
-                }
-
-                if (!categoriaData.Deleted)
-                {
-                    return BadRequest("Debe eliminar lógicamente la categoría antes de eliminarla permanentemente.");
-                }
-
-                var deleteResult = await _categoriaRepository.DeleteEntityAsync(id);
-                if (deleteResult.Success != null)
-                {
-                    return Ok(new { Message = "Categoría eliminada permanentemente.", Data = deleteResult.Data });
-                }
-
-                return BadRequest(new { Message = "Error al eliminar la categoría permanentemente.", Error = deleteResult.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al eliminar la categoría permanentemente.");
-                return StatusCode(500, new { Message = "Error interno al eliminar la categoría permanentemente.", Error = ex.Message });
-            }
-        }
     }
 }
-

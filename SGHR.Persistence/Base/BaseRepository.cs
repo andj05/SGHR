@@ -86,6 +86,34 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
+        public virtual async Task<OperationResult> RestoreEntityAsync(TEntity entity)
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                if (entity is AuditEntity auditEntity)
+                {
+                    auditEntity.Deleted = false;
+                    auditEntity.ModifyDate = DateTime.Now;
+                    Entity.Update(entity);
+                    await _context.SaveChangesAsync();
+                    result.Success = true;
+                    result.Data = entity;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "La entidad no soporta restauración.";
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrió un error restaurando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
         public virtual async Task<TEntity?> GetEntityByIdAsync(int id)
         {
             return await Entity.FindAsync(id);

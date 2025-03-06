@@ -6,6 +6,7 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
+using System.Linq.Expressions;
 
 namespace SGHR.Persistence.Repository
 {
@@ -24,88 +25,104 @@ namespace SGHR.Persistence.Repository
             _configuration = configuration;
         }
 
-        public async Task<IEnumerable<Piso>> GetAllAsync()
+        public override async Task<List<Piso>> GetAllAsync()
         {
             try
             {
-                return await _context.Pisos
-                    .Where(p => p.Estado)
-                    .ToListAsync();
+                return await _context.Set<Piso>().Where(h => !h.Deleted).ToListAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener todos los pisos.");
+                _logger.LogError(ex, "Error al obtener los pisos.");
                 throw;
             }
         }
 
-        public async Task<OperationResult> GetEntityByIdAsync(int idPiso)
+        public override async Task<Piso> GetEntityByIdAsync(int id)
         {
-            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _logger.LogWarning($"ID del piso inválido: {id}");
+                return null;
+            }
+
             try
             {
-                var piso = await _context.Pisos.FindAsync(idPiso);
-                if (piso == null)
+                var piso = await _context.Set<Piso>().FindAsync(id);
+                if (piso == null || piso.Deleted)
                 {
-                    result.Success = false;
-                    result.Message = "Piso no encontrado.";
+                    _logger.LogWarning($"El piso con ID {id} no encontrado o eliminado.");
+                    return null;
                 }
-                else
-                {
-                    result.Success = true;
-                    result.Data = piso;
-                }
+                return piso;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener el piso con ID {idPiso}.");
-                result.Success = false;
-                result.Message = $"Error al obtener el piso: {ex.Message}";
+                _logger.LogError(ex, $"Error al obtener el piso con ID {id}.");
+                throw;
             }
-            return result;
         }
 
-        public async Task<OperationResult> ExistsAsync(int idPiso)
+        public override async Task<bool> ExistsAsync(Expression<Func<Piso, bool>> filter)
         {
-            var result = new OperationResult();
-            if (idPiso <= 0)
+            if (filter == null)
             {
-                result.Success = false;
-                result.Message = "El ID del piso es inválido.";
-                return result;
+                _logger.LogWarning("El filtro no puede ser nulo.");
+                return false;
             }
+
             try
             {
-                bool exists = await _context.Pisos.AnyAsync(p => p.Id == idPiso);
-                result.Success = exists;
-                result.Data = exists;
+                return await _context.Set<Piso>().AnyAsync(filter);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia del piso con ID {idPiso}.");
+                _logger.LogError(ex, "Error al verificar la existencia del piso.");
+                throw;
+            }
+        }
+
+        public override async Task<OperationResult> SaveEntityAsync(Piso piso)
+        {
+            var validation = ValidatePiso(piso);
+            if (!validation.Success != null)
+                return validation;
+
+            var result = new OperationResult();
+            try
+            {
+                piso.FechaCreacion = DateTime.Now;
+                piso.ModifyDate = DateTime.Now;
+                piso.ModifyUser = 1;
+
+                await _context.Set<Piso>().AddAsync(piso);
+                await _context.SaveChangesAsync();
+
+                result.Success = true;
+                result.Data = piso;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al guardar el piso.");
                 result.Success = false;
-                result.Message = $"Error al verificar la existencia del piso: {ex.Message}";
+                result.Message = $"Error al guardar el piso: {ex.Message}";
             }
             return result;
         }
-
-
-        public async Task<OperationResult> SaveEntityAsync(int idpiso)
-        {
-            var piso = await _context.Set<Piso>().FindAsync(idpiso);
-            if (piso == null)
-            {
-                return new OperationResult { Success = false, Message = "La categoria no fue encontrado." };
-            }
-            return await SaveEntityAsync(piso);
-        }
-
 
         public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
         {
             var result = new OperationResult();
             try
             {
+                // Validación del piso
+                var validationResult = ValidatePiso(piso);
+                if (!validationResult.Success != null)
+                {
+                    return validationResult;
+                }
+
+                // Buscar el piso existente en la base de datos
                 var existingPiso = await _context.Set<Piso>().FindAsync(piso.Id);
                 if (existingPiso == null)
                 {
@@ -118,8 +135,8 @@ namespace SGHR.Persistence.Repository
                 existingPiso.ModifyDate = DateTime.Now;
                 existingPiso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                // Guardar cambios
-                _context.Update(existingPiso);
+                // Guardar los cambios
+                _context.Entry(existingPiso).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
@@ -135,24 +152,24 @@ namespace SGHR.Persistence.Repository
             return result;
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(int idPiso)
+        public override async Task<OperationResult> DeleteEntityAsync(Piso piso)
         {
+            if (piso == null || piso.Id <= 0)
+                return new OperationResult { Success = false, Message = "El ID del piso es inválido." };
+
             try
             {
-                var piso = await _context.Pisos.FindAsync(idPiso);
-                if (piso == null)
-                {
+                var existingPiso = await _context.Set<Piso>().FindAsync(piso.Id);
+                if (existingPiso == null)
                     return new OperationResult { Success = false, Message = "Piso no encontrado." };
-                }
 
-                _context.Pisos.Remove(piso);
+                _context.Set<Piso>().Remove(existingPiso);
                 await _context.SaveChangesAsync();
-
-                return new OperationResult { Success = true, Message = "Piso eliminado permanentemente." };
+                return new OperationResult { Success = true, Message = "Piso eliminado exitosamente." };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar el piso.");
+                _logger.LogError(ex, $"Error al eliminar el piso con ID {piso.Id}.");
                 return new OperationResult { Success = false, Message = $"Error al eliminar el piso: {ex.Message}" };
             }
         }
@@ -164,9 +181,14 @@ namespace SGHR.Persistence.Repository
                 return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
             }
 
-            if (string.IsNullOrWhiteSpace(piso.Descripcion) || piso.Descripcion.Length > 100)
+            if (piso.Descripcion != null && piso.Descripcion.Length > 50)
             {
-                return new OperationResult { Success = false, Message = "La descripción del piso es obligatoria y debe tener un máximo de 100 caracteres." };
+                return new OperationResult { Success = false, Message = "La descripción del piso debe tener un máximo de 50 caracteres." };
+            }
+
+            if (piso.CreationUser <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El usuario de creación debe ser mayor que cero." };
             }
 
             return new OperationResult { Success = true };

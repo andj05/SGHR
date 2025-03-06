@@ -25,12 +25,20 @@ namespace SGHR.Api.Controllers
             return Ok(pisos.Where(p => !p.Deleted));
         }
 
+        // GET api/Piso/GetDeletedPisos
+        [HttpGet("GetDeletedPisos")]
+        public async Task<IActionResult> GetDeletedPisos()
+        {
+            var pisos = await _pisoRepository.GetAllAsync();
+            return Ok(pisos.Where(p => p.Deleted));
+        }
+
         // GET api/Piso/GetPisoByID/5
         [HttpGet("GetPisoByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
             var piso = await _pisoRepository.GetEntityByIdAsync(id);
-            if (piso == null || piso.Data is Piso p && p.Deleted)
+            if (piso == null || piso.Deleted)
             {
                 return NotFound("Piso no existe o ha sido eliminado.");
             }
@@ -44,7 +52,7 @@ namespace SGHR.Api.Controllers
             try
             {
                 var savePiso = await _pisoRepository.SaveEntityAsync(piso);
-                if (savePiso.Success == true)
+                if (savePiso.Success != null)
                 {
                     return Ok(new { Message = "Piso guardado exitosamente", Data = savePiso.Data });
                 }
@@ -62,17 +70,17 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Put(int id, [FromBody] Piso piso)
         {
             if (id <= 0)
-                return BadRequest("ID de piso inválido.");
+                return BadRequest("ID de piso inválido.");
 
             var existingPiso = await _pisoRepository.GetEntityByIdAsync(id);
-            if (existingPiso.Data is not Piso pisoData || pisoData.Deleted)
+            if (existingPiso == null || existingPiso.Deleted)
             {
                 return NotFound("Piso no encontrado o ha sido eliminado.");
             }
 
             piso.Id = id; // Asegurar que el ID es correcto
             var updatePiso = await _pisoRepository.UpdateEntityAsync(piso);
-            if (updatePiso.Success == true)
+            if (updatePiso.Success != null)
             {
                 return Ok(new { Message = "Piso actualizado exitosamente", Data = updatePiso.Data });
             }
@@ -84,24 +92,24 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de piso inválido.");
+                return BadRequest("ID de piso inválido.");
 
             try
             {
                 var piso = await _pisoRepository.GetEntityByIdAsync(id);
-                if (piso.Data is not Piso pisoData)
+                if (piso == null)
                 {
                     return NotFound("Piso no encontrado.");
                 }
 
-                pisoData.Deleted = true;
-                pisoData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-                pisoData.ModifyDate = DateTime.Now;
+                piso.Deleted = true;
+                piso.DeletedUser = 1; // En producción, obtener el usuario autenticado.
+                piso.ModifyDate = DateTime.Now;
 
-                var deletePiso = await _pisoRepository.UpdateEntityAsync(pisoData);
-                if (deletePiso.Success == true)
+                var deletePiso = await _pisoRepository.UpdateEntityAsync(piso);
+                if (deletePiso.Success != null)
                 {
-                    return Ok(new { Message = "Piso eliminado lógicamente.", Data = deletePiso.Data });
+                    return Ok(new { Message = "Piso eliminado lógicamente.", Data = deletePiso.Data });
                 }
                 return BadRequest(new { Message = "Error al eliminar el piso", Error = deletePiso.Message });
             }
@@ -117,26 +125,26 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Restore(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de piso inválido.");
+                return BadRequest("ID de piso inválido.");
 
             try
             {
                 var piso = await _pisoRepository.GetEntityByIdAsync(id);
-                if (piso.Data is not Piso pisoData)
+                if (piso == null)
                     return NotFound("Piso no encontrado.");
 
-                if (!pisoData.Deleted)
-                    return BadRequest("El piso ya está activo.");
+                if (!piso.Deleted)
+                    return BadRequest("El piso ya está activo.");
 
                 // Restaurar piso
-                pisoData.Deleted = false;
-                pisoData.ModifyDate = DateTime.Now;
-                pisoData.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                piso.Deleted = false;
+                piso.ModifyDate = DateTime.Now;
+                piso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                var restorePiso = await _pisoRepository.UpdateEntityAsync(pisoData);
-                if (restorePiso.Success == true)
+                var restorePiso = await _pisoRepository.UpdateEntityAsync(piso);
+                if (restorePiso.Success != null)
                 {
-                    return Ok(new { Message = "Piso restaurado exitosamente.", Data = restorePiso.Data });
+                    return Ok(new { Message = "Piso restaurado exitosamente." });
                 }
                 return BadRequest(new { Message = "Error al restaurar el piso", Error = restorePiso.Message });
             }
@@ -146,37 +154,5 @@ namespace SGHR.Api.Controllers
                 return StatusCode(500, new { Message = "Error interno al restaurar el piso.", Error = ex.Message });
             }
         }
-
-        // DELETE api/Piso/DeletePisoPermanente/5
-        [HttpDelete("DeletePisoPermanente/{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            if (id <= 0)
-                return BadRequest("ID de piso inválido.");
-
-            try
-            {
-                var piso = await _pisoRepository.GetEntityByIdAsync(id);
-                if (piso.Data is not Piso pisoData)
-                {
-                    return NotFound("Piso no encontrado.");
-                }
-
-                var deleteResult = await _pisoRepository.DeleteEntityAsync(id);
-                if (deleteResult.Success != null)
-                {
-                    return Ok(new { Message = "Piso eliminado permanentemente.", Data = deleteResult.Data });
-                }
-
-                return BadRequest(new { Message = "Error al eliminar el piso permanentemente.", Error = deleteResult.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al eliminar el piso permanentemente.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el piso permanentemente.", Error = ex.Message });
-            }
-        }
     }
 }
-
-

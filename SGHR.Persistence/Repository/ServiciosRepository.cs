@@ -6,6 +6,7 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
+using System.Linq.Expressions;
 
 namespace SGHR.Persistence.Repository
 {
@@ -24,13 +25,11 @@ namespace SGHR.Persistence.Repository
             _configuration = configuration;
         }
 
-        public async Task<IEnumerable<Servicios>> GetAllAsync()
+        public override async Task<List<Servicios>> GetAllAsync()
         {
             try
             {
-                return await _context.Servicios
-                    .Where(s => s.Estado == true)
-                    .ToListAsync();
+                return await _context.Set<Servicios>().Where(h => !h.Deleted).ToListAsync();
             }
             catch (Exception ex)
             {
@@ -39,72 +38,65 @@ namespace SGHR.Persistence.Repository
             }
         }
 
-        public async Task<OperationResult> GetEntityByIdAsync(int id)
+        public override async Task<Servicios> GetEntityByIdAsync(int id)
         {
-            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _logger.LogWarning($"ID del servicio inválido: {id}");
+                return null;
+            }
+
             try
             {
-                var servicio = await _context.Servicios.FindAsync(id);
-                if (servicio == null)
+                var servicio = await _context.Set<Servicios>().FindAsync(id);
+                if (servicio == null || servicio.Deleted)
                 {
-                    result.Success = false;
-                    result.Message = "Servicio no encontrado.";
+                    _logger.LogWarning($"El servicio con ID {id} no encontrado o eliminado.");
+                    return null;
                 }
-                else
-                {
-                    result.Success = true;
-                    result.Data = servicio;
-                }
+                return servicio;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error al obtener el servicio con ID {id}.");
-                result.Success = false;
-                result.Message = $"Error al obtener el servicio: {ex.Message}";
+                throw;
             }
-            return result;
         }
 
-        public async Task<OperationResult> ExistsAsync(int id)
+        public override async Task<bool> ExistsAsync(Expression<Func<Servicios, bool>> filter)
         {
-            var result = new OperationResult();
-            if (id <= 0)
+            if (filter == null)
             {
-                result.Success = false;
-                result.Message = "El ID del servicio es inválido.";
-                return result;
+                _logger.LogWarning("El filtro no puede ser nulo.");
+                return false;
             }
 
             try
             {
-                bool exists = await _context.Servicios.AnyAsync(s => s.Id == id);
-                result.Success = exists;
-                result.Data = exists;
+                return await _context.Set<Servicios>().AnyAsync(filter);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia del servicio con ID {id}.");
-                result.Success = false;
-                result.Message = $"Error al verificar la existencia del servicio: {ex.Message}";
+                _logger.LogError(ex, "Error al verificar la existencia del servicio.");
+                throw;
             }
-
-            return result;
         }
 
-        public async Task<OperationResult> SaveEntityAsync(Servicios servicio)
+        public override async Task<OperationResult> SaveEntityAsync(Servicios servicio)
         {
+            var validation = ValidateServicios(servicio);
+            if (!validation.Success !=null)
+                return validation;
+
             var result = new OperationResult();
             try
             {
-                // Siempre se agregará un nuevo servicio (INSERT)
-                _context.Servicios.Add(servicio);
+                servicio.FechaCreacion = DateTime.Now;
+                servicio.ModifyDate = DateTime.Now;
+                servicio.ModifyUser = 1;
 
-                int affectedRows = await _context.SaveChangesAsync();
-
-                if (affectedRows == 0)
-                {
-                    return new OperationResult { Success = false, Message = "No se pudo guardar el servicio." };
-                }
+                await _context.Set<Servicios>().AddAsync(servicio);
+                await _context.SaveChangesAsync();
 
                 result.Success = true;
                 result.Data = servicio;
@@ -123,6 +115,14 @@ namespace SGHR.Persistence.Repository
             var result = new OperationResult();
             try
             {
+                // Validación del servicio
+                var validationResult = ValidateServicios(servicio);
+                if (!validationResult.Success != null)
+                {
+                    return validationResult;
+                }
+
+                // Buscar el servicio existente en la base de datos
                 var existingServicio = await _context.Set<Servicios>().FindAsync(servicio.Id);
                 if (existingServicio == null)
                 {
@@ -136,7 +136,7 @@ namespace SGHR.Persistence.Repository
                 existingServicio.ModifyDate = DateTime.Now;
                 existingServicio.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                // Guardar cambios
+                // Guardar los cambios
                 _context.Entry(existingServicio).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
 
@@ -153,43 +153,44 @@ namespace SGHR.Persistence.Repository
             return result;
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(int id)
+
+        public override async Task<OperationResult> DeleteEntityAsync(Servicios servicio)
         {
+            if (servicio == null || servicio.Id <= 0)
+                return new OperationResult { Success = false, Message = "El ID del servicio es inválido." };
+
             try
             {
-                var servicio = await _context.Servicios.FindAsync(id);
-                if (servicio == null)
-                {
+                var existingServicio = await _context.Set<Servicios>().FindAsync(servicio.Id);
+                if (existingServicio == null)
                     return new OperationResult { Success = false, Message = "Servicio no encontrado." };
-                }
 
-                _context.Servicios.Remove(servicio);
+                _context.Set<Servicios>().Remove(existingServicio);
                 await _context.SaveChangesAsync();
-
-                return new OperationResult { Success = true, Message = "Servicio eliminado permanentemente." };
+                return new OperationResult { Success = true, Message = "Servicio eliminado exitosamente." };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar el servicio.");
+                _logger.LogError(ex, $"Error al eliminar el servicio con ID {servicio.Id}.");
                 return new OperationResult { Success = false, Message = $"Error al eliminar el servicio: {ex.Message}" };
             }
         }
 
-        private OperationResult ValidateEntity(Servicios servicio)
+        private OperationResult ValidateServicios(Servicios servicio)
         {
             if (servicio == null)
             {
                 return new OperationResult { Success = false, Message = "El servicio no puede ser nulo." };
             }
 
-            if (string.IsNullOrWhiteSpace(servicio.Nombre) || servicio.Nombre.Length > 200)
+            if (string.IsNullOrWhiteSpace(servicio.Nombre) || servicio.Nombre.Length > 100)
             {
-                return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio y debe tener un máximo de 200 caracteres." };
+                return new OperationResult { Success = false, Message = "El nombre del servicio es obligatorio y debe tener un máximo de 100 caracteres." };
             }
 
-            if (string.IsNullOrWhiteSpace(servicio.Descripcion))
+            if (servicio.CreationUser <= 0)
             {
-                return new OperationResult { Success = false, Message = "La descripción del servicio es obligatoria." };
+                return new OperationResult { Success = false, Message = "El usuario de creación debe ser mayor que cero." };
             }
 
             return new OperationResult { Success = true };

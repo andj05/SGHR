@@ -1,4 +1,4 @@
-namespace SGHR.Persistence.Test
+namespace UnitTestTarifasService
 {
     public class UnitTest1
     {

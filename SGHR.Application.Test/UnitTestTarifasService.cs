@@ -1,6 +1,6 @@
 namespace SGHR.Application.Test
 {
-    public class UnitTest1
+    public class UnitTestTarifasService
     {
         [Fact]
         public void Test1()

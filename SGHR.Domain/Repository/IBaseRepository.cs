@@ -11,11 +11,12 @@ namespace SGHR.Domain.Repository
     public interface IBaseRepository<TEntity> where TEntity : class
     {
         Task<List<TEntity>> GetAllAsync();
-        Task<TEntity?> GetEntityByIdAsync(int id);
-        Task<OperationResult> UpdateEntityAsync(TEntity entity);
-        Task<OperationResult> SaveEntityAsync(TEntity entity);
-        Task<OperationResult> DeleteEntityAsync(TEntity entity);
+        Task<TEntity> GetEntityByIdAsync(int id);
         Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter);
+        Task<OperationResult> RestoreEntityAsync(TEntity entity);
+        Task<OperationResult> SaveEntityAsync(TEntity entity);
+        Task<OperationResult> UpdateEntityAsync(TEntity entity);
+        Task<OperationResult> DeleteEntityAsync(TEntity entity);
         Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> filter);
     }
 }

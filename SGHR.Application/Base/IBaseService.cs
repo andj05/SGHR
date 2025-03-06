@@ -12,7 +12,6 @@ namespace SGHR.Application.Base
         Task<OperationResult> Remove(TDtoRemove dto);
         Task<OperationResult> Save (TDtoAdd dto);
         Task<OperationResult> Restore(int id);
-        Task<OperationResult> DeletePermanent(int id);
 
     }
 }

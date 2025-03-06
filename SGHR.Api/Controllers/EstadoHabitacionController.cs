@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repository;
 
 namespace SGHR.Api.Controllers
 {
@@ -31,7 +30,7 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Get(int id)
         {
             var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-            if (estado == null || estado.Data is EstadoHabitacion e && e.Deleted)
+            if (estado == null || estado.Deleted)
             {
                 return NotFound("Estado de habitación no existe o ha sido eliminado.");
             }
@@ -45,7 +44,7 @@ namespace SGHR.Api.Controllers
             try
             {
                 var saveEstado = await _estadoHabitacionRepository.SaveEntityAsync(estado);
-                if (saveEstado.Success == true)
+                if (saveEstado.Success != null)
                 {
                     return Ok(new { Message = "Estado de habitación guardado exitosamente", Data = saveEstado.Data });
                 }
@@ -66,7 +65,7 @@ namespace SGHR.Api.Controllers
                 return BadRequest("ID del Estado de Habitación inválido.");
 
             var existingEstadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-            if (existingEstadoHabitacion.Data is not EstadoHabitacion estadoHabitacionData || estadoHabitacionData.Deleted)
+            if (existingEstadoHabitacion == null || existingEstadoHabitacion.Deleted)
             {
                 return NotFound("Estado de Habitación no encontrado o ha sido eliminado.");
             }
@@ -74,39 +73,36 @@ namespace SGHR.Api.Controllers
             estadoHabitacion.Id = id; // Asegurar que el ID es correcto
 
             var updateEstadoHabitacion = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
-            if (updateEstadoHabitacion.Success == true)
+            if (updateEstadoHabitacion.Success != null)
             {
                 return Ok(new { Message = "Estado de Habitación actualizado exitosamente", Data = updateEstadoHabitacion.Data });
             }
-
             return BadRequest(new { Message = "Error al actualizar el Estado de Habitación", Error = updateEstadoHabitacion.Message ?? "Error desconocido" });
         }
-
-
 
         // DELETE api/EstadoHabitacion/DeleteEstado/5
         [HttpDelete("DeleteEstado/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de estado de habitación inválido.");
+                return BadRequest("ID de estado de habitación inválido.");
 
             try
             {
                 var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (estado.Data is not EstadoHabitacion estadoData)
+                if (estado == null)
                 {
                     return NotFound("Estado de habitación no encontrado.");
                 }
 
-                estadoData.Deleted = true;
-                estadoData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-                estadoData.ModifyDate = DateTime.Now;
+                estado.Deleted = true;
+                estado.DeletedUser = 1; // En producción, obtener el usuario autenticado.
+                estado.ModifyDate = DateTime.Now;
 
-                var deleteEstado = await _estadoHabitacionRepository.UpdateEntityAsync(estadoData);
-                if (deleteEstado.Success == true)
+                var deleteEstado = await _estadoHabitacionRepository.UpdateEntityAsync(estado);
+                if (deleteEstado.Success != null)
                 {
-                    return Ok(new { Message = "Estado de habitación eliminado lógicamente.", Data = deleteEstado.Data });
+                    return Ok(new { Message = "Estado de habitación eliminado lógicamente.", Data = deleteEstado.Data });
                 }
                 return BadRequest(new { Message = "Error al eliminar el estado de habitación", Error = deleteEstado.Message });
             }
@@ -122,26 +118,26 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Restore(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de estado de habitación inválido.");
+                return BadRequest("ID de estado de habitación inválido.");
 
             try
             {
                 var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (estado.Data is not EstadoHabitacion estadoData)
+                if (estado == null)
                     return NotFound("Estado de habitación no encontrado.");
 
-                if (!estadoData.Deleted)
-                    return BadRequest("El estado de habitación ya está activo.");
+                if (!estado.Deleted)
+                    return BadRequest("El estado de habitación ya está activo.");
 
                 // Restaurar estado de habitación
-                estadoData.Deleted = false;
-                estadoData.ModifyDate = DateTime.Now;
-                estadoData.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                estado.Deleted = false;
+                estado.ModifyDate = DateTime.Now;
+                estado.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                var restoreEstado = await _estadoHabitacionRepository.UpdateEntityAsync(estadoData);
-                if (restoreEstado.Success == true)
+                var restoreEstado = await _estadoHabitacionRepository.UpdateEntityAsync(estado);
+                if (restoreEstado.Success != null)
                 {
-                    return Ok(new { Message = "Estado de habitación restaurado exitosamente.", Data = restoreEstado.Data });
+                    return Ok(new { Message = "Estado de habitación restaurado exitosamente." });
                 }
                 return BadRequest(new { Message = "Error al restaurar el estado de habitación", Error = restoreEstado.Message });
             }
@@ -149,36 +145,6 @@ namespace SGHR.Api.Controllers
             {
                 _logger.LogError(ex, "Error al restaurar el estado de habitación.");
                 return StatusCode(500, new { Message = "Error interno al restaurar el estado de habitación.", Error = ex.Message });
-            }
-        }
-
-        // DELETE api/EstadoHabitacion/DeleteEstadoPermanente/5
-        [HttpDelete("DeleteEstadoPermanente/{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            if (id <= 0)
-                return BadRequest("ID de estado de habitación inválido.");
-
-            try
-            {
-                var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (estado.Data is not EstadoHabitacion estadoData)
-                {
-                    return NotFound("Estado de habitación no encontrado.");
-                }
-
-                var deleteResult = await _estadoHabitacionRepository.DeleteEntityAsync(id);
-                if (deleteResult.Success != null)
-                {
-                    return Ok(new { Message = "Estado de habitación eliminado permanentemente.", Data = deleteResult.Data });
-                }
-
-                return BadRequest(new { Message = "Error al eliminar el estado de habitación permanentemente.", Error = deleteResult.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al eliminar el estado de habitación permanentemente.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el estado de habitación permanentemente.", Error = ex.Message });
             }
         }
     }

@@ -31,14 +31,13 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Get(int id)
         {
             var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
-            if (servicio == null || servicio.Data is Servicios s && s.Deleted)
-            {
+            if (servicio == null || servicio.Deleted)
                 return NotFound("Servicio no existe o ha sido eliminado.");
-            }
+
             return Ok(servicio);
         }
 
-        // POST api/Servicios/SaveServicios
+        // POST api/Servicios/SaveServicio
         [HttpPost("SaveServicio")]
         public async Task<IActionResult> Post([FromBody] Servicios servicio)
         {
@@ -47,36 +46,34 @@ namespace SGHR.Api.Controllers
                 var saveServicio = await _serviciosRepository.SaveEntityAsync(servicio);
                 if (saveServicio.Success == true)
                 {
-                    return Ok(new { Message = "Servicio Guardado", Data = saveServicio.Data });
+                    return Ok(new { Message = "Servicio guardado exitosamente", Data = saveServicio });
                 }
-                return BadRequest(new { Message = "Error al guardar servicio", Error = saveServicio.Message });
+
+                return BadRequest(new { Message = "Error al guardar el servicio", Error = saveServicio.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error guardando el servicio");
-                return StatusCode(500, new { Message = "Error.", Error = ex.Message });
+                _logger.LogError(ex, "Error al guardar el servicio.");
+                return StatusCode(500, new { Message = "Error interno al guardar el servicio.", Error = ex.Message });
             }
         }
 
-        // PUT api/Servicios/UpdateServicios/5
-        [HttpPut("UpdateServicios/{id}")]
+        // PUT api/Servicios/UpdateServicio/5
+        [HttpPut("UpdateServicio/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] Servicios servicio)
         {
             if (id <= 0)
-                return BadRequest("ID de servicio inválido.");
+                return BadRequest("ID de servicio inválido.");
 
             var existingServicio = await _serviciosRepository.GetEntityByIdAsync(id);
-            if (existingServicio.Data is not Servicios servicioData || servicioData.Deleted)
-            {
+            if (existingServicio == null || existingServicio.Deleted)
                 return NotFound("Servicio no encontrado o ha sido eliminado.");
-            }
 
-            servicio.Id = id; // Asegurar que el ID es correcto
+            servicio.Id = id;
             var updateServicio = await _serviciosRepository.UpdateEntityAsync(servicio);
             if (updateServicio.Success == true)
-            {
-                return Ok(new { Message = "Servicio actualizado exitosamente", Data = updateServicio.Data });
-            }
+                return Ok(new { Message = "Servicio actualizado exitosamente", Data = updateServicio });
+
             return BadRequest(new { Message = "Error al actualizar el servicio", Error = updateServicio.Message ?? "Error desconocido" });
         }
 
@@ -85,25 +82,22 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de servicio inválido.");
+                return BadRequest("ID de servicio inválido.");
 
             try
             {
                 var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
-                if (servicio.Data is not Servicios servicioData)
-                {
+                if (servicio == null)
                     return NotFound("Servicio no encontrado.");
-                }
 
-                servicioData.Deleted = true;
-                servicioData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-                servicioData.ModifyDate = DateTime.Now;
+                servicio.Deleted = true;
+                servicio.DeletedUser = 1; // En producción, obtener el usuario autenticado.
+                servicio.ModifyDate = DateTime.Now;
 
-                var deleteServicio = await _serviciosRepository.UpdateEntityAsync(servicioData);
+                var deleteServicio = await _serviciosRepository.UpdateEntityAsync(servicio);
                 if (deleteServicio.Success == true)
-                {
-                    return Ok(new { Message = "Servicio eliminado lógicamente.", Data = deleteServicio.Data });
-                }
+                    return Ok(new { Message = "Servicio eliminado lógicamente.", Data = deleteServicio });
+
                 return BadRequest(new { Message = "Error al eliminar el servicio", Error = deleteServicio.Message });
             }
             catch (Exception ex)
@@ -118,27 +112,26 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> Restore(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de servicio inválido.");
+                return BadRequest("ID de servicio inválido.");
 
             try
             {
                 var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
-                if (servicio.Data is not Servicios servicioData)
+                if (servicio == null)
                     return NotFound("Servicio no encontrado.");
 
-                if (!servicioData.Deleted)
-                    return BadRequest("El servicio ya está activo.");
+                if (!servicio.Deleted)
+                    return BadRequest("El servicio ya está activo.");
 
                 // Restaurar servicio
-                servicioData.Deleted = false;
-                servicioData.ModifyDate = DateTime.Now;
-                servicioData.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                servicio.Deleted = false;
+                servicio.ModifyDate = DateTime.Now;
+                servicio.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                var restoreServicio = await _serviciosRepository.UpdateEntityAsync(servicioData);
+                var restoreServicio = await _serviciosRepository.UpdateEntityAsync(servicio);
                 if (restoreServicio.Success == true)
-                {
-                    return Ok(new { Message = "Servicio restaurado exitosamente.", Data = restoreServicio.Data });
-                }
+                    return Ok(new { Message = "Servicio restaurado exitosamente.", Data = restoreServicio });
+
                 return BadRequest(new { Message = "Error al restaurar el servicio", Error = restoreServicio.Message });
             }
             catch (Exception ex)
@@ -147,36 +140,5 @@ namespace SGHR.Api.Controllers
                 return StatusCode(500, new { Message = "Error interno al restaurar el servicio.", Error = ex.Message });
             }
         }
-
-        // DELETE api/Servicios/DeleteServicioPermanente/5
-        [HttpDelete("DeleteServicioPermanente/{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            if (id <= 0)
-                return BadRequest("ID de servicio inválido.");
-
-            try
-            {
-                var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
-                if (servicio.Data is not Servicios servicioData)
-                {
-                    return NotFound("Servicio no encontrado.");
-                }
-
-                var deleteResult = await _serviciosRepository.DeleteEntityAsync(id);
-                if (deleteResult.Success != null)
-                {
-                    return Ok(new { Message = "Servicio eliminado permanentemente.", Data = deleteResult.Data });
-                }
-
-                return BadRequest(new { Message = "Error al eliminar el servicio permanentemente.", Error = deleteResult.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al eliminar el servicio permanentemente.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el servicio permanentemente.", Error = ex.Message });
-            }
-        }
     }
 }
-

@@ -25,178 +25,165 @@ namespace SGHR.Persistence.Repository
             _configuration = configuration;
         }
 
-        // Obtener todas las categorías activas
-        public async Task<IEnumerable<Categoria>> GetAllAsync()
+        public override async Task<List<Categoria>> GetAllAsync()
         {
             try
             {
-                return await _context.Categoria
-                    .Where(c => c.Estado)
-                    .ToListAsync();
+                return await _context.Set<Categoria>().Where(h => !h.Deleted).ToListAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener todas las categorías.");
+                _logger.LogError(ex, "Error al obtener Estado de La Habitacion.");
                 throw;
             }
         }
 
-        // Obtener categoría por ID
-        public async Task<OperationResult> GetEntityByIdAsync(int id)
+        public override async Task<Categoria> GetEntityByIdAsync(int id)
         {
-            var result = new OperationResult();
-            try
-            {
-                var categoria = await _context.Categoria.FindAsync(id);
-                if (categoria == null)
-                {
-                    result.Success = false;
-                    result.Message = "Categoría no encontrada.";
-                }
-                else
-                {
-                    result.Success = true;
-                    result.Data = categoria;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al obtener la categoría con ID {id}.");
-                result.Success = false;
-                result.Message = $"Error al obtener la categoría: {ex.Message}";
-            }
-            return result;
-        }
-
-        // Verificar si la categoría existe
-        public async Task<OperationResult> ExistsAsync(int id)
-        {
-            var result = new OperationResult();
             if (id <= 0)
             {
-                result.Success = false;
-                result.Message = "El ID de la categoría es inválido.";
-                return result;
+                _logger.LogWarning($"ID de la categoría inválido: {id}");
+                return null;
             }
-            try
-            {
-                bool exists = await _context.Categoria.AnyAsync(c => c.Id == id);
-                result.Success = exists;
-                result.Data = exists;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al verificar la existencia de la categoría con ID {id}.");
-                result.Success = false;
-                result.Message = $"Error al verificar la existencia de la categoría: {ex.Message}";
-            }
-            return result;
-        }
 
-        // Guardar una nueva categoría
-        public async Task<OperationResult> SaveEntityAsync(int idCategoria)
-        {
-            var categoria = await _context.Set<Categoria>().FindAsync(idCategoria);
-            if (categoria == null)
-            {
-                return new OperationResult { Success = false, Message = "La categoria no fue encontrado." };
-            }
-            return await SaveEntityAsync(categoria);
-        }
-
-        // Actualizar una categoría
-        public override async Task<OperationResult> UpdateEntityAsync(Categoria categoria)
-{
-         var result = new OperationResult();
-        try
-        {
-        var existingCategoria = await _context.Set<Categoria>().FindAsync(categoria.Id);
-        if (existingCategoria == null)
-        {
-            return new OperationResult { Success = false, Message = "Categoría no encontrada." };
-        }
-
-        // Actualizar los datos modificables
-        existingCategoria.Descripcion = categoria.Descripcion ?? existingCategoria.Descripcion;
-        existingCategoria.Estado = categoria.Estado;
-        existingCategoria.ModifyDate = DateTime.Now;
-        existingCategoria.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-        // Guardar cambios
-        _context.Update(existingCategoria);
-        await _context.SaveChangesAsync();
-
-        result.Success = true;
-        result.Data = existingCategoria;
-        return result;
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al actualizar la categoría.");
-        result.Success = false;
-        result.Message = $"Error al actualizar la categoría: {ex.Message}";
-    }
-    return result;
-    }
-
-        // Eliminar una categoría permanentemente
-        public async Task<OperationResult> DeleteEntityAsync(int id)
-        {
             try
             {
                 var categoria = await _context.Categoria.FindAsync(id);
-                if (categoria == null)
+                if (categoria == null || categoria.Deleted)
                 {
-                    return new OperationResult { Success = false, Message = "Categoría no encontrada." };
+                    _logger.LogWarning($"La categoría con ID {id} no encontrada o eliminada.");
+                    return null;
                 }
-
-                _context.Categoria.Remove(categoria);
-                await _context.SaveChangesAsync();
-
-                return new OperationResult { Success = true, Message = "Categoría eliminada correctamente." };
+                return categoria;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar la categoría.");
-                return new OperationResult { Success = false, Message = $"Error al eliminar la categoría: {ex.Message}" };
+                _logger.LogError(ex, $"Error al obtener la categoría con ID {id}.");
+                throw;
             }
         }
 
-        // Obtener categorías por filtro
-        public async Task<OperationResult> GetCategoriasByFilterAsync(Expression<Func<Categoria, bool>> filter)
+        public override async Task<bool> ExistsAsync(Expression<Func<Categoria, bool>> filter)
         {
             if (filter == null)
             {
-                return new OperationResult { Success = false, Message = "El filtro no puede ser nulo." };
+                _logger.LogWarning("El filtro no puede ser nulo.");
+                return false;
             }
+
+            try
+            {
+                return await _context.Categoria.AnyAsync(filter);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al verificar la existencia de la categoría.");
+                throw;
+            }
+        }
+
+        public override async Task<OperationResult> SaveEntityAsync(Categoria categoria)
+        {
+            var validation = ValidateCategoria(categoria);
+            if (!validation.Success != null)
+                return validation;
 
             var result = new OperationResult();
             try
             {
-                var categorias = await _context.Categoria.Where(filter).ToListAsync();
-                result.Data = categorias;
+                categoria.FechaCreacion = DateTime.Now;
+                categoria.ModifyDate = DateTime.Now;
+                categoria.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
+                await _context.Categoria.AddAsync(categoria);
+                await _context.SaveChangesAsync();
+
                 result.Success = true;
+                result.Data = categoria;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener categorías por filtro.");
+                _logger.LogError(ex, "Error al guardar la categoría.");
                 result.Success = false;
-                result.Message = $"Error al obtener categorías por filtro: {ex.Message}";
+                result.Message = $"Error al guardar la categoría: {ex.Message}";
             }
             return result;
         }
 
-        // Validación de categoría
+        public override async Task<OperationResult> UpdateEntityAsync(Categoria categoria)
+        {
+            var result = new OperationResult();
+            try
+            {
+                var validationResult = ValidateCategoria(categoria);
+                if (!validationResult.Success != null)
+                {
+                    return validationResult;
+                }
+
+                var existingCategoria = await _context.Categoria.FindAsync(categoria.Id);
+                if (existingCategoria == null)
+                {
+                    return new OperationResult { Success = false, Message = "Categoría no encontrada." };
+                }
+
+                existingCategoria.Descripcion = categoria.Descripcion ?? existingCategoria.Descripcion;
+                existingCategoria.Estado = categoria.Estado;
+                existingCategoria.ModifyDate = DateTime.Now;
+                existingCategoria.ModifyUser = 1; 
+
+                _context.Entry(existingCategoria).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+
+                result.Success = true;
+                result.Data = existingCategoria;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar la categoría.");
+                result.Success = false;
+                result.Message = $"Error al actualizar la categoría: {ex.Message}";
+            }
+            return result;
+        }
+
+        public override async Task<OperationResult> DeleteEntityAsync(Categoria categoria)
+        {
+            if (categoria == null || categoria.Id <= 0)
+                return new OperationResult { Success = false, Message = "El ID de la categoría es inválido." };
+
+            try
+            {
+                var existingCategoria = await _context.Categoria.FindAsync(categoria.Id);
+                if (existingCategoria == null)
+                    return new OperationResult { Success = false, Message = "Categoría no encontrada." };
+
+                _context.Categoria.Remove(existingCategoria);
+                await _context.SaveChangesAsync();
+                return new OperationResult { Success = true, Message = "Categoría eliminada exitosamente." };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al eliminar la categoría con ID {categoria.Id}.");
+                return new OperationResult { Success = false, Message = $"Error al eliminar la categoría: {ex.Message}" };
+            }
+        }
+
         private OperationResult ValidateCategoria(Categoria categoria)
         {
             if (categoria == null)
             {
-                return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
+                return new OperationResult { Success = false, Message = "La categoría no puede ser nula." };
             }
 
-            if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 100)
+            if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 50)
             {
-                return new OperationResult { Success = false, Message = "La descripción de la categoría es obligatoria y debe tener un máximo de 100 caracteres." };
+                return new OperationResult { Success = false, Message = "La descripción de la categoría es obligatoria y debe tener un máximo de 50 caracteres." };
+            }
+
+            if (categoria.CreationUser <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El usuario de creación debe ser mayor que cero." };
             }
 
             return new OperationResult { Success = true };

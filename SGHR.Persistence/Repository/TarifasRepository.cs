@@ -5,7 +5,7 @@ using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
-
+using System.Linq.Expressions;
 
 namespace SGHR.Persistence.Repository
 {
@@ -24,13 +24,12 @@ namespace SGHR.Persistence.Repository
             _configuration = configuration;
         }
 
-        public async Task<IEnumerable<Tarifas>> GetAllAsync()
+        public override async Task<List<Tarifas>> GetAllAsync()
         {
             try
             {
-                return await _context.Tarifas
-                    .Where(t => t.Estado)
-                    .ToListAsync();
+                return await _context.Set<Tarifas>().Where(h => !h.Deleted).ToListAsync();
+
             }
             catch (Exception ex)
             {
@@ -39,64 +38,76 @@ namespace SGHR.Persistence.Repository
             }
         }
 
-        public async Task<OperationResult> GetEntityByIdAsync(int idTarifa)
+        public override async Task<Tarifas> GetEntityByIdAsync(int id)
         {
-            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _logger.LogWarning($"ID de la Tarifa inválido: {id}");
+                return null;
+            }
+
             try
             {
-                var tarifa = await _context.Tarifas.FindAsync(idTarifa);
-                if (tarifa == null)
+                var usuario = await _context.Set<Tarifas>().FindAsync(id);
+                if (usuario == null || usuario.Deleted)
                 {
-                    result.Success = false;
-                    result.Message = "Tarifa no encontrada.";
+                    _logger.LogWarning($"La Tarifa con id {id} no encontrado o eliminado.");
+                    return null;
                 }
-                else
-                {
-                    result.Success = true;
-                    result.Data = tarifa;
-                }
+                return usuario;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener la tarifa con ID {idTarifa}.");
-                result.Success = false;
-                result.Message = $"Error al obtener la tarifa: {ex.Message}";
+                _logger.LogError(ex, $"Error al obtener De la Tarifa con id {id}.");
+                throw;
             }
-            return result;
         }
 
-        public async Task<OperationResult> ExistsAsync(int idTarifa)
+        public override async Task<bool> ExistsAsync(Expression<Func<Tarifas, bool>> filter)
         {
-            var result = new OperationResult();
-            if (idTarifa <= 0)
+            if (filter == null)
             {
-                result.Success = false;
-                result.Message = "El ID de la tarifa es inválido.";
-                return result;
+                _logger.LogWarning("El filtro no puede ser nulo.");
+                return false;
             }
+
             try
             {
-                bool exists = await _context.Tarifas.AnyAsync(t => t.Id == idTarifa);
-                result.Success = exists;
-                result.Data = exists;
+                return await _context.Set<Tarifas>().AnyAsync(filter);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia de la tarifa con ID {idTarifa}.");
-                result.Success = false;
-                result.Message = $"Error al verificar la existencia de la tarifa: {ex.Message}";
+                _logger.LogError(ex, "Error al verificar la existencia de la tarifa.");
+                throw;
             }
-            return result;
         }
 
-        public async Task<OperationResult> SaveEntityAsync(int idtarifas)
+        public override async Task<OperationResult> SaveEntityAsync(Tarifas tarifas)
         {
-            var tarifas = await _context.Set<Tarifas>().FindAsync(idtarifas);
-            if (tarifas == null)
+            var validation = ValidateTarifas(tarifas);
+            if (validation.Success != true)
+                return validation;
+
+            var result = new OperationResult();
+            try
             {
-                return new OperationResult { Success = false, Message = "El rol de usuario no fue encontrado." };
+               
+                tarifas.ModifyDate = DateTime.Now;
+                tarifas.ModifyUser = 1; 
+
+                await _context.Set<Tarifas>().AddAsync(tarifas);
+                await _context.SaveChangesAsync();
+
+                result.Success = true;
+                result.Data = tarifas;
             }
-            return await SaveEntityAsync(tarifas);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al Guardar al tarifa.");
+                result.Success = false;
+                result.Message = $"Error al Guardar al tarifa: {ex.Message}";
+            }
+            return result;
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Tarifas tarifa)
@@ -108,6 +119,12 @@ namespace SGHR.Persistence.Repository
                 if (existingTarifa == null)
                 {
                     return new OperationResult { Success = false, Message = "Tarifa no encontrada." };
+                }
+
+                var validationResult = ValidateTarifas(tarifa);
+                if (!validationResult.Success != null)
+                {
+                    return validationResult;
                 }
 
                 // Actualizar los datos modificables
@@ -140,26 +157,25 @@ namespace SGHR.Persistence.Repository
             return result;
         }
 
-
-        public async Task<OperationResult> DeleteEntityAsync(int id)
+        public override async Task<OperationResult> DeleteEntityAsync(Tarifas tarifas)
         {
+            if (tarifas == null || tarifas.Id <= 0)
+                return new OperationResult { Success = false, Message = "El ID de la Tarifa es inválido." };
+
             try
             {
-                var tarifas = await _context.Tarifas.FindAsync(id);
-                if (tarifas == null)
-                {
-                    return new OperationResult { Success = false, Message = "Rol de usuario no encontrado." };
-                }
+                var existingTarifas= await _context.Set<Tarifas>().FindAsync(tarifas.Id);
+                if (existingTarifas == null)
+                    return new OperationResult { Success = false, Message = "Tarifa no encontrado." };
 
-                _context.Tarifas.Remove(tarifas);
+                _context.Set<Tarifas>().Remove(existingTarifas);
                 await _context.SaveChangesAsync();
-
-                return new OperationResult { Success = true, Message = "Rol de usuario eliminado permanentemente." };
+                return new OperationResult { Success = true, Message = "Tarifa eliminado exitosamente." };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar el rol de usuario.");
-                return new OperationResult { Success = false, Message = $"Error al eliminar el rol de usuario: {ex.Message}" };
+                _logger.LogError(ex, $"Error al eliminar la Tarifa con id {tarifas.Id}.");
+                return new OperationResult { Success = false, Message = $"Error al eliminar la tarifa: {ex.Message}" };
             }
         }
 
@@ -175,9 +191,9 @@ namespace SGHR.Persistence.Repository
                 return new OperationResult { Success = false, Message = "El precio por noche debe ser mayor a 0." };
             }
 
-            if (string.IsNullOrWhiteSpace(tarifa.Descripcion) || tarifa.Descripcion.Length > 100)
+            if (string.IsNullOrWhiteSpace(tarifa.Descripcion) || tarifa.Descripcion.Length > 255)
             {
-                return new OperationResult { Success = false, Message = "La descripción de la tarifa es obligatoria y debe tener un máximo de 100 caracteres." };
+                return new OperationResult { Success = false, Message = "La descripción de la tarifa es obligatoria y debe tener un máximo de 255 caracteres." };
             }
 
             if (tarifa.IdHabitacion <= 0)
@@ -188,6 +204,16 @@ namespace SGHR.Persistence.Repository
             if (tarifa.FechaInicio == default || tarifa.FechaFin == default)
             {
                 return new OperationResult { Success = false, Message = "Las fechas de inicio y fin son obligatorias." };
+            }
+
+            if (tarifa.Descuento < 0 || tarifa.Descuento > 100)
+            {
+                return new OperationResult { Success = false, Message = "El descuento debe estar entre 0 y 100." };
+            }
+
+            if (tarifa.CreationUser <= 0)
+            {
+                return new OperationResult { Success = false, Message = "El usuario de creación debe ser mayor que cero." };
             }
 
             return new OperationResult { Success = true };

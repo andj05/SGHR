@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SGHR.Infraestructure\SGHR.Infraestructure.csproj" />
     <ProjectReference Include="..\SGHR.IOC\SGHR.IOC.csproj" />
   </ItemGroup>
 

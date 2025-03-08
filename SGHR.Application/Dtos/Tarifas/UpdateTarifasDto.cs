@@ -8,6 +8,7 @@ namespace SGHR.Application.Dtos.Tarifas
         public DateOnly FechaFin { get; set; }
         public decimal PrecioPorNoche { get; set; }
         public decimal Descuento { get; set; }
+        public string Descripcion { get; set; }
         public int IdHabitacion { get; set; }
         public bool Estado { get; set; }
     }

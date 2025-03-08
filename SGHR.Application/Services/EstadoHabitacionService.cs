@@ -1,25 +1,26 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SGHR.Application.Dtos.EstadoHabitacion;
+﻿using SGHR.Application.Dtos.EstadoHabitacion;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repository;
 
 namespace SGHR.Application.Services
 {
     public class EstadoHabitacionService : IEstadoHabitacionService
     {
         private readonly IEstadoHabitacionRepository _estadoHabitacionRepository;
-        private readonly ILogger<EstadoHabitacionService> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly MessageMapper _messageMapper;
+        private readonly ILoggerManager _loggerManager;
 
         public EstadoHabitacionService(IEstadoHabitacionRepository estadoHabitacionRepository,
-                                       ILogger<EstadoHabitacionService> logger,
-                                       IConfiguration configuration)
+                                       MessageMapper messageMapper,
+                                       ILoggerManager loggerManager)
         {
             _estadoHabitacionRepository = estadoHabitacionRepository;
-            _logger = logger;
-            _configuration = configuration;
+            _messageMapper = messageMapper;
+            _loggerManager = loggerManager;
         }
 
         public async Task<OperationResult> GetAll()
@@ -29,14 +30,13 @@ namespace SGHR.Application.Services
             {
                 var estados = await _estadoHabitacionRepository.GetAllAsync();
                 operationResult.Success = true;
-                operationResult.Message = "Estados de habitación obtenidos correctamente.";
-                operationResult.Data = estados.Where(e => !e.Deleted).ToList(); // Filtra eliminados
+                operationResult.Data = estados;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener los estados de habitación.");
-                operationResult.Message = "Error al obtener los estados de habitación.";
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 operationResult.Success = false;
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
             }
             return operationResult;
         }
@@ -46,20 +46,22 @@ namespace SGHR.Application.Services
             var operationResult = new OperationResult();
             try
             {
-                var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (estado?.Deleted == true)
+                var categoria = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
+                if (categoria == null)
                 {
-                    return new OperationResult { Success = false, Message = "Estado de habitación eliminado." };
+                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    operationResult.Success = false;
                 }
-
-                operationResult.Success = true;
-                operationResult.Message = "Estado de habitación obtenido correctamente.";
-                operationResult.Data = estado;
+                else
+                {
+                    operationResult.Data = categoria;
+                    operationResult.Success = true;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener el estado de habitación con ID {id}.");
-                operationResult.Message = "Error al obtener el estado de habitación por ID.";
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
                 operationResult.Success = false;
             }
             return operationResult;
@@ -68,7 +70,7 @@ namespace SGHR.Application.Services
         public async Task<OperationResult> Save(SaveEstadoHabitacionDto dto)
         {
             var validationResult = ValidateEstadoHabitacion(dto);
-            if (!validationResult.Success != null)
+            if (validationResult.Success != true)
                 return validationResult;
 
             try
@@ -76,74 +78,113 @@ namespace SGHR.Application.Services
                 var estado = new EstadoHabitacion
                 {
                     Descripcion = dto.Descripcion,
+                    FechaCreacion = DateTime.UtcNow,
                     Estado = dto.Estado,
-                    CreationUser = 1 // En producción, obtener el usuario autenticado
+                    CreationUser = 1
                 };
 
-                var saveResult = await _estadoHabitacionRepository.SaveEntityAsync(estado);
-                return saveResult;
+                return await _estadoHabitacionRepository.SaveEntityAsync(estado);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar el estado de habitación.");
-                return new OperationResult { Success = false, Message = "Error al guardar el estado de habitación." };
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = $"{_messageMapper.ErrorMessages["Operations"]["SaveFailed"]}: {ex.Message}"
+                };
             }
         }
 
         public async Task<OperationResult> Update(UpdateEstadoHabitacionDto dto)
         {
+
             if (dto.IdEstadoHabitacion <= 0)
-                return new OperationResult { Success = false, Message = "ID de estado de habitación inválido." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
-            var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(dto.IdEstadoHabitacion);
-            if (estado == null || estado.Deleted)
-                return new OperationResult { Success = false, Message = "Estado de habitación no encontrado o eliminado." };
+            var estadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(dto.IdEstadoHabitacion);
+            if (estadoHabitacion == null || estadoHabitacion.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
-            estado.Descripcion = dto.Descripcion ?? estado.Descripcion;
-            estado.Estado = dto.Estado != default ? dto.Estado : estado.Estado;
-            estado.FechaCreacion = dto.FechaCreacion != default ? dto.FechaCreacion : estado.FechaCreacion;
-            estado.ModifyDate = DateTime.Now;
-            estado.ModifyUser = 1; // En producción, obtener el usuario autenticado
+            estadoHabitacion.Descripcion = dto.Descripcion ?? estadoHabitacion.Descripcion;
+            estadoHabitacion.Estado = dto.Estado != default ? dto.Estado : estadoHabitacion.Estado;
+            estadoHabitacion.FechaCreacion = dto.FechaCreacion != default ? dto.FechaCreacion : estadoHabitacion.FechaCreacion;
+            estadoHabitacion.ModifyDate = DateTime.Now;
+            estadoHabitacion.ModifyUser = 1;
 
-            return await _estadoHabitacionRepository.UpdateEntityAsync(estado);
+            var result = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
+            return result;
         }
 
         public async Task<OperationResult> Remove(RemoveEstadoHabitacionDto dto)
         {
+
             if (dto.IdEstadoHabitacion <= 0)
-                return new OperationResult { Success = false, Message = "ID de estado de habitación inválido." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
-            var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(dto.IdEstadoHabitacion);
-            if (estado == null || estado.Deleted)
-                return new OperationResult { Success = false, Message = "Estado de habitación no encontrado o ya eliminado." };
+            var estadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(dto.IdEstadoHabitacion);
+            if (estadoHabitacion == null || estadoHabitacion.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
-            estado.Deleted = true;
-            estado.DeletedUser = 1;
-            estado.ModifyDate = DateTime.Now;
+            estadoHabitacion.Deleted = true;
+            estadoHabitacion.DeletedUser = 1;
+            estadoHabitacion.ModifyDate = DateTime.Now; estadoHabitacion.Deleted = true;
+            estadoHabitacion.DeletedUser = 1;
+            estadoHabitacion.ModifyDate = DateTime.Now;
 
-            return await _estadoHabitacionRepository.UpdateEntityAsync(estado);
+            var result = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
+            return result;
         }
 
         public async Task<OperationResult> Restore(int id)
         {
-            var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-            if (estado == null || !estado.Deleted)
-                return new OperationResult { Success = false, Message = "Estado de habitación no encontrado o ya activo." };
+            var estadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
+            if (estadoHabitacion == null || !estadoHabitacion.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
-            estado.Deleted = false;
-            estado.ModifyDate = DateTime.Now;
-            estado.ModifyUser = 1; // En producción, obtener el usuario autenticado
+            estadoHabitacion.Deleted = false;
+            estadoHabitacion.ModifyDate = DateTime.Now;
+            estadoHabitacion.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-            return await _estadoHabitacionRepository.UpdateEntityAsync(estado);
+            var result = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
+            return result;
         }
 
         private OperationResult ValidateEstadoHabitacion(dynamic estado)
         {
             if (estado == null)
-                return new OperationResult { Success = false, Message = "El estado de habitación no puede ser nulo." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["NullEstado"]
+                };
 
             if (string.IsNullOrWhiteSpace(estado.Descripcion) || estado.Descripcion.Length > 50)
-                return new OperationResult { Success = false, Message = "La descripción no puede estar vacía y debe tener un máximo de 50 caracteres." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["InvalidDescripcion"]
+                };
 
             return new OperationResult { Success = true };
         }

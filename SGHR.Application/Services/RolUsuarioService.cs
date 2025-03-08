@@ -1,26 +1,27 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SGHR.Application.Dtos.RolUsuario;
+﻿using SGHR.Application.Dtos.RolUsuario;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
+
 
 namespace SGHR.Application.Services
 {
     public class RolUsuarioService : IRolUsuarioService
     {
         private readonly IRolUsuarioRepository _rolUsuarioRepository;
-        private readonly ILogger<RolUsuarioService> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly MessageMapper _messageMapper;
+        private readonly ILoggerManager _loggerManager;
 
         public RolUsuarioService(IRolUsuarioRepository rolUsuarioRepository,
-                                ILogger<RolUsuarioService> logger,
-                                IConfiguration configuration)
+                                 MessageMapper messageMapper,
+                                 ILoggerManager loggerManager)
         {
             _rolUsuarioRepository = rolUsuarioRepository;
-            _logger = logger;
-            _configuration = configuration;
+            _messageMapper = messageMapper;
+            _loggerManager = loggerManager;
         }
 
         public async Task<OperationResult> GetAll()
@@ -29,14 +30,15 @@ namespace SGHR.Application.Services
             try
             {
                 var roles = await _rolUsuarioRepository.GetAllAsync();
+                operationResult.Data = roles;
                 operationResult.Success = true;
-                operationResult.Message = "Roles obtenidos correctamente.";
+                operationResult.Message = _messageMapper.SuccessMessages["GenericSuccess"];
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener todos los roles de usuario.");
-                operationResult.Message = "Error al obtener todos los roles de usuario.";
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 operationResult.Success = false;
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
             }
             return operationResult;
         }
@@ -47,22 +49,22 @@ namespace SGHR.Application.Services
             try
             {
                 var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-                if (rolUsuario == null || rolUsuario.Deleted)
+                if (rolUsuario == null)
                 {
-                    operationResult.Message = "Rol de usuario no encontrado o eliminado.";
                     operationResult.Success = false;
+                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                 }
                 else
                 {
-                    operationResult.Message = "Rol de usuario obtenido correctamente.";
+                    operationResult.Data = rolUsuario;
                     operationResult.Success = true;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener el rol de usuario con ID {id}.");
-                operationResult.Message = "Error al obtener el rol de usuario por ID.";
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 operationResult.Success = false;
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
             }
             return operationResult;
         }
@@ -70,80 +72,116 @@ namespace SGHR.Application.Services
         public async Task<OperationResult> Save(SaveRolUsuarioDto dto)
         {
             var validationResult = ValidateRolUsuario(dto);
-            if (!validationResult.Success != null)
+            if (validationResult.Success != true)
                 return validationResult;
 
             try
             {
                 var rolUsuario = new RolUsuario
                 {
+                    FechaCreacion = DateTime.UtcNow,
                     Descripcion = dto.Descripcion,
                     Estado = dto.Estado,
-                    CreationUser = 1 // En producción, obtener el usuario autenticado
+                    CreationUser = 1 // En producción, obtener el usuario autenticado
                 };
 
                 return await _rolUsuarioRepository.SaveEntityAsync(rolUsuario);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar el rol de usuario.");
-                return new OperationResult { Success = false, Message = "Error al guardar el rol de usuario." };
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = $"{_messageMapper.ErrorMessages["Operations"]["SaveFailed"]}: {ex.Message}"
+                };
             }
         }
 
         public async Task<OperationResult> Update(UpdateRolUsuarioDto dto)
         {
             if (dto.IdRolUsuario <= 0)
-                return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
             var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
             if (rolUsuario == null || rolUsuario.Deleted)
-                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o eliminado." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
             rolUsuario.Descripcion = dto.Descripcion ?? rolUsuario.Descripcion;
             rolUsuario.Estado = dto.Estado ?? rolUsuario.Estado;
             rolUsuario.ModifyDate = DateTime.Now;
-            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
+            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
-            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+            var result = await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+            return result;
         }
 
         public async Task<OperationResult> Remove(RemoveRolUsuarioDto dto)
         {
             if (dto.IdRolUsuario <= 0)
-                return new OperationResult { Success = false, Message = "ID de rol de usuario inválido." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
             var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
             if (rolUsuario == null || rolUsuario.Deleted)
-                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o ya eliminado." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
             rolUsuario.Deleted = true;
-            rolUsuario.DeletedUser = 1;
+            rolUsuario.DeletedUser = 1; // En producción, obtener el usuario autenticado.
             rolUsuario.ModifyDate = DateTime.Now;
 
-            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+            var result = await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+            return result;
         }
 
         public async Task<OperationResult> Restore(int id)
         {
             var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
             if (rolUsuario == null || !rolUsuario.Deleted)
-                return new OperationResult { Success = false, Message = "Rol de usuario no encontrado o ya activo." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
             rolUsuario.Deleted = false;
             rolUsuario.ModifyDate = DateTime.Now;
-            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
+            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+            var result = await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+            return result;
         }
 
         private OperationResult ValidateRolUsuario(dynamic rolUsuario)
         {
             if (rolUsuario == null)
-                return new OperationResult { Success = false, Message = "El rol de usuario no puede ser nulo." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["NullRolUsuario"]
+                };
 
             if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion) || rolUsuario.Descripcion.Length > 50)
-                return new OperationResult { Success = false, Message = "La descripción no puede estar vacía y debe tener un máximo de 50 caracteres." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["InvalidDescription"]
+                };
 
             return new OperationResult { Success = true };
         }

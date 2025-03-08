@@ -6,6 +6,7 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Configurations;
 using System.Linq.Expressions;
 
 namespace SGHR.Persistence.Repository
@@ -15,25 +16,28 @@ namespace SGHR.Persistence.Repository
         private readonly SGHRContext _context;
         private readonly ILogger<PisoRepository> _logger;
         private readonly IConfiguration _configuration;
+        private readonly MessageMapper _messageMapper;
 
         public PisoRepository(SGHRContext context,
                               ILogger<PisoRepository> logger,
-                              IConfiguration configuration) : base(context)
+                              IConfiguration configuration,
+                              MessageMapper messageMapper) : base(context)
         {
             _context = context;
             _logger = logger;
             _configuration = configuration;
+            _messageMapper = messageMapper;
         }
 
         public override async Task<List<Piso>> GetAllAsync()
         {
             try
             {
-                return await _context.Set<Piso>().Where(h => !h.Deleted).ToListAsync();
+                return await _context.Set<Piso>().ToListAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener los pisos.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Piso"]["GetAllError"]);
                 throw;
             }
         }
@@ -42,23 +46,23 @@ namespace SGHR.Persistence.Repository
         {
             if (id <= 0)
             {
-                _logger.LogWarning($"ID del piso inválido: {id}");
+                _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
                 return null;
             }
 
             try
             {
                 var piso = await _context.Set<Piso>().FindAsync(id);
-                if (piso == null || piso.Deleted)
+                if (piso == null)
                 {
-                    _logger.LogWarning($"El piso con ID {id} no encontrado o eliminado.");
+                    _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
                     return null;
                 }
                 return piso;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener el piso con ID {id}.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Piso"]["GetByIdError"]);
                 throw;
             }
         }
@@ -67,7 +71,7 @@ namespace SGHR.Persistence.Repository
         {
             if (filter == null)
             {
-                _logger.LogWarning("El filtro no puede ser nulo.");
+                _logger.LogWarning(_messageMapper.ErrorMessages["Generic"]["NullFilter"]);
                 return false;
             }
 
@@ -77,77 +81,80 @@ namespace SGHR.Persistence.Repository
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al verificar la existencia del piso.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Piso"]["ExistsError"]);
                 throw;
             }
         }
 
         public override async Task<OperationResult> SaveEntityAsync(Piso piso)
         {
-            var validation = ValidatePiso(piso);
-            if (!validation.Success != null)
-                return validation;
+            var validationResult = ValidatePiso(piso);
+            if (validationResult.Success != true)
+                return validationResult;
 
-            var result = new OperationResult();
             try
             {
-                piso.FechaCreacion = DateTime.Now;
-                piso.ModifyDate = DateTime.Now;
+                piso.FechaCreacion = DateTime.UtcNow;
+                piso.ModifyDate = DateTime.UtcNow;
                 piso.ModifyUser = 1;
 
                 await _context.Set<Piso>().AddAsync(piso);
                 await _context.SaveChangesAsync();
 
-                result.Success = true;
-                result.Data = piso;
+                return new OperationResult
+                {
+                    Success = true,
+                    Message = _messageMapper.SuccessMessages["SaveSuccess"],
+                    Data = piso
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar el piso.");
-                result.Success = false;
-                result.Message = $"Error al guardar el piso: {ex.Message}";
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
             }
-            return result;
         }
 
         public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
         {
+            var validation = ValidatePiso(piso);
+            if (validation.Success != true)
+                return validation;
+
             var result = new OperationResult();
             try
             {
-                // Validación del piso
-                var validationResult = ValidatePiso(piso);
-                if (!validationResult.Success != null)
-                {
-                    return validationResult;
-                }
-
-                // Buscar el piso existente en la base de datos
                 var existingPiso = await _context.Set<Piso>().FindAsync(piso.Id);
                 if (existingPiso == null)
                 {
-                    return new OperationResult { Success = false, Message = "Piso no encontrado." };
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
                 }
 
-                // Actualizar los datos modificables
                 existingPiso.Descripcion = piso.Descripcion ?? existingPiso.Descripcion;
                 existingPiso.Estado = piso.Estado;
-                existingPiso.ModifyDate = DateTime.Now;
+                existingPiso.ModifyDate = DateTime.UtcNow;
                 existingPiso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                // Guardar los cambios
-                _context.Entry(existingPiso).State = EntityState.Modified;
+                _context.Update(existingPiso);
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
+                result.Message = _messageMapper.SuccessMessages["UpdateSuccess"];
                 result.Data = existingPiso;
-                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al actualizar el piso.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
                 result.Success = false;
-                result.Message = $"Error al actualizar el piso: {ex.Message}";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
             }
             return result;
         }
@@ -155,22 +162,79 @@ namespace SGHR.Persistence.Repository
         public override async Task<OperationResult> DeleteEntityAsync(Piso piso)
         {
             if (piso == null || piso.Id <= 0)
-                return new OperationResult { Success = false, Message = "El ID del piso es inválido." };
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
+            }
 
+            try
+            {
+                var existingPiso = await _context.Pisos.FindAsync(piso.Id);
+                if (existingPiso == null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
+                }
+
+                _context.Pisos.Remove(existingPiso);
+                await _context.SaveChangesAsync();
+
+                return new OperationResult
+                {
+                    Success = true,
+                    Message = _messageMapper.SuccessMessages["DeleteSuccess"]
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DeleteFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"]
+                };
+            }
+        }
+
+        public override async Task<OperationResult> RestoreEntityAsync(Piso piso)
+        {
             try
             {
                 var existingPiso = await _context.Set<Piso>().FindAsync(piso.Id);
                 if (existingPiso == null)
-                    return new OperationResult { Success = false, Message = "Piso no encontrado." };
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
+                }
 
-                _context.Set<Piso>().Remove(existingPiso);
+                existingPiso.Deleted = false;
+                existingPiso.ModifyDate = DateTime.UtcNow;
+                existingPiso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
                 await _context.SaveChangesAsync();
-                return new OperationResult { Success = true, Message = "Piso eliminado exitosamente." };
+                return new OperationResult
+                {
+                    Success = true,
+                    Message = _messageMapper.SuccessMessages["RestoreSuccess"]
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al eliminar el piso con ID {piso.Id}.");
-                return new OperationResult { Success = false, Message = $"Error al eliminar el piso: {ex.Message}" };
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]
+                };
             }
         }
 
@@ -178,17 +242,29 @@ namespace SGHR.Persistence.Repository
         {
             if (piso == null)
             {
-                return new OperationResult { Success = false, Message = "El piso no puede ser nulo." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
+                };
             }
 
             if (piso.Descripcion != null && piso.Descripcion.Length > 50)
             {
-                return new OperationResult { Success = false, Message = "La descripción del piso debe tener un máximo de 50 caracteres." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Piso"]["InvalidDescription"]
+                };
             }
 
             if (piso.CreationUser <= 0)
             {
-                return new OperationResult { Success = false, Message = "El usuario de creación debe ser mayor que cero." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Piso"]["InvalidCreationUser"]
+                };
             }
 
             return new OperationResult { Success = true };

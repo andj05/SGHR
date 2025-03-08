@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SGHR.Domain.Entities.Configuration;
-using SGHR.Persistence.Interfaces;
+using SGHR.Application.Dtos.EstadoHabitacion;
+using SGHR.Application.Interfaces;
+using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers
 {
@@ -8,76 +9,118 @@ namespace SGHR.Api.Controllers
     [ApiController]
     public class EstadoHabitacionController : ControllerBase
     {
-        private readonly IEstadoHabitacionRepository _estadoHabitacionRepository;
+        private readonly IEstadoHabitacionService _estadoHabitacionService;
+        private readonly MessageMapper _messageMapper;
         private readonly ILogger<EstadoHabitacionController> _logger;
 
-        public EstadoHabitacionController(IEstadoHabitacionRepository estadoHabitacionRepository, ILogger<EstadoHabitacionController> logger)
+        public EstadoHabitacionController(IEstadoHabitacionService estadoHabitacionService,
+                                            ILogger<EstadoHabitacionController> logger,
+                                            MessageMapper messageMapper)
         {
-            _estadoHabitacionRepository = estadoHabitacionRepository;
+            _estadoHabitacionService = estadoHabitacionService;
             _logger = logger;
+            _messageMapper = messageMapper;
         }
 
         // GET: api/EstadoHabitacion/GetEstadoHabitacion
         [HttpGet("GetEstadoHabitacion")]
         public async Task<IActionResult> Get()
         {
-            var estados = await _estadoHabitacionRepository.GetAllAsync();
-            return Ok(estados.Where(e => !e.Deleted));
+            var result = await _estadoHabitacionService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var estadoHabitacion = (IEnumerable<EstadoHabitacion>)result.Data;
+            return Ok(estadoHabitacion.Where(e => !e.Deleted));
         }
 
         // GET api/EstadoHabitacion/GetEstadoByID/5
         [HttpGet("GetEstadoByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-            if (estado == null || estado.Deleted)
-            {
-                return NotFound("Estado de habitación no existe o ha sido eliminado.");
-            }
-            return Ok(estado);
+            var result = await _estadoHabitacionService.GetById(id);
+            if (result.Success != true)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            var estadoHabitacion = (EstadoHabitacion)result.Data;
+            if (estadoHabitacion.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(estadoHabitacion);
         }
 
-        // POST api/EstadoHabitacion/SaveEstado
-        [HttpPost("SaveEstado")]
-        public async Task<IActionResult> Post([FromBody] EstadoHabitacion estado)
+        // GET api/EstadoHabitacion/GetDeletedEstadoHabitacion
+        [HttpGet("GetDeletedEstadoHabitacion")]
+        public async Task<IActionResult> GetDeletedClientes()
+        {
+            var result = await _estadoHabitacionService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var estadoHabitacion = (IEnumerable<EstadoHabitacion>)result.Data;
+            return Ok(estadoHabitacion.Where(e => e.Deleted));
+        }
+
+        // GET api/EstadoHabitacion/GetDeletedEstadoHabitacionByID/5
+        [HttpGet("GetDeletedEstadoHabitacionByID/{id}")]
+        public async Task<IActionResult> GetDeletedClienteByID(int id)
+        {
+            var result = await _estadoHabitacionService.GetById(id);
+            if (result.Success != true || result.Data == null)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            var estadoHabitacion = (EstadoHabitacion)result.Data;
+            if (!estadoHabitacion.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(estadoHabitacion);
+        }
+
+        // POST api/EstadoHabitacion/SaveEstadoHabitacion
+        [HttpPost("SaveEstadoHabitacion")]
+        public async Task<IActionResult> Post([FromBody] SaveEstadoHabitacionDto estadoHabitacionDto)
         {
             try
             {
-                var saveEstado = await _estadoHabitacionRepository.SaveEntityAsync(estado);
-                if (saveEstado.Success != null)
-                {
-                    return Ok(new { Message = "Estado de habitación guardado exitosamente", Data = saveEstado.Data });
-                }
-                return BadRequest(new { Message = "Error al guardar el estado de habitación", Error = saveEstado.Message });
+                var saveResult = await _estadoHabitacionService.Save(estadoHabitacionDto);
+                if (saveResult.Success == true)
+                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
+
+                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ocurrió un error guardando los datos");
-                return StatusCode(500, new { Message = "Error interno al guardar el estado de habitación.", Error = ex.Message });
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return StatusCode(500, new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = ex.Message });
             }
         }
 
-        // PUT api/EstadoHabitacion/UpdateEstado/5
+        // PUT api/EstadoHabitacion/UpdateEstadoHabitacion/5
         [HttpPut("UpdateEstadoHabitacion/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] EstadoHabitacion estadoHabitacion)
+        public async Task<IActionResult> Put(int id, [FromBody] UpdateEstadoHabitacionDto estadoHabitacionDto)
         {
             if (id <= 0)
-                return BadRequest("ID del Estado de Habitación inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            var existingEstadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-            if (existingEstadoHabitacion == null || existingEstadoHabitacion.Deleted)
+            var existingResult = await _estadoHabitacionService.GetById(id);
+            if (existingResult.Success != true || existingResult.Data == null)
             {
-                return NotFound("Estado de Habitación no encontrado o ha sido eliminado.");
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            estadoHabitacion.Id = id; // Asegurar que el ID es correcto
-
-            var updateEstadoHabitacion = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
-            if (updateEstadoHabitacion.Success != null)
+            var existingEstadoHabitacion = (EstadoHabitacion)existingResult.Data;
+            if (existingEstadoHabitacion.Deleted)
             {
-                return Ok(new { Message = "Estado de Habitación actualizado exitosamente", Data = updateEstadoHabitacion.Data });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            return BadRequest(new { Message = "Error al actualizar el Estado de Habitación", Error = updateEstadoHabitacion.Message ?? "Error desconocido" });
+
+            estadoHabitacionDto.IdEstadoHabitacion = id;
+            var updateResult = await _estadoHabitacionService.Update(estadoHabitacionDto);
+            if (updateResult.Success == true)
+            {
+                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
+            }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
         // DELETE api/EstadoHabitacion/DeleteEstado/5
@@ -85,67 +128,39 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de estado de habitación inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            try
+            var result = await _estadoHabitacionService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (estado == null)
-                {
-                    return NotFound("Estado de habitación no encontrado.");
-                }
-
-                estado.Deleted = true;
-                estado.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-                estado.ModifyDate = DateTime.Now;
-
-                var deleteEstado = await _estadoHabitacionRepository.UpdateEntityAsync(estado);
-                if (deleteEstado.Success != null)
-                {
-                    return Ok(new { Message = "Estado de habitación eliminado lógicamente.", Data = deleteEstado.Data });
-                }
-                return BadRequest(new { Message = "Error al eliminar el estado de habitación", Error = deleteEstado.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var removeDto = new RemoveEstadoHabitacionDto { IdEstadoHabitacion = id };
+            var deleteResult = await _estadoHabitacionService.Remove(removeDto);
+            if (deleteResult.Success == true)
             {
-                _logger.LogError(ex, "Error al eliminar el estado de habitación.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el estado de habitación.", Error = ex.Message });
+                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
             }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
 
         // PUT api/EstadoHabitacion/RestoreEstado/5
         [HttpPut("RestoreEstado/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            if (id <= 0)
-                return BadRequest("ID de estado de habitación inválido.");
-
-            try
+            var result = await _estadoHabitacionService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var estado = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (estado == null)
-                    return NotFound("Estado de habitación no encontrado.");
-
-                if (!estado.Deleted)
-                    return BadRequest("El estado de habitación ya está activo.");
-
-                // Restaurar estado de habitación
-                estado.Deleted = false;
-                estado.ModifyDate = DateTime.Now;
-                estado.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-                var restoreEstado = await _estadoHabitacionRepository.UpdateEntityAsync(estado);
-                if (restoreEstado.Success != null)
-                {
-                    return Ok(new { Message = "Estado de habitación restaurado exitosamente." });
-                }
-                return BadRequest(new { Message = "Error al restaurar el estado de habitación", Error = restoreEstado.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var restoreResult = await _estadoHabitacionService.Restore(id);
+            if (restoreResult.Success == true)
             {
-                _logger.LogError(ex, "Error al restaurar el estado de habitación.");
-                return StatusCode(500, new { Message = "Error interno al restaurar el estado de habitación.", Error = ex.Message });
+                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
             }
+            return BadRequest(restoreResult.Message);
         }
     }
 }

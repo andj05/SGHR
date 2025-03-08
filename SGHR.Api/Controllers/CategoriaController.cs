@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SGHR.Application.Dtos.Categorias;
+using SGHR.Application.Interfaces;
 using SGHR.Domain.Entities.Configuration;
-using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers
 {
@@ -8,150 +10,145 @@ namespace SGHR.Api.Controllers
     [ApiController]
     public class CategoriaController : ControllerBase
     {
-        private readonly ICategoriaRepository _categoriaRepository;
-        private readonly ILogger<CategoriaController> _logger;
+        private readonly ICategoriasService _categoriaService;
+        private readonly MessageMapper _messageMapper;
 
-        public CategoriaController(ICategoriaRepository categoriaRepository, ILogger<CategoriaController> logger)
+        public CategoriaController(ICategoriasService categoriaService, ILogger<CategoriaController> logger, MessageMapper messageMapper)
         {
-            _categoriaRepository = categoriaRepository;
-            _logger = logger;
+            _categoriaService = categoriaService;
+            _messageMapper = messageMapper;
         }
 
         [HttpGet("GetCategorias")]
         public async Task<IActionResult> Get()
         {
-            var categorias = await _categoriaRepository.GetAllAsync();
+            var result = await _categoriaService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var categorias = (IEnumerable<Categoria>)result.Data;
             return Ok(categorias.Where(c => !c.Deleted));
         }
 
         [HttpGet("GetCategoriaByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-            if (categoria == null || categoria.Deleted)
-            {
-                return NotFound("Categoría no existe o ha sido eliminada.");
-            }
+            var result = await _categoriaService.GetById(id);
+            if (result.Success != true)
+                return NotFound(result.Message);
+
+            var categoria = (Categoria)result.Data;
+            if (categoria.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(categoria);
+        }
+
+        [HttpGet("GetDeletedCategoria")]
+        public async Task<IActionResult> GetDeletedClientes()
+        {
+            var result = await _categoriaService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var categorias = (IEnumerable<Categoria>)result.Data;
+            return Ok(categorias.Where(c => c.Deleted));
+        }
+
+        [HttpGet("GetDeletedTarifasByID/{id}")]
+        public async Task<IActionResult> GetDeletedClienteByID(int id)
+        {
+            var result = await _categoriaService.GetById(id);
+            if (result.Success != true || result.Data == null)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            var categoria = (Categoria)result.Data;
+            if (!categoria.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
             return Ok(categoria);
         }
 
         [HttpPost("SaveCategoria")]
-        public async Task<IActionResult> Post([FromBody] Categoria categoria)
+        public async Task<IActionResult> Post([FromBody] SaveCategoriasDto categoriaDto)
         {
             try
             {
-                _logger.LogInformation("Intentando guardar categoría: {@categoria}", categoria);
-                var saveCategoria = await _categoriaRepository.SaveEntityAsync(categoria);
-                _logger.LogInformation("Respuesta del repositorio: {@saveCategoria}", saveCategoria);
+                var saveResult = await _categoriaService.Save(categoriaDto);
+                if (saveResult.Success == true)
+                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
 
-                if (saveCategoria.Success != null)
-                {
-                    return Ok(new { Message = "Categoría guardada exitosamente", Data = saveCategoria.Data });
-                }
-                return BadRequest(new { Message = "Error al guardar la categoría", Error = saveCategoria.Message });
+                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ocurrió un error guardando los datos");
-                return StatusCode(500, new { Message = "Error interno al guardar la categoría.", Error = ex.Message });
+                return StatusCode(500, new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = ex.Message });
             }
         }
 
         [HttpPut("UpdateCategoria/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] Categoria categoria)
+        public async Task<IActionResult> Put(int id, [FromBody] UpdateCategoriasDto categoriaDto)
         {
             if (id <= 0)
-                return BadRequest("ID de categoría inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            var existingCategoria = await _categoriaRepository.GetEntityByIdAsync(id);
-            if (existingCategoria == null || existingCategoria.Deleted)
+            var existingResult = await _categoriaService.GetById(id);
+            if (existingResult.Success != true || existingResult.Data == null)
             {
-                return NotFound("Categoría no encontrada o ha sido eliminada.");
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            categoria.Id = id;
-            var updateCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
-            _logger.LogInformation("Respuesta del repositorio: {@updateCategoria}", updateCategoria);
-
-            if (updateCategoria.Success != null)
+            var existingCategoria = (Categoria)existingResult.Data;
+            if (existingCategoria.Deleted)
             {
-                return Ok(new { Message = "Categoría actualizada exitosamente", Data = updateCategoria.Data });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            return BadRequest(new { Message = "Error al actualizar la categoría", Error = updateCategoria.Message ?? "Error desconocido" });
+
+            categoriaDto.IdCategoria = id;
+            var updateResult = await _categoriaService.Update(categoriaDto);
+            if (updateResult.Success == true)
+            {
+                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
+            }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
         [HttpDelete("DeleteCategoria/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de categoría inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            try
+            var result = await _categoriaService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria == null)
-                {
-                    return NotFound("Categoría no encontrada.");
-                }
-
-                if (categoria.Deleted)
-                {
-                    return BadRequest("La categoría ya está eliminada.");
-                }
-
-                categoria.Deleted = true;
-                categoria.DeletedUser = 1;
-                categoria.ModifyDate = DateTime.Now;
-
-                _logger.LogInformation("Actualizando estado de eliminado para categoría: {@categoria}", categoria);
-
-                var deleteCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
-                if (deleteCategoria.Success != null)
-                {
-                    return Ok(new { Message = "Categoría eliminada lógicamente.", Data = deleteCategoria.Data });
-                }
-                return BadRequest(new { Message = "Error al eliminar la categoría", Error = deleteCategoria.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var removeDto = new RemoveCategoriasDto { IdCategoria = id };
+            var deleteResult = await _categoriaService.Remove(removeDto);
+            if (deleteResult.Success != true)
             {
-                _logger.LogError(ex, "Error al eliminar la categoría.");
-                return StatusCode(500, new { Message = "Error interno al eliminar la categoría.", Error = ex.Message });
+                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
             }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
 
         [HttpPut("RestoreCategoria/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            if (id <= 0)
-                return BadRequest("ID de categoría inválido.");
-
-            try
+            var result = await _categoriaService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria == null)
-                    return NotFound("Categoría no encontrada.");
-
-                if (!categoria.Deleted)
-                    return BadRequest("La categoría ya está activa.");
-
-                categoria.Deleted = false;
-                categoria.ModifyDate = DateTime.Now;
-                categoria.ModifyUser = 1;
-
-                _logger.LogInformation("Restaurando categoría: {@categoria}", categoria);
-
-                var restoreCategoria = await _categoriaRepository.UpdateEntityAsync(categoria);
-                if (restoreCategoria.Success != null)
-                {
-                    return Ok(new { Message = "Categoría restaurada exitosamente." });
-                }
-                return BadRequest(new { Message = "Error al restaurar la categoría", Error = restoreCategoria.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var restoreResult = await _categoriaService.Restore(id);
+            if (restoreResult.Success != true)
             {
-                _logger.LogError(ex, "Error al restaurar la categoría.");
-                return StatusCode(500, new { Message = "Error interno al restaurar la categoría.", Error = ex.Message });
+                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
             }
+            return BadRequest(restoreResult.Message);
         }
     }
 }

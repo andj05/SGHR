@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SGHR.Application.Dtos.Tarifas;
+using SGHR.Application.Interfaces;
 using SGHR.Domain.Entities.Configuration;
-using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers
 {
@@ -8,108 +10,156 @@ namespace SGHR.Api.Controllers
     [ApiController]
     public class TarifasController : ControllerBase
     {
-        private readonly ITarifasRepository _tarifasRepository;
+        private readonly ITarifasService _tarifasService;
         private readonly ILogger<TarifasController> _logger;
+        private readonly MessageMapper _messageMapper;
 
-        public TarifasController(ITarifasRepository tarifasRepository, ILogger<TarifasController> logger)
+        public TarifasController(ITarifasService tarifasService, ILogger<TarifasController> logger, MessageMapper messageMapper)
         {
-            _tarifasRepository = tarifasRepository;
+            _tarifasService = tarifasService;
             _logger = logger;
+            _messageMapper = messageMapper;
         }
 
+        // GET: api/Tarifas/GetTarifas
         [HttpGet("GetTarifas")]
         public async Task<IActionResult> Get()
         {
-            var tarifas = await _tarifasRepository.GetAllAsync();
+            var result = await _tarifasService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var tarifas = (IEnumerable<Tarifas>)result.Data;
             return Ok(tarifas.Where(t => !t.Deleted));
         }
 
-        [HttpGet("GetTarifaByID/{id}")]
+        // GET api/Tarifas/GetTarifasByID/5
+        [HttpGet("GetTarifasByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var tarifa = await _tarifasRepository.GetEntityByIdAsync(id);
-            if (tarifa == null || tarifa.Deleted)
-                return NotFound("Tarifa no encontrada o eliminada.");
+            var result = await _tarifasService.GetById(id);
+            if (result.Success != true)
+                return NotFound(result.Message);
+
+            var tarifa = (Tarifas)result.Data;
+            if (tarifa.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
             return Ok(tarifa);
         }
 
-        [HttpPost("SaveTarifa")]
-        public async Task<IActionResult> Post([FromBody] Tarifas tarifa)
+        // GET api/Tarifas/GetDeletedTarifas
+        [HttpGet("GetDeletedTarifas")]
+        public async Task<IActionResult> GetDeletedTarifas()
+        {
+            var result = await _tarifasService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var tarifas = (IEnumerable<Tarifas>)result.Data;
+            return Ok(tarifas.Where(t => t.Deleted));
+        }
+
+        // GET api/Tarifas/GetDeletedTarifasByID/5
+        [HttpGet("GetDeletedTarifasByID/{id}")]
+        public async Task<IActionResult> GetDeletedTarifasByID(int id)
+        {
+            var result = await _tarifasService.GetById(id);
+            if (result.Success != true || result.Data == null)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            var tarifa = (Tarifas)result.Data;
+            if (!tarifa.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(tarifa);
+        }
+
+        // POST api/Tarifas/SaveTarifas
+        [HttpPost("SaveTarifas")]
+        public async Task<IActionResult> Post([FromBody] SaveTarifasDto tarifasDto)
         {
             try
             {
-                var saveTarifa = await _tarifasRepository.SaveEntityAsync(tarifa);
-                if (saveTarifa.Success != null)
-                    return Ok(new { Message = "Tarifa guardada exitosamente", Data = saveTarifa.Data });
+                var saveResult = await _tarifasService.Save(tarifasDto);
+                if (saveResult.Success == true)
+                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
 
-                return BadRequest(new { Message = "Error al guardar la tarifa", Error = saveTarifa.Message });
+                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar la tarifa.");
-                return StatusCode(500, new { Message = "Error interno al guardar la tarifa.", Error = ex.Message });
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return StatusCode(500, new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = ex.Message });
             }
         }
 
+        // PUT api/Tarifas/UpdateTarifa/5
         [HttpPut("UpdateTarifa/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] Tarifas tarifa)
+        public async Task<IActionResult> Put(int id, [FromBody] UpdateTarifasDto tarifaDto)
         {
             if (id <= 0)
-                return BadRequest("ID de tarifa inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            var existingTarifa = await _tarifasRepository.GetEntityByIdAsync(id);
-            if (existingTarifa == null || existingTarifa.Deleted)
-                return NotFound("Tarifa no encontrada o eliminada.");
+            var existingResult = await _tarifasService.GetById(id);
+            if (existingResult.Success != true || existingResult.Data == null)
+            {
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+            }
 
-            tarifa.Id = id;
-            var updateTarifa = await _tarifasRepository.UpdateEntityAsync(tarifa);
-            if (updateTarifa.Success != null)
-                return Ok(new { Message = "Tarifa actualizada exitosamente", Data = updateTarifa.Data });
+            var existingTarifa = (Tarifas)existingResult.Data;
+            if (existingTarifa.Deleted)
+            {
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+            }
 
-            return BadRequest(new { Message = "Error al actualizar la tarifa", Error = updateTarifa.Message ?? "Error desconocido" });
+            tarifaDto.IdTarifa = id;
+            var updateResult = await _tarifasService.Update(tarifaDto);
+            if (updateResult.Success == true)
+            {
+                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
+            }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
+        // DELETE api/Tarifas/DeleteTarifa/5
         [HttpDelete("DeleteTarifa/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de tarifa inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            try
+            var result = await _tarifasService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var tarifa = await _tarifasRepository.GetEntityByIdAsync(id);
-                if (tarifa == null)
-                    return NotFound("Tarifa no encontrada.");
-
-                tarifa.Deleted = true;
-                tarifa.DeletedUser = 1;
-
-                var deleteTarifa = await _tarifasRepository.UpdateEntityAsync(tarifa);
-                if (deleteTarifa.Success != null)
-                    return Ok(new { Message = "Tarifa eliminada lógicamente.", Data = deleteTarifa.Data });
-
-                return BadRequest(new { Message = "Error al eliminar la tarifa", Error = deleteTarifa.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var removeDto = new RemoveTarifasDto { IdTarifa = id };
+            var deleteResult = await _tarifasService.Remove(removeDto);
+            if (deleteResult.Success == true)
             {
-                _logger.LogError(ex, "Error al eliminar la tarifa.");
-                return StatusCode(500, new { Message = "Error interno al eliminar la tarifa.", Error = ex.Message });
+                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
             }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
 
+        // PUT api/Tarifas/RestoreTarifa/5
         [HttpPut("RestoreTarifa/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            var tarifa = await _tarifasRepository.GetEntityByIdAsync(id);
-            if (tarifa == null)
-                return NotFound("Tarifa no encontrada.");
+            var result = await _tarifasService.GetById(id);
+            if (result.Success != true || result.Data == null)
+            {
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+            }
 
-            var result = await _tarifasRepository.RestoreEntityAsync(tarifa);
-            if (result.Success != null)
-                return Ok("Tarifa restaurada exitosamente.");
-
-            return BadRequest(result.Message);
+            var restoreResult = await _tarifasService.Restore(id);
+            if (restoreResult.Success == true)
+            {
+                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
+            }
+            return BadRequest(restoreResult.Message);
         }
     }
 }

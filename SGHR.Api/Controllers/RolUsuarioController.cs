@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SGHR.Application.Dtos.RolUsuario;
+using SGHR.Application.Interfaces;
 using SGHR.Domain.Entities.Configuration;
-using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers
 {
@@ -8,143 +10,155 @@ namespace SGHR.Api.Controllers
     [ApiController]
     public class RolUsuarioController : ControllerBase
     {
-        private readonly IRolUsuarioRepository _rolUsuarioRepository;
-        private readonly ILogger<RolUsuarioController> _logger;
+        private readonly IRolUsuarioService _rolUsuarioService;
+        private readonly MessageMapper _messageMapper;
 
-        public RolUsuarioController(IRolUsuarioRepository rolUsuarioRepository, ILogger<RolUsuarioController> logger)
+        public RolUsuarioController(IRolUsuarioService rolUsuarioService,
+                                    ILogger<RolUsuarioController> logger,
+                                    MessageMapper messageMapper)
         {
-            _rolUsuarioRepository = rolUsuarioRepository;
-            _logger = logger;
+            _rolUsuarioService = rolUsuarioService;
+            _messageMapper = messageMapper;
         }
 
         // GET: api/RolUsuario/GetRolUsuario
         [HttpGet("GetRolUsuario")]
         public async Task<IActionResult> Get()
         {
-            var rolUsuarios = await _rolUsuarioRepository.GetAllAsync();
-            return Ok(rolUsuarios.Where(r => !r.Deleted));
+            var result = await _rolUsuarioService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var roles = (IEnumerable<RolUsuario>)result.Data;
+            return Ok(roles.Where(r => !r.Deleted));
         }
 
         // GET api/RolUsuario/GetRolByID/5
         [HttpGet("GetRolByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var rol = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-            if (rol == null || rol.Deleted)
-            {
-                return NotFound("Rol de usuario no existe o ha sido eliminado.");
-            }
-            return Ok(rol);
+            var result = await _rolUsuarioService.GetById(id);
+            if (result.Success != true)
+                return NotFound(result.Message);
+
+            var rolUsuario = (RolUsuario)result.Data;
+            if (rolUsuario.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(rolUsuario);
         }
 
-        // POST api/RolUsuario/SaveRol
-        [HttpPost("SaveRol")]
-        public async Task<IActionResult> Post([FromBody] RolUsuario rol)
+        // GET api/RolUsuario/GetDeletedRolUsuario
+        [HttpGet("GetDeletedRolUsuario")]
+        public async Task<IActionResult> GetDeletedRoles()
+        {
+            var result = await _rolUsuarioService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var roles = (IEnumerable<RolUsuario>)result.Data;
+            return Ok(roles.Where(r => r.Deleted));
+        }
+
+        // GET api/RolUsuario/GetDeletedRolUsuarioByID/5
+        [HttpGet("GetDeletedRolUsuarioByID/{id}")]
+        public async Task<IActionResult> GetDeletedRoleByID(int id)
+        {
+            var result = await _rolUsuarioService.GetById(id);
+            if (result.Success != true || result.Data == null)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            var rolUsuario = (RolUsuario)result.Data;
+            if (!rolUsuario.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(rolUsuario);
+        }
+
+        // POST api/RolUsuario/SaveRolUsuario
+        [HttpPost("SaveRolUsuario")]
+        public async Task<IActionResult> Post([FromBody] SaveRolUsuarioDto rolUsuarioDto)
         {
             try
             {
-                var saveRol = await _rolUsuarioRepository.SaveEntityAsync(rol);
-                if (saveRol.Success == true)
-                {
-                    return Ok(new { Message = "Rol guardado exitosamente", Data = saveRol });
-                }
-                return BadRequest(new { Message = "Error al guardar el rol", Error = saveRol.Message });
+                var saveResult = await _rolUsuarioService.Save(rolUsuarioDto);
+                if (saveResult.Success == true)
+                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
+
+                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ocurrió un error guardando los datos");
-                return StatusCode(500, new { Message = "Error interno al guardar el rol.", Error = ex.Message });
+                return StatusCode(500, new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = ex.Message });
             }
         }
 
         // PUT api/RolUsuario/UpdateRol/5
         [HttpPut("UpdateRol/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] RolUsuario rol)
+        public async Task<IActionResult> Put(int id, [FromBody] UpdateRolUsuarioDto rolUsuarioDto)
         {
             if (id <= 0)
-                return BadRequest("ID de rol de usuario inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            var existingRol = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-            if (existingRol == null || existingRol.Deleted)
+            var existingResult = await _rolUsuarioService.GetById(id);
+            if (existingResult.Success != true || existingResult.Data == null)
             {
-                return NotFound("Rol de usuario no encontrado o ha sido eliminado.");
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            rol.Id = id; // Asegurar que el ID es correcto
-            var updateRol = await _rolUsuarioRepository.UpdateEntityAsync(rol);
-            if (updateRol.Success == true)
+            var existingRolUsuario = (RolUsuario)existingResult.Data;
+            if (existingRolUsuario.Deleted)
             {
-                return Ok(new { Message = "Rol de usuario actualizado exitosamente", Data = updateRol });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            return BadRequest(new { Message = "Error al actualizar el rol de usuario", Error = updateRol.Message ?? "Error desconocido" });
+
+            rolUsuarioDto.IdRolUsuario = id;
+            var updateResult = await _rolUsuarioService.Update(rolUsuarioDto);
+            if (updateResult.Success == true)
+            {
+                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
+            }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
-        // DELETE api/RolUsuario/DeleteRol/5
-        [HttpDelete("DeleteRol/{id}")]
+        // DELETE api/RolUsuario/DeleteRolUsuario/5
+        [HttpDelete("DeleteRolUsuario/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de rol de usuario inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            try
+            var result = await _rolUsuarioService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var rol = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-                if (rol == null)
-                {
-                    return NotFound("Rol de usuario no encontrado.");
-                }
-
-                rol.Deleted = true;
-                rol.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-                rol.ModifyDate = DateTime.Now;
-
-                var deleteRol = await _rolUsuarioRepository.UpdateEntityAsync(rol);
-                if (deleteRol.Success == true)
-                {
-                    return Ok(new { Message = "Rol de usuario eliminado lógicamente.", Data = deleteRol });
-                }
-                return BadRequest(new { Message = "Error al eliminar el rol de usuario", Error = deleteRol.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var removeDto = new RemoveRolUsuarioDto { IdRolUsuario = id };
+            var deleteResult = await _rolUsuarioService.Remove(removeDto);
+            if (deleteResult.Success == true)
             {
-                _logger.LogError(ex, "Error al eliminar el rol de usuario.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el rol de usuario.", Error = ex.Message });
+                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
             }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
 
         // PUT api/RolUsuario/RestoreRol/5
         [HttpPut("RestoreRol/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            if (id <= 0)
-                return BadRequest("ID de rol de usuario inválido.");
-
-            try
+            var result = await _rolUsuarioService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var rol = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-                if (rol == null)
-                    return NotFound("Rol de usuario no encontrado.");
-
-                if (!rol.Deleted)
-                    return BadRequest("El rol de usuario ya está activo.");
-
-                // Restaurar rol de usuario
-                rol.Deleted = false;
-                rol.ModifyDate = DateTime.Now;
-                rol.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-                var restoreRol = await _rolUsuarioRepository.UpdateEntityAsync(rol);
-                if (restoreRol.Success == true)
-                {
-                    return Ok(new { Message = "Rol de usuario restaurado exitosamente.", Data = restoreRol });
-                }
-                return BadRequest(new { Message = "Error al restaurar el rol de usuario", Error = restoreRol.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var restoreResult = await _rolUsuarioService.Restore(id);
+            if (restoreResult.Success == true)
             {
-                _logger.LogError(ex, "Error al restaurar el rol de usuario.");
-                return StatusCode(500, new { Message = "Error interno al restaurar el rol de usuario.", Error = ex.Message });
+                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
             }
+            return BadRequest(restoreResult.Message);
         }
     }
 }

@@ -1,26 +1,27 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SGHR.Application.Dtos.Servicios;
+﻿using SGHR.Application.Dtos.Servicios;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repository;
 
 namespace SGHR.Application.Services
 {
     public class ServiciosService : IServiciosService
     {
         private readonly IServiciosRepository _serviciosRepository;
-        private readonly ILogger<ServiciosService> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly MessageMapper _messageMapper;
+        private readonly ILoggerManager _loggerManager;
 
         public ServiciosService(IServiciosRepository serviciosRepository,
-                                ILogger<ServiciosService> logger,
-                                IConfiguration configuration)
+                                MessageMapper messageMapper,
+                                ILoggerManager loggerManager)
         {
             _serviciosRepository = serviciosRepository;
-            _logger = logger;
-            _configuration = configuration;
+            _messageMapper = messageMapper;
+            _loggerManager = loggerManager;
         }
 
         public async Task<OperationResult> GetAll()
@@ -34,8 +35,8 @@ namespace SGHR.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener todos los servicios.");
-                operationResult.Message = "Error al obtener todos los servicios";
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
                 operationResult.Success = false;
             }
             return operationResult;
@@ -49,7 +50,7 @@ namespace SGHR.Application.Services
                 var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
                 if (servicio == null)
                 {
-                    operationResult.Message = "Servicio no encontrado";
+                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     operationResult.Success = false;
                 }
                 else
@@ -60,44 +61,59 @@ namespace SGHR.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener el servicio por ID.");
-                operationResult.Message = "Error al obtener el servicio por ID";
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
                 operationResult.Success = false;
             }
             return operationResult;
         }
+
         public async Task<OperationResult> Save(SaveServiciosDto dto)
         {
-            OperationResult operationResult = new OperationResult();
+            var validation = ValidateServicios(dto);
+            if (validation.Success != true)
+                return validation;
+
             try
             {
                 var servicio = new Servicios
                 {
+                    FechaCreacion = DateTime.UtcNow,
                     Nombre = dto.Nombre,
                     Descripcion = dto.Descripcion,
                     Estado = dto.Estado,
-                    CreationUser = 1 // Usar el usuario autenticado en producción
+                    CreationUser = 1
                 };
 
-                operationResult = await _serviciosRepository.SaveEntityAsync(servicio);
+                return await _serviciosRepository.SaveEntityAsync(servicio);
             }
             catch (Exception ex)
             {
-                operationResult.Message = _configuration["LoggingMessages:SaveError"];
-                _logger.LogError(_configuration["LoggingMessages:SaveError"] + ": {Exception}", ex.ToString());
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = $"{_messageMapper.ErrorMessages["Operations"]["SaveFailed"]}: {ex.Message}"
+                };
             }
-            return operationResult;
         }
-
 
         public async Task<OperationResult> Update(UpdateServiciosDto dto)
         {
             if (dto.IdServicio <= 0)
-                return new OperationResult { Success = false, Message = "ID de servicio inválido." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
             var servicio = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
             if (servicio == null || servicio.Deleted)
-                return new OperationResult { Success = false, Message = "Servicio no encontrado o eliminado." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
             servicio.Nombre = dto.Nombre ?? servicio.Nombre;
             servicio.Descripcion = dto.Descripcion ?? servicio.Descripcion;
@@ -105,36 +121,83 @@ namespace SGHR.Application.Services
             servicio.ModifyDate = DateTime.Now;
             servicio.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
-            return await _serviciosRepository.UpdateEntityAsync(servicio);
+            var result = await _serviciosRepository.UpdateEntityAsync(servicio);
+            return result;
         }
 
         public async Task<OperationResult> Remove(RemoveServiciosDto dto)
         {
             if (dto.IdServicio <= 0)
-                return new OperationResult { Success = false, Message = "ID del Servicio es inválido." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
             var servicio = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
             if (servicio == null || servicio.Deleted)
-                return new OperationResult { Success = false, Message = "Servicio no encontrado o ya eliminado." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
             servicio.Deleted = true;
             servicio.DeletedUser = 1;
             servicio.ModifyDate = DateTime.Now;
 
-            return await _serviciosRepository.UpdateEntityAsync(servicio);
+           var result = await _serviciosRepository.UpdateEntityAsync(servicio);
+            return result;
         }
 
         public async Task<OperationResult> Restore(int id)
         {
             var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
             if (servicio == null || !servicio.Deleted)
-                return new OperationResult { Success = false, Message = "Servicio no encontrado o ya activo." };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
             servicio.Deleted = false;
             servicio.ModifyDate = DateTime.Now;
-            servicio.ModifyUser = 1;
+            servicio.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-            return await _serviciosRepository.UpdateEntityAsync(servicio);
+            var result = await _serviciosRepository.UpdateEntityAsync(servicio);
+            return result;
+        }
+
+        private OperationResult ValidateServicios(dynamic service)
+        {
+            if (service == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Servicios"]["NullServicio"]
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(service.Nombre))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Servicios"]["MissingName"]
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(service.Descripcion) || service.Descripcion.Length > 255)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Servicios"]["InvalidDescription"]
+                };
+            }
+
+            return new OperationResult { Success = true };
         }
     }
 }

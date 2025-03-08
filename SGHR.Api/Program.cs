@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using SGHR.Persistence.Context;
-using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
+using SGHR.Persistence.Configurations;
 using SGHR.IOC.Dependencies.Users;
-using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Users;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Infraestructure.Logging.Base;
+
 namespace SGHR.Api
 {
     public class Program
@@ -13,21 +13,29 @@ namespace SGHR.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-            builder.Services.AddDbContext<SGHRContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
+            // Agregar el DbContext
+            builder.Services.AddDbContext<SGHRContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
 
+            // Inyección del MessageMapper como Singleton
+            builder.Services.AddSingleton<MessageMapper>();
+            builder.Services.AddSingleton<ILoggerManager, LoggerManager>();
+
+
+            // Inyecciones de dependencias personalizadas
             builder.Services.AddClienteDependency();
             builder.Services.AddUsuarioDependency();
+
             builder.Services.AddControllers();
 
-            // Habilitar CORS para permitir conexiones desde el frontend
+            // Configuración de CORS para permitir conexiones desde el frontend
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend",
-                    builder => builder.WithOrigins("http://localhost:5173") // URL de tu frontend
-                                      .AllowAnyMethod()
-                                      .AllowAnyHeader()
-                                      .AllowCredentials());
+                    policy => policy.WithOrigins("http://localhost:5173")
+                                    .AllowAnyMethod()
+                                    .AllowAnyHeader()
+                                    .AllowCredentials());
             });
 
             // Configuración de Swagger

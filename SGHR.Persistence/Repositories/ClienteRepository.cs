@@ -4,28 +4,31 @@ using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
 using SGHR.Persistence.Base;
+using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using System.Linq.Expressions;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Infraestructure.Logging.Base;
 
 namespace SGHR.Persistence.Repositories
 {
     public class ClienteRepository : BaseRepository<Cliente>, IClienteRepository
     {
         private readonly SGHRContext _context;
-        private readonly ILogger<ClienteRepository> _logger;
-        private readonly IConfiguration _configuration;
-
+        private readonly ILoggerManager _logger;
+        private readonly MessageMapper _messageMapper;
         public ClienteRepository(SGHRContext context,
-                                ILogger<ClienteRepository> logger,
-                                IConfiguration configuration) : base(context)
+                                ILoggerManager logger,
+                                MessageMapper messageMapper) : base(context)
         {
             _context = context;
             _logger = logger;
-            _configuration = configuration;
+            _messageMapper = messageMapper;
         }
 
-        public async Task<IEnumerable<Cliente>> GetAllAsync()
+
+        public override async Task<List<Cliente>> GetAllAsync()
         {
             try
             {
@@ -33,90 +36,136 @@ namespace SGHR.Persistence.Repositories
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener todos los clientes.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 throw;
             }
         }
 
-        public async Task<OperationResult> GetEntityByIdAsync(int idCliente)
+        public override async Task<Cliente> GetEntityByIdAsync(int id)
+        {
+            if (id <= 0)
+            {
+                _logger.LogWarn($"{_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]} Valor recibido: {id}");
+                return null;
+            }
+
+            try
+            {
+                var cliente = await _context.Set<Cliente>().FindAsync(id);
+                if (cliente == null)
+                {
+                    _logger.LogWarn($"{_messageMapper.ErrorMessages["EntityBase"]["NotFound"]} ID: {id}");
+                    return null;
+                }
+                return cliente;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                throw;
+            }
+        }
+
+        public override async Task<OperationResult> GetFilteredAsync(Expression<Func<Cliente, bool>> filter)
         {
             var result = new OperationResult();
             try
             {
-                var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
-                if (cliente == null)
+                if (filter == null)
                 {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
                     result.Success = false;
-                    result.Message = "Cliente no encontrado.";
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                    return result;
                 }
-                else
-                {
-                    result.Success = true;
-                    result.Data = cliente;
-                }
+
+                _logger.LogInfo($"Aplicando filtro: {filter}");
+                var filteredEntities = await base.GetFilteredAsync(filter);
+                result.Success = true;
+                result.Data = filteredEntities.Data;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener el cliente con id {idCliente}.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 result.Success = false;
-                result.Message = $"Error al obtener el cliente: {ex.Message}";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["DbException"];
             }
             return result;
         }
 
         public async Task<OperationResult> GetClientsByStatusAsync(int idEstadoCliente)
         {
-            var result = new OperationResult();
             try
             {
+                if (idEstadoCliente is not (0 or 1))
+                {
+                    string invalidState = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return new OperationResult { Success = false, Message = $"{invalidState} Estado de cliente inválido. Debe ser 0 o 1." };
+                }
+
                 bool estado = idEstadoCliente == 1;
                 var clientes = await _context.Set<Cliente>()
+                    .AsNoTracking()
                     .Where(c => c.Estado == estado)
                     .ToListAsync();
-                result.Data = clientes;
+
+                _logger.LogInfo($"Se recuperaron {clientes.Count} clientes con el estado {idEstadoCliente}");
+
+                return new OperationResult { Success = true, Data = clientes };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener clientes con estado {idEstadoCliente}.");
-                result.Success = false;
-                result.Message = $"Error al obtener clientes por estado: {ex.Message}";
+                _logger.LogError(ex, $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: Error al obtener clientes con estado {idEstadoCliente}");
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["DbException"] + ": " + ex.Message
+                };
             }
-            return result;
         }
 
-        public async Task<OperationResult> GetClientsByFilterAsync(Expression<Func<Cliente, bool>> filter)
+        public override async Task<OperationResult> SaveEntityAsync(Cliente cliente)
         {
-            if (filter == null)
-            {
-                return new OperationResult { Success = false, Message = "El filtro no puede ser nulo." };
-            }
-
-            var result = new OperationResult();
-            try
-            {
-                var clientes = await _context.Set<Cliente>().Where(filter).ToListAsync();
-                result.Data = clientes;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al obtener clientes por filtro.");
-                result.Success = false;
-                result.Message = $"Error al obtener clientes por filtro: {ex.Message}";
-            }
-            return result;
-        }
-
-        public async Task<OperationResult> SaveEntityAsync(int idCliente)
-        {
-            var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
+            // Validación de null al inicio
             if (cliente == null)
             {
-                return new OperationResult { Success = false, Message = "El cliente no fue encontrado." };
+                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
             }
-            return await SaveEntityAsync(cliente);
+
+            try
+            {
+                cliente.FechaCreacion = DateTime.UtcNow;
+                cliente.ModifyDate = DateTime.UtcNow;
+                cliente.ModifyUser = 1;
+
+                await _context.Set<Cliente>().AddAsync(cliente);
+                await _context.SaveChangesAsync();
+
+                return new OperationResult
+                {
+                    Success = true,
+                    Data = cliente,
+                    Message = _messageMapper.SuccessMessages["SaveSuccess"]
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    // Mensaje sin concatenar la excepción
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
+            }
         }
 
-        public async Task<OperationResult> UpdateEntityAsync(Cliente cliente)
+        public override async Task<OperationResult> UpdateEntityAsync(Cliente cliente)
         {
             var result = new OperationResult();
             try
@@ -124,19 +173,27 @@ namespace SGHR.Persistence.Repositories
                 var existingCliente = await _context.Set<Cliente>().FindAsync(cliente.Id);
                 if (existingCliente == null)
                 {
-                    return new OperationResult { Success = false, Message = "Cliente no encontrado." };
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
                 }
 
                 // Actualizar los datos modificables
-                existingCliente.TipoDocumento = cliente.TipoDocumento ?? existingCliente.TipoDocumento;
-                existingCliente.Documento = cliente.Documento ?? existingCliente.Documento;
-                existingCliente.NombreCompleto = cliente.NombreCompleto ?? existingCliente.NombreCompleto;
-                existingCliente.Clave = cliente.Clave ?? existingCliente.Clave;
-                existingCliente.Correo = cliente.Correo ?? existingCliente.Correo;
-                existingCliente.Telefono = cliente.Telefono ?? existingCliente.Telefono;
-                existingCliente.Nacionalidad = cliente.Nacionalidad ?? existingCliente.Nacionalidad;
+                existingCliente.TipoDocumento = cliente.TipoDocumento;
+                existingCliente.Documento = cliente.Documento;
+                existingCliente.NombreCompleto = cliente.NombreCompleto;
+                existingCliente.Clave = cliente.Clave;
+                existingCliente.Correo = cliente.Correo;
+                existingCliente.Telefono = cliente.Telefono;
+                existingCliente.Nacionalidad = cliente.Nacionalidad;
+                existingCliente.Estado = cliente.Estado;
+                existingCliente.CreationUser = cliente.CreationUser;
+                existingCliente.Nacionalidad = cliente.Nacionalidad;
+                existingCliente.FechaCreacion = cliente.FechaCreacion;
                 existingCliente.ModifyDate = DateTime.Now;
-                existingCliente.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                existingCliente.ModifyUser = 1; // En producción, obtener el cliente autenticado.
 
                 // Guardar cambios
                 _context.Update(existingCliente);
@@ -144,53 +201,103 @@ namespace SGHR.Persistence.Repositories
 
                 result.Success = true;
                 result.Data = existingCliente;
-                return result;
+                result.Message = _messageMapper.SuccessMessages["UpdateSuccess"];
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al actualizar el cliente.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
                 result.Success = false;
-                result.Message = $"Error al actualizar el cliente: {ex.Message}";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"] + ": " + ex.Message;
             }
             return result;
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(int idCliente)
+        public override async Task<OperationResult> DeleteEntityAsync(Cliente cliente)
         {
-            var cliente = await _context.Set<Cliente>().FindAsync(idCliente);
-            if (cliente == null)
-            {
-                return new OperationResult { Success = false, Message = "Cliente no encontrado." };
-            }
-
-            _context.Set<Cliente>().Remove(cliente);
-            await _context.SaveChangesAsync();
-
-            return new OperationResult { Success = true, Message = "Cliente eliminado permanentemente." };
-        }
-
-        public async Task<OperationResult> ExistsAsync(int idCliente)
-        {
-            var result = new OperationResult();
-            if (idCliente <= 0)
-            {
-                result.Success = false;
-                result.Message = "El ID del cliente es inválido.";
-                return result;
-            }
             try
             {
-                bool exists = await _context.Set<Cliente>().AnyAsync(c => c.Id == idCliente);
-                result.Success = exists;
-                result.Data = exists;
+                var existingCliente = await _context.Set<Cliente>().FindAsync(cliente.Id);
+                if (existingCliente == null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
+                }
+
+                _context.Set<Cliente>().Remove(existingCliente);
+                await _context.SaveChangesAsync();
+                return new OperationResult
+                {
+                    Success = true,
+                    Message = _messageMapper.SuccessMessages["DeleteSuccess"]
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia del cliente con id {idCliente}.");
-                result.Success = false;
-                result.Message = $"Error al verificar la existencia del cliente: {ex.Message}";
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DeleteFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"] + ": " + ex.Message
+                };
             }
-            return result;
         }
+
+        public override async Task<bool> ExistsAsync(Expression<Func<Cliente, bool>> filter)
+        {
+            if (filter == null)
+            {
+                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
+                return false;
+            }
+
+            try
+            {
+                return await _context.Set<Cliente>().AnyAsync(filter);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                throw;
+            }
+        }
+
+        public override async Task<OperationResult> RestoreEntityAsync(Cliente cliente)
+        {
+            try
+            {
+                var existingCliente = await _context.Set<Cliente>().FindAsync(cliente.Id);
+                if (existingCliente == null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
+                }
+                existingCliente.Deleted = false;
+                existingCliente.ModifyDate = DateTime.UtcNow;
+                existingCliente.ModifyUser = 1; // En producción, obtener el cliente autenticado.
+
+                await _context.SaveChangesAsync();
+                return new OperationResult
+                {
+                    Success = true,
+                    Message = _messageMapper.SuccessMessages["RestoreSuccess"]
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"] + ": " + ex.Message
+                };
+            }
+        }
+
     }
 }

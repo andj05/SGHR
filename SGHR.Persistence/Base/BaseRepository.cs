@@ -50,6 +50,34 @@ namespace SGHR.Persistence.Base
             return result;
         }
 
+        public virtual async Task<OperationResult> RestoreEntityAsync(TEntity entity)
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                if (entity is AuditEntity auditEntity)
+                {
+                    auditEntity.Deleted = false;
+                    auditEntity.ModifyDate = DateTime.Now;
+                    Entity.Update(entity);
+                    await _context.SaveChangesAsync();
+                    result.Success = true;
+                    result.Data = entity;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "La entidad no soporta restauración.";
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrió un error restaurando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
         public virtual async Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter)
         {
             OperationResult result = new OperationResult();
@@ -85,24 +113,16 @@ namespace SGHR.Persistence.Base
 
         public virtual async Task<OperationResult> DeleteEntityAsync(TEntity entity)
         {
-            var result = new OperationResult();
+            OperationResult result = new OperationResult();
             try
             {
-                if (entity == null)
-                {
-                    result.Success = false;
-                    result.Message = "La entidad no puede ser nula.";
-                    return result;
-                }
-
                 Entity.Remove(entity);
                 await _context.SaveChangesAsync();
-                result.Success = true;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.Message = $"Ocurrió un error eliminando los datos: {ex.Message}";
+                result.Message = $"Ocurrio un error eliminando los datos: {ex.Message}";
             }
             return result;
         }
@@ -139,5 +159,7 @@ namespace SGHR.Persistence.Base
         {
             return await Entity.OfType<Usuario>().FirstOrDefaultAsync(u => u.Correo == email) as TEntity;
         }
+
+
     }
 }

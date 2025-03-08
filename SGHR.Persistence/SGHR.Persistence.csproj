@@ -13,6 +13,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\SGHR.Domain\SGHR.Domain.csproj" />
+		<ProjectReference Include="..\SGHR.Infraestructure\SGHR.Infraestructure.csproj" />
 	</ItemGroup>
 
 </Project>

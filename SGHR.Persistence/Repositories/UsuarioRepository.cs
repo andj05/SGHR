@@ -3,7 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
+using SGHR.Infraestructure.Logging.Base;
+using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Base;
+using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using System.Linq.Expressions;
@@ -13,132 +16,163 @@ namespace SGHR.Persistence.Repositories
     public class UsuarioRepository : BaseRepository<Usuario>, IUsuarioRepository
     {
         private readonly SGHRContext _context;
-        private readonly ILogger<UsuarioRepository> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly ILoggerManager _logger;
+        private readonly MessageMapper _messageMapper;
 
         public UsuarioRepository(SGHRContext context,
-                                ILogger<UsuarioRepository> logger,
-                                IConfiguration configuration) : base(context)
+                                ILoggerManager logger,
+                                MessageMapper messageMapper) : base(context)
         {
             _context = context;
             _logger = logger;
-            _configuration = configuration;
+            _messageMapper = messageMapper;
         }
 
-        public async Task<IEnumerable<Usuario>> GetAllAsync()
+        public override async Task<List<Usuario>> GetAllAsync()
         {
             try
             {
-                return await _context.Set<Usuario>().ToListAsync();
+                return await _context.Set<Usuario>().Where(h => !h.Deleted).ToListAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener todos los clientes.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                throw;
+            }
+        }
+
+        public override async Task<Usuario> GetEntityByIdAsync(int id)
+        {
+            if (id <= 0)
+            {
+                _logger.LogWarn($"{_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]} Valor recibido: {id}");
+                return null;
+            }
+
+            try
+            {
+                var usuario = await _context.Set<Usuario>().FindAsync(id);
+                if (usuario == null)
+                {
+                    _logger.LogWarn($"{_messageMapper.ErrorMessages["EntityBase"]["NotFound"]} ID: {id}");
+                    return null;
+                }
+                return usuario;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 throw;
             }
         }
 
         public async Task<OperationResult> GetUsersByStatusAsync(int idEstadoUsuario)
         {
-            var result = new OperationResult();
             try
             {
+                if (idEstadoUsuario is not (0 or 1))
+                {
+                    // Se utiliza el mensaje de ID inválido como ejemplo para este caso.
+                    string invalidState = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return new OperationResult { Success = false, Message = $"{invalidState} Estado de usuario inválido. Debe ser 0 o 1." };
+                }
+
                 bool estado = idEstadoUsuario == 1;
                 var usuarios = await _context.Set<Usuario>()
-                                             .Where(u => u.Estado == estado)
-                                             .ToListAsync();
-                result.Data = usuarios;
+                    .AsNoTracking()
+                    .Where(u => u.Estado == estado)
+                    .ToListAsync();
+
+                _logger.LogInfo($"Se recuperaron {usuarios.Count} usuarios con el estado {idEstadoUsuario}");
+                return new OperationResult { Success = true, Data = usuarios };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener usuarios con estado {idEstadoUsuario}.");
-                result.Success = false;
-                result.Message = $"Error al obtener usuarios por estado: {ex.Message}";
+                _logger.LogError(ex, $"Error al obtener usuarios con estado {idEstadoUsuario}");
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["DbException"] + ": " + ex.Message
+                };
             }
-            return result;
         }
-        public async Task<OperationResult> GetEntityByIdAsync(int idUsuario)
+
+        public override async Task<OperationResult> GetFilteredAsync(Expression<Func<Usuario, bool>> filter)
         {
             var result = new OperationResult();
             try
             {
-                var usuario = await _context.Set<Usuario>().FindAsync(idUsuario);
-                if (usuario != null)
+                if (filter == null)
                 {
-                    result.Data = usuario;
-                    result.Success = true;
-                }
-                else
-                {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
                     result.Success = false;
-                    result.Message = "Usuario no encontrado.";
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                    return result;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al obtener el usuario con id {idUsuario}.");
-                result.Success = false;
-                result.Message = $"Error al obtener el usuario: {ex.Message}";
-            }
-            return result;
-        }
-        public async Task<OperationResult> GetUsersByFilterAsync(Expression<Func<Usuario, bool>> filter)
-        {
-            if (filter == null)
-                return new OperationResult { Success = false, Message = "El filtro no puede ser nulo." };
 
-            var result = new OperationResult();
-            try
-            {
-                var usuarios = await _context.Set<Usuario>().Where(filter).ToListAsync();
-                result.Data = usuarios;
+                _logger.LogInfo($"Aplicando filtro: {filter}");
+                var filteredEntities = await base.GetFilteredAsync(filter);
+                result.Success = true;
+                result.Data = filteredEntities.Data;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener usuarios por filtro.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 result.Success = false;
-                result.Message = $"Error al obtener usuarios por filtro: {ex.Message}";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["DbException"];
             }
             return result;
         }
 
-        public async Task<OperationResult> GetByEmailAsync(string email)
+        public override async Task<Usuario> GetByEmailAsync(string email)
         {
-            var result = new OperationResult();
             try
             {
                 var usuario = await _context.Set<Usuario>().FirstOrDefaultAsync(u => u.Correo == email);
-                if (usuario != null)
+                if (usuario == null)
                 {
-                    result.Data = usuario;
-                    result.Success = true;
+                    _logger.LogWarn($"Usuario no encontrado con el correo {email}.");
+                    return null;
                 }
-                else
-                {
-                    result.Success = false;
-                    result.Message = "Usuario no encontrado.";
-                }
+                return usuario;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al obtener el usuario con correo {email}.");
-                result.Success = false;
-                result.Message = $"Error al obtener el usuario: {ex.Message}";
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                throw;
             }
-            return result;
         }
 
-        public async Task<OperationResult> SaveEntityAsync(int idUsuario)
+        public override async Task<OperationResult> SaveEntityAsync(Usuario usuario)
         {
-            var usario = await _context.Set<Usuario>().FindAsync(idUsuario);
-            if (usario == null)
+            try
             {
-                return new OperationResult { Success = false, Message = "El usario no fue encontrado." };
+                usuario.FechaCreacion = DateTime.UtcNow;
+                usuario.ModifyDate = DateTime.UtcNow;
+                usuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
+                await _context.Set<Usuario>().AddAsync(usuario);
+                await _context.SaveChangesAsync();
+
+                return new OperationResult
+                {
+                    Success = true,
+                    Data = usuario,
+                    Message = _messageMapper.SuccessMessages["SaveSuccess"]
+                };
             }
-            return await SaveEntityAsync(usario);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"] + ": " + ex.Message
+                };
+            }
         }
 
-        public async Task<OperationResult> UpdateEntityAsync(Usuario usuario)
+        public override async Task<OperationResult> UpdateEntityAsync(Usuario usuario)
         {
             var result = new OperationResult();
             try
@@ -146,78 +180,123 @@ namespace SGHR.Persistence.Repositories
                 var existingUsuario = await _context.Set<Usuario>().FindAsync(usuario.Id);
                 if (existingUsuario == null)
                 {
-                    return new OperationResult { Success = false, Message = "Usuario no encontrado." };
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
                 }
 
                 // Actualizar los datos modificables
-                existingUsuario.NombreCompleto = usuario.NombreCompleto ?? existingUsuario.NombreCompleto;
-                existingUsuario.Correo = usuario.Correo ?? existingUsuario.Correo;
-                existingUsuario.IdRolUsuario = usuario.IdRolUsuario > 0 ? usuario.IdRolUsuario : existingUsuario.IdRolUsuario;
-                existingUsuario.Clave = usuario.Clave ?? existingUsuario.Clave;
-                existingUsuario.ModifyDate = DateTime.Now;
+                existingUsuario.NombreCompleto = usuario.NombreCompleto;
+                existingUsuario.Correo = usuario.Correo;
+                existingUsuario.IdRolUsuario = usuario.IdRolUsuario;
+                existingUsuario.Clave = usuario.Clave;
+                existingUsuario.ModifyDate = DateTime.UtcNow;
                 existingUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
-                // Guardar cambios
                 _context.Update(existingUsuario);
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
                 result.Data = existingUsuario;
-                return result;
+                result.Message = _messageMapper.SuccessMessages["UpdateSuccess"];
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al actualizar el usuario.");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
                 result.Success = false;
-                result.Message = $"Error al actualizar el usuario: {ex.Message}";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"] + ": " + ex.Message;
             }
             return result;
         }
 
-        public async Task<OperationResult> DeleteEntityAsync(int idUsuario)
+        public override async Task<OperationResult> DeleteEntityAsync(Usuario usuario)
         {
-            if (idUsuario <= 0)
-                return new OperationResult { Success = false, Message = "El ID del usuario es inválido." };
             try
             {
-                var usuario = await _context.Set<Usuario>().FindAsync(idUsuario);
-                if (usuario == null)
-                    return new OperationResult { Success = false, Message = "Usuario no encontrado." };
-                _context.Set<Usuario>().Remove(usuario);
+                var existingUsuario = await _context.Set<Usuario>().FindAsync(usuario.Id);
+                if (existingUsuario == null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
+                }
+
+                _context.Set<Usuario>().Remove(existingUsuario);
                 await _context.SaveChangesAsync();
-                return new OperationResult { Success = true, Message = "Usuario eliminado exitosamente." };
+                return new OperationResult
+                {
+                    Success = true,
+                    Message = _messageMapper.SuccessMessages["DeleteSuccess"]
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al eliminar el usuario con id {idUsuario}.");
-                return new OperationResult { Success = false, Message = $"Error al eliminar el usuario: {ex.Message}" };
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DeleteFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"] + ": " + ex.Message
+                };
             }
         }
 
-        public async Task<OperationResult> ExistsAsync(int idUsuario)
+        public override async Task<bool> ExistsAsync(Expression<Func<Usuario, bool>> filter)
         {
-            var result = new OperationResult();
-            if (idUsuario <= 0)
+            if (filter == null)
             {
-                result.Success = false;
-                result.Message = "El ID del usuario es inválido.";
-                return result;
+                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
+                return false;
             }
 
             try
             {
-                bool exists = await _context.Set<Usuario>().AnyAsync(u => u.Id == idUsuario);
-                result.Success = exists;
-                result.Message = exists ? "Usuario encontrado." : "Usuario no encontrado.";
+                return await _context.Set<Usuario>().AnyAsync(filter);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al verificar la existencia del usuario con id {idUsuario}.");
-                result.Success = false;
-                result.Message = $"Error al verificar la existencia del usuario: {ex.Message}";
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                throw;
             }
-            return result;
         }
+
+        public override async Task<OperationResult> RestoreEntityAsync(Usuario usuario)
+        {
+            try
+            {
+                var existingUsuario = await _context.Set<Usuario>().FindAsync(usuario.Id);
+                if (existingUsuario == null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    };
+                }
+                existingUsuario.Deleted = false;
+                existingUsuario.ModifyDate = DateTime.UtcNow;
+                existingUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                await _context.SaveChangesAsync();
+                return new OperationResult
+                {
+                    Success = true,
+                    Message = _messageMapper.SuccessMessages["RestoreSuccess"]
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"] + ": " + ex.Message
+                };
+            }
+        }
+
 
     }
 }

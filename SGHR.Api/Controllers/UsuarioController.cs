@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
 using SGHR.Persistence.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using SGHR.Persistence.Configurations; // Para MessageMapper
 
 namespace SGHR.Api.Controllers
 {
@@ -15,52 +14,23 @@ namespace SGHR.Api.Controllers
     public class UsuarioController : ControllerBase
     {
         private readonly IUsuarioRepository _usuarioRepository;
-        private readonly ILogger<UsuarioController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly MessageMapper _messageMapper;
 
-        public UsuarioController(IUsuarioRepository usuarioRepository, ILogger<UsuarioController> logger, IConfiguration configuration)
+        public UsuarioController(IUsuarioRepository usuarioRepository,
+                                 ILogger<UsuarioController> logger,
+                                 IConfiguration configuration,
+                                 MessageMapper messageMapper)
         {
             _usuarioRepository = usuarioRepository;
-            _logger = logger;
             _configuration = configuration;
-        }
-
-        // POST: api/Usuarios/Login
-        [HttpPost("Login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
-        {
-            var usuario = await _usuarioRepository.GetByEmailAsync(request.Correo);
-            if (usuario.Data is not Usuario usuarioData)
-            {
-                return NotFound(new { message = "Usuario no encontrado." });
-            }
-            if (usuarioData.Clave != request.Clave)
-            {
-                return BadRequest(new { message = "Contraseña incorrecta." });
-            }
-
-            // Generar token JWT
-            var token = GenerateJwtToken(usuarioData);
-
-            return Ok(new
-            {
-                token,
-                message = "Usuario autenticado.",
-                usuario = new
-                {
-                    usuarioData.Id,
-                    usuarioData.NombreCompleto,
-                    usuarioData.Correo,
-                    usuarioData.IdRolUsuario
-                }
-            });
+            _messageMapper = messageMapper;
         }
 
         private string GenerateJwtToken(Usuario usuario)
         {
             var keyBytes = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]);
 
-            // Verifica que la clave tiene al menos 32 bytes
             if (keyBytes.Length < 32)
             {
                 throw new ArgumentException("La clave JWT debe tener al menos 32 bytes.");
@@ -81,41 +51,43 @@ namespace SGHR.Api.Controllers
                 _configuration["Jwt:Issuer"],
                 _configuration["Jwt:Audience"],
                 claims,
-
                 expires: DateTime.UtcNow.AddHours(1),
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-
         // GET: api/Usuario/GetUsuarios
         [HttpGet("GetUsuarios")]
         public async Task<IActionResult> Get()
         {
             var usuarios = await _usuarioRepository.GetAllAsync();
-            return Ok(usuarios.Where(c => !c.Deleted));
+            // Se retornan solo los usuarios activos (no eliminados)
+            return Ok(usuarios.Where(u => !u.Deleted));
+        }
+
+        // GET api/Usuario/GetUsuarioByID/5
+        [HttpGet("GetUsuarioByID/{id}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
+            if (usuario == null || usuario.Deleted)
+            {
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+            }
+            return Ok(usuario);
         }
 
         // GET api/Usuario/GetDeletedUsuarios
         [HttpGet("GetDeletedUsuarios")]
         public async Task<IActionResult> GetDeletedUsuarios()
         {
-            var usuarios = await _usuarioRepository.GetAllAsync();
-            return Ok(usuarios.Where(c => c.Deleted));
-        }
-
-
-        // GET api/Usuario/GetUsuarioBayID/5
-        [HttpGet("GetUsuarioBayID/{id}")]
-        public async Task<IActionResult> Get(int id)
-        {
-            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (usuario == null || usuario.Data is Usuario u && u.Deleted)
+            var deletedUsers = await _usuarioRepository.GetFilteredAsync(u => u.Deleted);
+            if (deletedUsers.Success == true)
             {
-                return NotFound("Usuario no existe o ha sido eliminado.");
+                return Ok(deletedUsers.Data);
             }
-            return Ok(usuario);
+            return BadRequest(deletedUsers.Message);
         }
 
         // GET api/Usuario/GetDeletedUsuarioByID/5
@@ -123,11 +95,50 @@ namespace SGHR.Api.Controllers
         public async Task<IActionResult> GetDeletedUsuarioByID(int id)
         {
             var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (usuario.Data is not Usuario u || !u.Deleted)
+            if (usuario == null || !usuario.Deleted)
             {
-                return NotFound("Usuario no encontrado o no está eliminado.");
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
             return Ok(usuario);
+        }
+
+        // POST: api/Usuarios/Login
+        [HttpPost("Login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            var usuario = await _usuarioRepository.GetByEmailAsync(request.Correo);
+            if (usuario == null)
+            {
+                return NotFound(new { message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] });
+            }
+
+            if (usuario.Deleted)
+            {
+                // Se podría agregar una clave específica, pero aquí se reutiliza "NotFound"
+                return BadRequest(new { message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] });
+            }
+
+            if (usuario.Clave != request.Clave)
+            {
+                // Se usa el mensaje de credenciales inválidas definido en la categoría Auth
+                return BadRequest(new { message = _messageMapper.ErrorMessages["Auth"]["InvalidCredentials"] });
+            }
+
+            var token = GenerateJwtToken(usuario);
+
+            return Ok(new
+            {
+                token,
+                message = _messageMapper.SuccessMessages["GenericSuccess"],
+                usuario = new
+                {
+                    usuario.Id,
+                    usuario.NombreCompleto,
+                    usuario.Correo,
+                    usuario.IdRolUsuario,
+                    usuario.Deleted
+                }
+            });
         }
 
         // POST api/Usuario/SaveUsuario
@@ -136,139 +147,81 @@ namespace SGHR.Api.Controllers
         {
             try
             {
-                var saveUsuario = await _usuarioRepository.SaveEntityAsync(usuario);
-                if (saveUsuario.Success == true)
+                var saveResult = await _usuarioRepository.SaveEntityAsync(usuario);
+                if (saveResult.Success != true)
                 {
-                    return Ok(new { Message = "Usuario guardado exitosamente", Data = saveUsuario.Data });
+                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
                 }
-                return BadRequest(new { Message = "Error al guardar el usuario", Error = saveUsuario.Message });
+                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar el usuario.");
-                return StatusCode(500, new { Message = "Error interno al guardar el usuario.", Error = ex.Message });
+                return StatusCode(500, new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = ex.Message });
             }
         }
 
         // PUT api/Usuario/UpdateUsuario/5
-        [HttpPut("UpdateUsuario{id}")]
+        [HttpPut("UpdateUsuario/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] Usuario usuario)
         {
             if (id <= 0)
-                return BadRequest("ID de usuario inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
             var existingUsuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (existingUsuario.Data is not Usuario usuarioData || usuarioData.Deleted)
+            if (existingUsuario == null || existingUsuario.Deleted)
             {
-                return NotFound("Usuario no encontrado o ha sido eliminado.");
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            usuario.Id = id; // Asegurar que el ID es correcto
+            usuario.Id = id;
             var updateUsuario = await _usuarioRepository.UpdateEntityAsync(usuario);
             if (updateUsuario.Success == true)
             {
-                return Ok(new { Message = "Usuario actualizado exitosamente", Data = updateUsuario.Data });
+                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateUsuario.Data });
             }
-            return BadRequest(new { Message = "Error al actualizar el usuario", Error = updateUsuario.Message ?? "Error desconocido" });
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateUsuario.Message ?? "Error desconocido" });
         }
 
-
-        // DELETE api/User/DeleteUsuario/5
-        [HttpDelete("DeleteUsuario{id}")]
-        public async Task<IActionResult> DeleteLogic(int id)
-        {
-            if (id <= 0)
-                return BadRequest("ID de usuario inválido.");
-
-            try
-            {
-                var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-                if (usuario.Data is not Usuario usuarioData)
-                {
-                    return NotFound("Usuario no encontrado.");
-                }
-
-                usuarioData.Deleted = true;
-                usuarioData.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-                usuarioData.ModifyDate = DateTime.Now;
-
-                var deleteUsuario = await _usuarioRepository.UpdateEntityAsync(usuarioData);
-                if (deleteUsuario.Success == true)
-                {
-                    return Ok(new { Message = "Usuario eliminado lógicamente.", Data = deleteUsuario.Data });
-                }
-                return BadRequest(new { Message = "Error al eliminar el usuario", Error = deleteUsuario.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al eliminar el usuario.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el usuario.", Error = ex.Message });
-            }
-        }
-
-        // RESTORE api/User/RestoreUsuario/5
+        // PUT api/Usuario/RestoreUsuario/5
         [HttpPut("RestoreUsuario/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            if (id <= 0)
-                return BadRequest("ID de usuario inválido.");
-
-            try
+            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
+            if (usuario == null)
             {
-                var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-                if (usuario.Data is not Usuario usuarioData)
-                    return NotFound("Usuario no encontrado.");
-
-                if (!usuarioData.Deleted)
-                    return BadRequest("El usuario ya está activo.");
-
-                // Restaurar usuario
-                usuarioData.Deleted = false;
-                usuarioData.ModifyDate = DateTime.Now;
-                usuarioData.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-                var restoreUsuario = await _usuarioRepository.UpdateEntityAsync(usuarioData);
-                if (restoreUsuario.Success == true)
-                {
-                    return Ok(new { Message = "Usuario restaurado exitosamente.", Data = restoreUsuario.Data });
-                }
-                return BadRequest(new { Message = "Error al restaurar el usuario", Error = restoreUsuario.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+            var result = await _usuarioRepository.RestoreEntityAsync(usuario);
+            if (result.Success != true)
             {
-                _logger.LogError(ex, "Error al restaurar el usuario.");
-                return StatusCode(500, new { Message = "Error interno al restaurar el usuario.", Error = ex.Message });
+                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
             }
+            return BadRequest(result.Message);
         }
 
-        // DELETE api/Cliente/DeleteUsuarioPermanente/5
-        [HttpDelete("DeleteUsuarioPermanente/{id}")]
-        public async Task<IActionResult> Delete(int id)
+        // DELETE api/Usuario/DeleteUsuario/5
+        [HttpDelete("DeleteUsuario/{id}")]
+        public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de usuario inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            try
+            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
+            if (usuario == null)
             {
-                var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-                if (usuario.Data is not Usuario usuarioData)
-                {
-                    return NotFound("Usuario no encontrado.");
-                }
-
-                var deleteResult = await _usuarioRepository.DeleteEntityAsync(id);
-                if (deleteResult.Success != null)
-                {
-                    return Ok(new { Message = "Usuario eliminado permanentemente.", Data = deleteResult.Data });
-                }
-
-                return BadRequest(new { Message = "Error al eliminar el cliente permanentemente.", Error = deleteResult.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            usuario.Deleted = true;
+            usuario.DeletedUser = 1;
+            usuario.ModifyDate = DateTime.Now;
+
+            var deleteResult = await _usuarioRepository.UpdateEntityAsync(usuario);
+            if (deleteResult.Success != true)
             {
-                _logger.LogError(ex, "Error al eliminar el usuario permanentemente.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el usuario permanentemente.", Error = ex.Message });
+                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
             }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
     }
 }

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SGHR.Persistence.Interfaces;
 using SGHR.Domain.Entities.Users;
+using SGHR.Application.Intefaces;
+using SGHR.Application.Dtos.Cliente;
+using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers
 {
@@ -8,191 +10,155 @@ namespace SGHR.Api.Controllers
     [ApiController]
     public class ClienteController : ControllerBase
     {
-        private readonly IClienteRepository _clienteRepository;
-        private readonly ILogger<ClienteController> _logger;
-        public ClienteController(IClienteRepository clienteRepository, ILogger<ClienteController> logger)
+        private readonly IClientesService _clienteService;
+        private readonly MessageMapper _messageMapper;
+
+        public ClienteController(IClientesService clientesService,
+                                 ILogger<ClienteController> logger,
+                                 MessageMapper messageMapper)
         {
-            _clienteRepository = clienteRepository;
-            _logger = logger;
+            _clienteService = clientesService;
+            _messageMapper = messageMapper;
         }
 
         // GET: api/Cliente/GetClientes
         [HttpGet("GetClientes")]
         public async Task<IActionResult> Get()
         {
-            var clientes = await _clienteRepository.GetAllAsync();
-            return Ok(clientes.Where(c => !c.Deleted));
-        }
+            var result = await _clienteService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
 
-        // GET api/Cliente/GetDeletedClientes
-        [HttpGet("GetDeletedClientes")]
-        public async Task<IActionResult> GetDeletedClientes()
-        {
-            var clientes = await _clienteRepository.GetAllAsync();
-            return Ok(clientes.Where(c => c.Deleted));
+            var clientes = (IEnumerable<Cliente>)result.Data;
+            return Ok(clientes.Where(c => !c.Deleted));
         }
 
         // GET api/Cliente/GetClienteByID/5
         [HttpGet("GetClienteByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var cliente = await _clienteRepository.GetEntityByIdAsync(id);
-            if (cliente == null || cliente.Data is Cliente c && c.Deleted)
-            {
-                return NotFound("Cliente no existe o ha sido eliminado.");
-            }
+            var result = await _clienteService.GetById(id);
+            if (result.Success != true)
+                return NotFound(result.Message);
+
+            var cliente = (Cliente)result.Data;
+            if (cliente.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
             return Ok(cliente);
+        }
+
+        // GET api/Cliente/GetDeletedClientes
+        [HttpGet("GetDeletedClientes")]
+        public async Task<IActionResult> GetDeletedClientes()
+        {
+            var result = await _clienteService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var clientes = (IEnumerable<Cliente>)result.Data;
+            return Ok(clientes.Where(c => c.Deleted));
         }
 
         // GET api/Cliente/GetDeletedClienteByID/5
         [HttpGet("GetDeletedClienteByID/{id}")]
         public async Task<IActionResult> GetDeletedClienteByID(int id)
         {
-            var cliente = await _clienteRepository.GetEntityByIdAsync(id);
-            if (cliente.Data is not Cliente c || !c.Deleted)
-            {
-                return NotFound("Cliente no encontrado o no está eliminado.");
-            }
+            var result = await _clienteService.GetById(id);
+            if (result.Success != true || result.Data == null)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            var cliente = (Cliente)result.Data;
+            if (!cliente.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
             return Ok(cliente);
         }
 
         // POST api/Cliente/SaveCliente
         [HttpPost("SaveCliente")]
-        public async Task<IActionResult> Post([FromBody] Cliente cliente)
+        public async Task<IActionResult> Post([FromBody] SaveClienteDto cliente)
         {
             try
             {
-                var saveCliente = await _clienteRepository.SaveEntityAsync(cliente);
-                if (saveCliente.Success == true)
-                {
-                    return Ok(new { Message = "Cliente guardado exitosamente", Data = saveCliente.Data });
-                }
-                return BadRequest(new { Message = "Error al guardar el cliente", Error = saveCliente.Message });
+                var saveResult = await _clienteService.Save(cliente);
+                if (saveResult.Success != true)
+                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
+
+                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al guardar el cliente.");
-                return StatusCode(500, new { Message = "Error interno al guardar el cliente.", Error = ex.Message });
+                return StatusCode(500, new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = ex.Message });
             }
         }
 
-        // PUT api/Cliente/UpdateCliente/{id}
+        // PUT api/Cliente/UpdateCliente/5
         [HttpPut("UpdateCliente/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] Cliente cliente)
+        public async Task<IActionResult> Put(int id, [FromBody] UpdateClienteDto cliente)
         {
             if (id <= 0)
-                return BadRequest("ID de cliente inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            var existingCliente = await _clienteRepository.GetEntityByIdAsync(id);
-            if (existingCliente.Data is not Cliente clienteData || clienteData.Deleted)
+            var existingResult = await _clienteService.GetById(id);
+            if (existingResult.Success != true || existingResult.Data == null)
             {
-                return NotFound("Cliente no encontrado o ha sido eliminado.");
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            cliente.Id = id;
-            var updateCliente = await _clienteRepository.UpdateEntityAsync(cliente);
-            if (updateCliente.Success == true)
+            var existingCliente = (Cliente)existingResult.Data;
+            if (existingCliente.Deleted)
             {
-                return Ok(new { Message = "Cliente actualizado exitosamente", Data = updateCliente.Data });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            return BadRequest(new { Message = "Error al actualizar el cliente", Error = updateCliente.Message ?? "Error desconocido" });
+
+            cliente.IdCliente = id;
+            var updateResult = await _clienteService.Update(cliente);
+            if (updateResult.Success != true)
+            {
+                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
+            }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
-        // DELETE api/Cliente/DeleteCliente/{id}
+        // PUT api/Cliente/RestoreCliente/5
+        [HttpPut("RestoreCliente/{id}")]
+        public async Task<IActionResult> Restore(int id)
+        {
+            var result = await _clienteService.GetById(id);
+            if (result.Success != true || result.Data == null)
+            {
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+            }
+
+            var restoreResult = await _clienteService.Restore(id);
+            if (restoreResult.Success != true)
+            {
+                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
+            }
+            return BadRequest(restoreResult.Message);
+        }
+
+        // DELETE api/Cliente/DeleteCliente/5
         [HttpDelete("DeleteCliente/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
             if (id <= 0)
-                return BadRequest("ID de cliente inválido.");
+                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            try
+            var result = await _clienteService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
-                var cliente = await _clienteRepository.GetEntityByIdAsync(id);
-                if (cliente.Data is not Cliente clienteData)
-                {
-                    return NotFound("Cliente no encontrado.");
-                }
-
-                clienteData.Deleted = true;
-                clienteData.DeletedUser = 1;
-                clienteData.ModifyDate = DateTime.Now;
-
-                var deleteCliente = await _clienteRepository.UpdateEntityAsync(clienteData);
-                if (deleteCliente.Success == true)
-                {
-                    return Ok(new { Message = "Cliente eliminado lógicamente.", Data = deleteCliente.Data });
-                }
-                return BadRequest(new { Message = "Error al eliminar el cliente", Error = deleteCliente.Message });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            catch (Exception ex)
+
+            var removeDto = new RemoveClienteDto { IdCliente = id };
+            var deleteResult = await _clienteService.Remove(removeDto);
+            if (deleteResult.Success != true)
             {
-                _logger.LogError(ex, "Error al eliminar el cliente.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el cliente.", Error = ex.Message });
+                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
             }
-        }
-
-        // PUT api/Cliente/RestoreCliente/{id}
-        [HttpPut("RestoreCliente/{id}")]
-        public async Task<IActionResult> Restore(int id)
-        {
-            if (id <= 0)
-                return BadRequest("ID de cliente inválido.");
-
-            try
-            {
-                var cliente = await _clienteRepository.GetEntityByIdAsync(id);
-                if (cliente.Data is not Cliente clienteData)
-                    return NotFound("Cliente no encontrado.");
-
-                if (!clienteData.Deleted)
-                    return BadRequest("El cliente ya está activo.");
-
-                clienteData.Deleted = false;
-                clienteData.ModifyDate = DateTime.Now;
-                clienteData.ModifyUser = 1;
-
-                var restoreCliente = await _clienteRepository.UpdateEntityAsync(clienteData);
-                if (restoreCliente.Success == true)
-                {
-                    return Ok(new { Message = "Cliente restaurado exitosamente.", Data = restoreCliente.Data });
-                }
-                return BadRequest(new { Message = "Error al restaurar el cliente", Error = restoreCliente.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al restaurar el cliente.");
-                return StatusCode(500, new { Message = "Error interno al restaurar el cliente.", Error = ex.Message });
-            }
-        }
-
-        // DELETE api/Cliente/DeleteClientePermanente/{id}
-        [HttpDelete("DeleteClientePermanente/{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            if (id <= 0)
-                return BadRequest("ID de cliente inválido.");
-
-            try
-            {
-                var cliente = await _clienteRepository.GetEntityByIdAsync(id);
-                if (cliente.Data is not Cliente clienteData)
-                {
-                    return NotFound("Cliente no encontrado.");
-                }
-
-                var deleteResult = await _clienteRepository.DeleteEntityAsync(id);
-                if (deleteResult.Success != null)
-                {
-                    return Ok(new { Message = "Cliente eliminado permanentemente.", Data = deleteResult.Data });
-                }
-
-                return BadRequest(new { Message = "Error al eliminar el cliente permanentemente.", Error = deleteResult.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al eliminar el cliente permanentemente.");
-                return StatusCode(500, new { Message = "Error interno al eliminar el cliente permanentemente.", Error = ex.Message });
-            }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
     }
 }

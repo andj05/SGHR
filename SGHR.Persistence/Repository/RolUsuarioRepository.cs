@@ -88,9 +88,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(RolUsuario rolUsuario)
         {
-            var validationResult = ValidateRolUsuario(rolUsuario);
-            if (validationResult.Success != true)
-                return validationResult;
 
             try
             {
@@ -121,9 +118,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(RolUsuario rolUsuario)
         {
-            var validation = ValidateRolUsuario(rolUsuario);
-            if (validation.Success != true)
-                return validation;
 
             var result = new OperationResult();
             try
@@ -236,38 +230,6 @@ namespace SGHR.Persistence.Repository
                     Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]
                 };
             }
-        }
-
-        private OperationResult ValidateRolUsuario(dynamic rolUsuario)
-        {
-            if (rolUsuario == null)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
-                };
-            }
-
-            if (rolUsuario.Descripcion != null && rolUsuario.Descripcion.Length > 50)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["RolUsuario"]["InvalidDescription"]
-                };
-            }
-
-            if (rolUsuario.CreationUser <= 0)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["RolUsuario"]["InvalidCreationUser"]
-                };
-            }
-
-            return new OperationResult { Success = true };
         }
     }
 }

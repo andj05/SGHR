@@ -88,9 +88,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(Piso piso)
         {
-            var validationResult = ValidatePiso(piso);
-            if (validationResult.Success != true)
-                return validationResult;
 
             try
             {
@@ -121,10 +118,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
         {
-            var validation = ValidatePiso(piso);
-            if (validation.Success != true)
-                return validation;
-
             var result = new OperationResult();
             try
             {
@@ -236,38 +229,6 @@ namespace SGHR.Persistence.Repository
                     Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]
                 };
             }
-        }
-
-        private OperationResult ValidatePiso(Piso piso)
-        {
-            if (piso == null)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
-                };
-            }
-
-            if (piso.Descripcion != null && piso.Descripcion.Length > 50)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Piso"]["InvalidDescription"]
-                };
-            }
-
-            if (piso.CreationUser <= 0)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Piso"]["InvalidCreationUser"]
-                };
-            }
-
-            return new OperationResult { Success = true };
         }
     }
 }

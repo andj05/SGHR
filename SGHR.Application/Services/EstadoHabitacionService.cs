@@ -115,7 +115,7 @@ namespace SGHR.Application.Services
                 };
 
             estadoHabitacion.Descripcion = dto.Descripcion ?? estadoHabitacion.Descripcion;
-            estadoHabitacion.Estado = dto.Estado != default ? dto.Estado : estadoHabitacion.Estado;
+            estadoHabitacion.Estado = dto.Estado;
             estadoHabitacion.FechaCreacion = dto.FechaCreacion != default ? dto.FechaCreacion : estadoHabitacion.FechaCreacion;
             estadoHabitacion.ModifyDate = DateTime.Now;
             estadoHabitacion.ModifyUser = 1;

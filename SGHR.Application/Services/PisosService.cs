@@ -172,12 +172,12 @@ namespace SGHR.Application.Services
             return result;
         }
 
-        private OperationResult ValidatePiso(dynamic piso)
+        private OperationResult ValidatePiso(SavePisosDto dto)
         {
-            if (piso == null)
+            if (dto == null)
                 return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Pisos"]["NullPiso"] };
 
-            if (string.IsNullOrWhiteSpace(piso.Descripcion) || piso.Descripcion.Length > 50)
+            if (string.IsNullOrWhiteSpace(dto.Descripcion) || dto.Descripcion.Length > 50)
                 return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Pisos"]["InvalidDescription"] };
 
             return new OperationResult { Success = true };

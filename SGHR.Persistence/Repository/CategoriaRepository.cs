@@ -88,9 +88,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(Categoria categoria)
         {
-            var validationResult = ValidateCategoria(categoria);
-            if (validationResult.Success != true)
-                return validationResult;
 
             try
             {
@@ -121,10 +118,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(Categoria categoria)
         {
-            var validation = ValidateCategoria(categoria);
-            if (validation.Success != true)
-                return validation;
-
             var result = new OperationResult();
             try
             {
@@ -236,38 +229,6 @@ namespace SGHR.Persistence.Repository
                     Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]
                 };
             }
-        }
-
-        private OperationResult ValidateCategoria(Categoria categoria)
-        {
-            if (categoria == null)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
-                };
-            }
-
-            if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 50)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Categoria"]["InvalidDescription"]
-                };
-            }
-
-            if (categoria.CreationUser <= 0)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Categoria"]["InvalidCreationUser"]
-                };
-            }
-
-            return new OperationResult { Success = true };
         }
     }
 }

@@ -91,10 +91,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            var validationResult = ValidateEstadoHabitacion(estadoHabitacion);
-            if (validationResult.Success != true)
-                return validationResult;
-
             try
             {
                 estadoHabitacion.FechaCreacion = DateTime.UtcNow;
@@ -125,10 +121,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            var validation = ValidateEstadoHabitacion(estadoHabitacion);
-            if (validation.Success != true)
-                return validation;
-
             var result = new OperationResult();
             try
             {
@@ -241,39 +233,6 @@ namespace SGHR.Persistence.Repository
                     Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]
                 };
             }
-        }
-
-        // Validación del estado de habitación
-        private OperationResult ValidateEstadoHabitacion(EstadoHabitacion estadoHabitacion)
-        {
-            if (estadoHabitacion == null)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
-                };
-            }
-
-            if (estadoHabitacion.Descripcion != null && estadoHabitacion.Descripcion.Length > 50)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["InvalidDescription"]
-                };
-            }
-
-            if (estadoHabitacion.CreationUser <= 0)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["InvalidCreationUser"]
-                };
-            }
-
-            return new OperationResult { Success = true };
         }
     }
 }

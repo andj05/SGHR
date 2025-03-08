@@ -1,88 +1,110 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Context;
-using SGHR.Persistence.Repository;
-using SGHR.Domain.Base;
-using Xunit;
+using SGHR.Persistence.Repositories;
+using SGHR.Persistence.Configurations;
+using SGHR.Infraestructure.Logging.Base;
+using SGHR.Infraestructure.Logging.Interfaces;
 
 namespace SGHR.Persistence.Test
 {
     public class UnitTestTarifasRepository : IDisposable
     {
-        private readonly ITarifasRepository _tarifasRepository;
+        private readonly TarifasRepository _tarifasRepository;
         private readonly SGHRContext _context;
+        private readonly ILoggerManager _logger;
+        private readonly MessageMapper _messageMapper;
 
         public UnitTestTarifasRepository()
         {
+            // Configurar base de datos en memoria
             var options = new DbContextOptionsBuilder<SGHRContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
+
             _context = new SGHRContext(options);
-            _tarifasRepository = new TarifasRepository(_context, null, null);
+
+            // Inicializar MessageMapper real (con mensajes del sistema)
+            _messageMapper = new MessageMapper();
+
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
+            });
+            _logger = new LoggerManager(loggerFactory.CreateLogger<LoggerManager>());
+
+            // Inyectar dependencias reales
+            _tarifasRepository = new TarifasRepository(_context, _logger, _messageMapper);
         }
 
         [Fact]
-        public void AddTarifa_ShouldReturnFailure_WhenTarifaIsNull()
+        public async Task AddTarifa_ShouldReturnFailure_WhenTarifaIsNull()
         {
-            // Arrange
-            Tarifas tarifa = null;
-
             // Act
-            OperationResult result;
-            if (tarifa == null)
-            {
-                result = new OperationResult
-                {
-                    Success = false,
-                    Message = "La tarifa no puede ser nula."
-                };
-            }
-            else
-            {
-                result = _tarifasRepository.SaveEntityAsync(tarifa).Result;
-            }
+            var result = await _tarifasRepository.SaveEntityAsync(null);
 
             // Assert
-            Assert.IsType<OperationResult>(result);
             Assert.False(result.Success);
-            Assert.Equal("La tarifa no puede ser nula.", result.Message);
+            Assert.Equal(_messageMapper.ErrorMessages["Operations"]["SaveFailed"], result.Message);
         }
 
         [Fact]
         public async Task GetAllAsync_ShouldReturnAllTarifas()
         {
             // Arrange
-            var tarifa1 = new Tarifas { Descripcion = "Tarifa 1", Estado = true };
-            var tarifa2 = new Tarifas { Descripcion = "Tarifa 2", Estado = true };
+            var tarifa1 = new Tarifas
+            {
+                Descripcion = "Tarifa 1",
+                Estado = true,
+                FechaInicio = DateOnly.FromDateTime(DateTime.Now),
+                FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
+                PrecioPorNoche = 100,
+                IdHabitacion = 1
+            };
+
+            var tarifa2 = new Tarifas
+            {
+                Descripcion = "Tarifa 2",
+                Estado = true,
+                FechaInicio = DateOnly.FromDateTime(DateTime.Now),
+                FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
+                PrecioPorNoche = 200,
+                IdHabitacion = 2
+            };
+
             await _tarifasRepository.SaveEntityAsync(tarifa1);
             await _tarifasRepository.SaveEntityAsync(tarifa2);
-
-            // Verifica que las tarifas se han guardado correctamente
-            var savedTarifa1 = await _tarifasRepository.GetEntityByIdAsync(tarifa1.Id);
-            var savedTarifa2 = await _tarifasRepository.GetEntityByIdAsync(tarifa2.Id);
-            Assert.True(savedTarifa1.Success);
-            Assert.True(savedTarifa2.Success);
 
             // Act
             var result = await _tarifasRepository.GetAllAsync();
 
             // Assert
-            Assert.Equal(2, result.Count());
+            Assert.Equal(2, result.Count);
         }
 
         [Fact]
         public async Task GetEntityByIdAsync_ShouldReturnTarifa_WhenIdIsValid()
         {
             // Arrange
-            var tarifa = new Tarifas { Descripcion = "Tarifa 1", Estado = true };
+            var tarifa = new Tarifas
+            {
+                Descripcion = "Tarifa 1",
+                Estado = true,
+                FechaInicio = DateOnly.FromDateTime(DateTime.Now),
+                FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
+                PrecioPorNoche = 100,
+                IdHabitacion = 1
+            };
+
             await _tarifasRepository.SaveEntityAsync(tarifa);
 
             // Act
             var result = await _tarifasRepository.GetEntityByIdAsync(tarifa.Id);
 
             // Assert
-            Assert.True(result.Success);
-            Assert.Equal(tarifa.Descripcion, ((Tarifas)result.Data).Descripcion);
+            Assert.NotNull(result);
+            Assert.Equal(tarifa.Descripcion, result.Descripcion);
         }
 
         [Fact]
@@ -91,17 +113,17 @@ namespace SGHR.Persistence.Test
             // Arrange
             var tarifa = new Tarifas
             {
+                Descripcion = "Original",
+                Estado = true,
+                PrecioPorNoche = 100,
                 FechaInicio = DateOnly.FromDateTime(DateTime.Now),
                 FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
-                PrecioPorNoche = 100,
-                Descuento = 10,
-                Descripcion = "Tarifa Test",
-                IdHabitacion = 1,
-                Estado = true,
-                CreationUser = 1
+                IdHabitacion = 1
             };
+
             await _tarifasRepository.SaveEntityAsync(tarifa);
 
+            tarifa.Descripcion = "Actualizada";
             tarifa.PrecioPorNoche = 150;
 
             // Act
@@ -109,7 +131,9 @@ namespace SGHR.Persistence.Test
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal(150, (await _tarifasRepository.GetEntityByIdAsync(tarifa.Id)).Data.PrecioPorNoche);
+            var updated = await _tarifasRepository.GetEntityByIdAsync(tarifa.Id);
+            Assert.Equal("Actualizada", updated.Descripcion);
+            Assert.Equal(150, updated.PrecioPorNoche);
         }
 
         [Fact]
@@ -118,24 +142,23 @@ namespace SGHR.Persistence.Test
             // Arrange
             var tarifa = new Tarifas
             {
+                Descripcion = "Tarifa Test",
+                Estado = true,
                 FechaInicio = DateOnly.FromDateTime(DateTime.Now),
                 FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
                 PrecioPorNoche = 100,
-                Descuento = 10,
-                Descripcion = "Tarifa Test",
-                IdHabitacion = 1,
-                Estado = true
+                IdHabitacion = 1
             };
+
             await _tarifasRepository.SaveEntityAsync(tarifa);
 
             // Act
-            var result = await _tarifasRepository.DeleteEntityAsync(tarifa.Id);
+            var result = await _tarifasRepository.DeleteEntityAsync(tarifa);
 
             // Assert
             Assert.True(result.Success);
-            var deletedTarifa = await _tarifasRepository.GetEntityByIdAsync(tarifa.Id);
-            Assert.False(deletedTarifa.Success);
-            Assert.Equal("Tarifa no encontrada.", deletedTarifa.Message);
+            var deleted = await _tarifasRepository.GetEntityByIdAsync(tarifa.Id);
+            Assert.Null(deleted);
         }
 
         public void Dispose()

@@ -88,9 +88,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(Servicios servicio)
         {
-            var validationResult = ValidateServicios(servicio);
-            if (validationResult.Success != true)
-                return validationResult;
 
             try
             {
@@ -121,9 +118,6 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(Servicios servicio)
         {
-            var validation = ValidateServicios(servicio);
-            if (validation.Success != true)
-                return validation;
 
             var result = new OperationResult();
             try
@@ -237,47 +231,6 @@ namespace SGHR.Persistence.Repository
                     Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]
                 };
             }
-        }
-
-        private OperationResult ValidateServicios(Servicios servicio)
-        {
-            if (servicio == null)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
-                };
-            }
-
-            if (string.IsNullOrWhiteSpace(servicio.Nombre))
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Servicios"]["InvalidName"]
-                };
-            }
-
-            if (string.IsNullOrWhiteSpace(servicio.Descripcion) || servicio.Descripcion.Length > 255)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Servicios"]["InvalidDescription"]
-                };
-            }
-
-            if (servicio.CreationUser <= 0)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Servicios"]["InvalidCreationUser"]
-                };
-            }
-
-            return new OperationResult { Success = true };
         }
     }
 }

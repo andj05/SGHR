@@ -83,10 +83,6 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> SaveEntityAsync(Tarifas tarifas)
         {
-            var validationResult = ValidateTarifas(tarifas);
-            if (validationResult.Success !=true)
-                return validationResult;
-
             try
             {
                 tarifas.FechaCreacion = DateTime.UtcNow;
@@ -116,9 +112,6 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> UpdateEntityAsync(Tarifas tarifa)
         {
-            var validation = ValidateTarifas(tarifa);
-            if (validation.Success != true)
-                return validation;
 
             var result = new OperationResult();
             try
@@ -232,65 +225,6 @@ namespace SGHR.Persistence.Repositories
                     Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]
                 };
             }
-        }
-
-        private OperationResult ValidateTarifas(Tarifas tarifa)
-        {
-            if (tarifa == null)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
-                };
-            }
-
-            if (tarifa.PrecioPorNoche <= 0)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Tarifas"]["InvalidPricePerNight"]
-                };
-            }
-
-            if (string.IsNullOrWhiteSpace(tarifa.Descripcion) || tarifa.Descripcion.Length > 255)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Tarifas"]["InvalidDescription"]
-                };
-            }
-
-            if (tarifa.IdHabitacion <= 0)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Tarifas"]["InvalidRoomID"]
-                };
-            }
-
-            if (tarifa.FechaInicio == default || tarifa.FechaFin == default)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Tarifas"]["InvalidDates"]
-                };
-            }
-
-            if (tarifa.Descuento < 0 || tarifa.Descuento > 100)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Tarifas"]["InvalidDiscount"]
-                };
-            }
-
-            return new OperationResult { Success = true };
         }
     }
 }

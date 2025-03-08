@@ -117,7 +117,7 @@ namespace SGHR.Application.Services
 
             servicio.Nombre = dto.Nombre ?? servicio.Nombre;
             servicio.Descripcion = dto.Descripcion ?? servicio.Descripcion;
-            servicio.Estado = dto.Estado != default ? dto.Estado : servicio.Estado;
+            servicio.Estado = dto.Estado;
             servicio.ModifyDate = DateTime.Now;
             servicio.ModifyUser = 1; // En producción, obtener el usuario autenticado
 

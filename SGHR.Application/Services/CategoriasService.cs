@@ -172,14 +172,14 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Categorias"]["NullCategoria"]
+                    Message = "Categoría inválida" // Mensaje directo
                 };
 
             if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 50)
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Categorias"]["InvalidDescription"]
+                    Message = "Descripción debe tener entre 1 y 50 caracteres" // Mensaje directo
                 };
 
             return new OperationResult { Success = true };

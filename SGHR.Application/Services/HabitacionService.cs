@@ -1,127 +1,139 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SGHR.Application.Dtos.Habitacion;
+﻿using SGHR.Application.Dtos.Habitacion;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Reservation;
 using SGHR.Persistence.Interfaces;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Persistence.Configurations;
+using SGHR.Persistence.Repositories;
 
 namespace SGHR.Application.Services
-{
-    public class HabitacionService : IHabitacionService
     {
-        private readonly IHabitacionRepository _habitacionRepository;
-        private readonly ILogger<HabitacionService> _logger;
-        private readonly IConfiguration _configuration;
-
-        public HabitacionService(IHabitacionRepository habitacionRepository,
-                                 ILogger<HabitacionService> logger,
-                                 IConfiguration configuration)
+        public class HabitacionService : IHabitacionService
         {
-            _habitacionRepository = habitacionRepository;
-            _logger = logger;
-            _configuration = configuration;
-        }
+            private readonly IHabitacionRepository _habitacionRepository;
+            private readonly ILoggerManager _logger;
+            private readonly MessageMapper _messageMapper;
 
-        public async Task<OperationResult> GetAll()
-        {
-            var result = new OperationResult();
-            try
+            public HabitacionService(
+                IHabitacionRepository habitacionRepository,
+                ILoggerManager logger,
+                MessageMapper messageMapper)
             {
-                var habitaciones = await _habitacionRepository.GetAllAsync();
-                result.Data = habitaciones.Where(h => !h.Deleted).ToList();
-                result.Success = true;
+                _habitacionRepository = habitacionRepository;
+                _logger = logger;
+                _messageMapper = messageMapper;
             }
-            catch (Exception ex)
+
+            
+            public async Task<OperationResult> GetAll()
             {
-                _logger.LogError($"Error consiguiendo las habitaciones: {ex.Message}");
+                var result = new OperationResult();
+                try
+                {
+                    var habitaciones = await _habitacionRepository.GetAllAsync();
+                    // filtra entidades eliminadas
+                    var activeHabitaciones = habitaciones.Where(h => !h.Deleted).ToList();
+                    result.Data = activeHabitaciones;
+                    result.Success = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
+                }
+                return result;
+            }
+
+            public async Task<OperationResult> GetById(int id)
+            {
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
                 result.Success = false;
-                result.Message = "Error consiguiendo las habitaciones.";
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
             }
-            return result;
-        }
-
-        public async Task<OperationResult> GetById(int id)
-        {
-            var result = new OperationResult();
             try
             {
                 var habitacion = await _habitacionRepository.GetEntityByIdAsync(id);
                 if (habitacion == null || habitacion.Deleted)
                 {
+                    _logger.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
                     result.Success = false;
-                    result.Message = "Habitacion no encontrada o eliminada.";
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    result.Success = true;
-                    result.Data = habitacion;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error consiguiendo la habitacion por ID: {ex.Message}");
-                result.Success = false;
-                result.Message = "Error consiguiendo la habitacion por ID.";
-            }
-            return result;
-        }
-
-        public async Task<OperationResult> Save(SaveHabitacionDto dto)
-        {
-            var result = new OperationResult();
-            try
-            {
-                var habitacion = new Habitacion
-                {
-                    IdPiso = dto.IdPiso,
-                    IdCategoria = dto.IdCategoria,
-                    Numero = dto.Numero,
-                    Detalle = dto.Detalle,
-                    IdEstadoHabitacion = dto.IdEstadoHabitacion,
-                    FechaCreacion = DateTime.Now,
-                    Deleted = false
-                };
-
-                var validationResult = ValidateHabitacion(habitacion);
-                if (!validationResult.Success.GetValueOrDefault())
-                {
-                    return validationResult;
-                }
-
-                await _habitacionRepository.SaveEntityAsync(habitacion);
                 result.Success = true;
+                result.Data = habitacion;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error guardando la habitacion: {ex.Message}");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
                 result.Success = false;
-                result.Message = "Error guardando la habitacion.";
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
             return result;
         }
 
-        public async Task<OperationResult> Update(UpdateHabitacionDto dto)
-        {
-            var result = new OperationResult();
-            try
+            public async Task<OperationResult> Save(SaveHabitacionDto dto)
             {
-                var habitacion = await _habitacionRepository.GetEntityByIdAsync(dto.Id);
-                if (habitacion == null || habitacion.Deleted)
+                var result = new OperationResult();
+                try
                 {
-                    result.Success = false;
-                    result.Message = "Habitacion no encontrada o eliminada.";
+                    var habitacion = new Habitacion
+                    {
+                        IdPiso = dto.IdPiso,
+                        IdCategoria = dto.IdCategoria,
+                        Numero = dto.Numero,
+                        Detalle = dto.Detalle,
+                        IdEstadoHabitacion = dto.IdEstadoHabitacion,
+                        FechaCreacion = DateTime.Now,
+                        Deleted = false
+                    };
+
+                // validacion de reglas de negocio
+                var validationResult = ValidateHabitacionBusiness(habitacion);
+                    if (!validationResult.Success.GetValueOrDefault())
+                    {
+                        return validationResult;
+                    }
+
+                    await _habitacionRepository.SaveEntityAsync(habitacion);
+                    result.Success = true;
                 }
-                else
+                catch (Exception ex)
                 {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Operations"]["SaveFailed"]}: {ex}");
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"];
+                }
+                return result;
+            }
+
+            public async Task<OperationResult> Update(UpdateHabitacionDto dto)
+            {
+                var result = new OperationResult();
+                try
+                {
+                    var habitacion = await _habitacionRepository.GetEntityByIdAsync(dto.Id);
+                    if (habitacion.Deleted)
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                        result.Success = false;
+                        result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                        return result;
+                    }
+
                     habitacion.IdPiso = dto.IdPiso;
                     habitacion.IdCategoria = dto.IdCategoria;
                     habitacion.Numero = dto.Numero;
                     habitacion.Detalle = dto.Detalle;
                     habitacion.IdEstadoHabitacion = dto.IdEstadoHabitacion;
 
-                    var validationResult = ValidateHabitacion(habitacion);
+                    var validationResult = ValidateHabitacionBusiness(habitacion);
                     if (!validationResult.Success.GetValueOrDefault())
                     {
                         return validationResult;
@@ -130,96 +142,230 @@ namespace SGHR.Application.Services
                     await _habitacionRepository.UpdateEntityAsync(habitacion);
                     result.Success = true;
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex}");
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
+                }
+                return result;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error actualizando la habitacion: {ex.Message}");
-                result.Success = false;
-                result.Message = "Error actualizando la habitacion.";
-            }
-            return result;
-        }
 
-        public async Task<OperationResult> Remove(RemoveHabitacionDto dto)
+                public async Task<OperationResult> Restore(int id)
         {
             var result = new OperationResult();
+
+            if (id <= 0)
+            {
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
+
             try
             {
-                var habitacion = await _habitacionRepository.GetEntityByIdAsync(dto.Id);
-                if (habitacion == null)
+                // obtiene la entidad por id
+                var habitacion = await _habitacionRepository.GetEntityByIdAsync(id);
+
+                // confirma que la habitacion se encuentre eliminada
+                if (!habitacion.Deleted)
                 {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Reservation"]["AlreadyActive"]);
                     result.Success = false;
-                    result.Message = "Habitacion no encontrada.";
+                    result.Message = _messageMapper.ErrorMessages["Reservation"]["AlreadyActive"];
+                    return result;
                 }
-                else if (habitacion.IdEstadoHabitacion == 2)
+
+                // llama al metodo del repositorio
+                result = await _habitacionRepository.RestoreEntityAsync(id);
+
+                if (result.Success!=true)
                 {
-                    result.Success = false;
-                    result.Message = "No se puede eliminar una habitacion con una reserva en curso.";
-                }
-                else
-                {
-                    habitacion.Deleted = true;
-                    await _habitacionRepository.UpdateEntityAsync(habitacion);
-                    result.Success = true;
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["RestoreFailed"]);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error eliminando la habitacion: {ex.Message}");
+                _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex.Message}");
                 result.Success = false;
-                result.Message = "Error eliminando la habitacion.";
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
+
             return result;
         }
 
-        private OperationResult ValidateHabitacion(Habitacion habitacion)
-        {
-            if (habitacion == null)
+            public async Task<OperationResult> Remove(RemoveHabitacionDto dto)
             {
-                return new OperationResult { Success = false, Message = "La habitacion no puede ser nula." };
-            }
-            if (string.IsNullOrWhiteSpace(habitacion.Numero) || habitacion.Numero.Length > 50)
-            {
-                return new OperationResult { Success = false, Message = "El número de la habitacion no puede estar vacío y debe tener un máximo de 50 caracteres." };
-            }
-            if (habitacion.Detalle != null && habitacion.Detalle.Length > 100)
-            {
-                return new OperationResult { Success = false, Message = "El detalle de la habitacion debe tener un máximo de 100 caracteres." };
-            }
-            if (habitacion.IdEstadoHabitacion <= 0)
-            {
-                return new OperationResult { Success = false, Message = "El ID del estado de la habitacion debe ser mayor que cero." };
-            }
-            if (habitacion.IdPiso <= 0)
-            {
-                return new OperationResult { Success = false, Message = "El ID del piso debe ser mayor que cero." };
-            }
-            if (habitacion.IdCategoria <= 0)
-            {
-                return new OperationResult { Success = false, Message = "El ID de la categoría debe ser mayor que cero." };
-            }
-            if (habitacion.FechaCreacion == default)
-            {
-                return new OperationResult { Success = false, Message = "La fecha de creación es obligatoria." };
-            }
-            if (habitacion.Deleted == true)
-            {
-                return new OperationResult { Success = false, Message = "La habitacion fue eliminada." };
-            }
-            return new OperationResult { Success = true };
-        }
+                var result = new OperationResult();
+                try
+                {
+                    var habitacion = await _habitacionRepository.GetEntityByIdAsync(dto.Id);
 
-        public async Task<List<Habitacion>> ObtenerHabitacionesPorEstadoIdAsync(int idEstadoHabitacion)
-        {
-            try
-            {
-                return await _habitacionRepository.ObtenerHabitacionesPorEstadoIdAsync(idEstadoHabitacion);
+                    // verifica que el numero no este borrado
+                    if (habitacion.Deleted)
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["AlreadyDeleted"]);
+                        result.Success = false;
+                        result.Message = _messageMapper.ErrorMessages["Operations"]["AlreadyDeleted"];
+                        return result;
+                    }
+
+                    // confirmar que la habitacion no esta ocupada
+                    if (habitacion.IdEstadoHabitacion == 2)
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["DeleteInProgress"]);
+                        result.Success = false;
+                        result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteInProgress"];
+                        return result;
+                    }
+
+                    result = await _habitacionRepository.DeleteEntityAsync(habitacion);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Operations"]["DeleteFailed"]}: {ex}");
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"];
+                }
+                return result;
             }
-            catch (Exception ex)
+
+            public async Task<List<Habitacion>> ObtenerHabitacionesPorEstadoId(int idEstadoHabitacion)
             {
-                _logger.LogError($"Error al obtener habitaciones por estado: {ex.Message}");
-                return new List<Habitacion>();
+                try
+                {
+                    if (idEstadoHabitacion <= 0)
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["Room"]["InvalidStatusID"]);
+                        return new List<Habitacion>();
+                    }
+
+                    var habitaciones = await _habitacionRepository.ObtenerHabitacionesPorEstadoIdAsync(idEstadoHabitacion);
+                    return habitaciones.Where(h => !h.Deleted).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                    return new List<Habitacion>();
+                }
+            }
+
+            public async Task<List<Habitacion>> ObtenerHabitacionesPorNumero(string numero)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(numero))
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["Room"]["MissingNumber"]);
+                        return new List<Habitacion>();
+                    }
+                    if (numero.Length > 50)
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["Room"]["NumberTooLong"]);
+                        return new List<Habitacion>();
+                    }
+
+                    var habitaciones = await _habitacionRepository.ObtenerHabitacionesPorNumeroAsync(numero);
+                    return habitaciones.Where(h => !h.Deleted).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                    return new List<Habitacion>();
+                }
+            }
+
+            public async Task<List<Habitacion>> ObtenerHabitacionesPorPisoId(int idPiso)
+            {
+                try
+                {
+                    if (idPiso <= 0)
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["Room"]["InvalidFloorID"]);
+                        return new List<Habitacion>();
+                    }
+
+                    var habitaciones = await _habitacionRepository.ObtenerHabitacionesPorPisoIdAsync(idPiso);
+                    return habitaciones.Where(h => !h.Deleted).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                    return new List<Habitacion>();
+                }
+            }
+
+            public async Task<List<Habitacion>> ObtenerHabitacionesPorCategoriaId(int idCategoria)
+            {
+                try
+                {
+                    if (idCategoria <= 0)
+                    {
+                        _logger.LogWarn(_messageMapper.ErrorMessages["Room"]["InvalidCategoryID"]);
+                        return new List<Habitacion>();
+                    }
+
+                    var habitaciones = await _habitacionRepository.ObtenerHabitacionesPorCategoriaIdAsync(idCategoria);
+                    return habitaciones.Where(h => !h.Deleted).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                    return new List<Habitacion>();
+                }
+            }
+
+            private OperationResult ValidateHabitacionBusiness(Habitacion habitacion)
+            {
+                if (string.IsNullOrWhiteSpace(habitacion.Numero))
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["Room"]["MissingNumber"]
+                    };
+                }
+                if (habitacion.Numero.Length > 50)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["Room"]["NumberTooLong"]
+                    };
+                }
+                if (habitacion.Detalle?.Length > 100)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["Room"]["DetailTooLong"]
+                    };
+                }
+                if (habitacion.IdEstadoHabitacion <= 0)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["Room"]["InvalidStatusID"]
+                    };
+                }
+                if (habitacion.IdPiso <= 0)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["Room"]["InvalidFloorID"]
+                    };
+                }
+                if (habitacion.IdCategoria <= 0)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = _messageMapper.ErrorMessages["Room"]["InvalidCategoryID"]
+                    };
+                }
+                return new OperationResult { Success = true };
             }
         }
     }
-}

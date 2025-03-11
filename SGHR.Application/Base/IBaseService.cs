@@ -8,6 +8,7 @@ namespace SGHR.Application.Base
         Task<OperationResult> GetById(int id);
         Task<OperationResult> Update(TDtoUpdate dto);
         Task<OperationResult> Save(TDtoSave dto);
-        Task<OperationResult> Remove(TDtoRemove dto);   
+        Task<OperationResult> Remove(TDtoRemove dto);
+        Task<OperationResult> Restore(int id);
     }
 }

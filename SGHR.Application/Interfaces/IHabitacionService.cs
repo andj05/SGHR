@@ -7,6 +7,9 @@ namespace SGHR.Application.Interfaces
     public interface IHabitacionService : IBaseService<SaveHabitacionDto,UpdateHabitacionDto,RemoveHabitacionDto>
 
     {
-        Task<List<Habitacion>> ObtenerHabitacionesPorEstadoIdAsync(int idEstadoHabitacion);
+        Task<List<Habitacion>> ObtenerHabitacionesPorEstadoId(int idEstadoHabitacion);
+        Task<List<Habitacion>> ObtenerHabitacionesPorNumero(string Numero);
+        Task<List<Habitacion>> ObtenerHabitacionesPorPisoId(int idPiso);
+        Task<List<Habitacion>> ObtenerHabitacionesPorCategoriaId(int idCategoria);
     }
 }

@@ -106,5 +106,26 @@ namespace SGHR.Persistence.Base
             }
             return result;
         }
+
+        public virtual async Task<OperationResult> RestoreEntityAsync(int id)
+        {
+            var entity = await GetEntityByIdAsync(id);
+            if (entity == null)
+            {
+                return new OperationResult { Success = false, Message = "Entidad no encontrada." };
+            }
+
+            var baseEntity = entity as BaseEntity<int>;
+            if (baseEntity == null)
+            {
+                return new OperationResult { Success = false, Message = "Entidad no encontrada" };
+            }
+
+            baseEntity.Deleted = false;
+            baseEntity.ModifyDate = DateTime.Now;
+            baseEntity.ModifyUser = 1;
+
+            return await UpdateEntityAsync(entity);
+        }
     }
 }

@@ -3,6 +3,6 @@
     public class RemoveRecepcionDto : DtoBase
     {
         public int Id { get; set; }
-        public bool Removed { get; set; } = false;
+        public bool Deleted { get; set; } = false;
     }
 }

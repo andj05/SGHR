@@ -11,6 +11,13 @@ namespace SGHR.Persistence.Configurations
             builder.HasKey(r => r.Id);
             builder.Property(r => r.Id).HasColumnName("IdRecepcion");
             builder.Property(r => r.FechaEntrada).IsRequired();
+            // Agrega explícitamente la propiedad FechaCreacion como requerida
+            builder.Property(r => r.FechaCreacion)
+                   .IsRequired();
+            // Si lo necesitas, también puedes mapear otras propiedades de auditoría:
+            builder.Property(r => r.Estado).IsRequired();
+            builder.Property(r => r.CreationUser).IsRequired();
+            // etc.
         }
     }
 }

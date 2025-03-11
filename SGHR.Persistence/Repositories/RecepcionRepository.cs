@@ -1,61 +1,62 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using SGHR.Domain.Entities.Reservation;
 using SGHR.Domain.Base;
 using SGHR.Persistence.Base;
+using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using System.Linq.Expressions;
-
+using SGHR.Infraestructure.Logging.Interfaces;
 
 namespace SGHR.Persistence.Repositories
 {
     public class RecepcionRepository : BaseRepository<Recepcion>, IRecepcionRepository
     {
         private readonly SGHRContext _context;
-        private readonly ILogger<RecepcionRepository> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly ILoggerManager _logger;
+        private readonly MessageMapper _messageMapper;
 
-        public RecepcionRepository(SGHRContext context,
-                                   ILogger<RecepcionRepository> logger,
-                                   IConfiguration configuration) : base(context)
+        public RecepcionRepository( SGHRContext context,
+                                    ILoggerManager logger,
+                                    MessageMapper messageMapper) : base(context)
         {
             _context = context;
             _logger = logger;
-            _configuration = configuration;
+            _messageMapper = messageMapper;
+        }
+
+        // confirma que la entindad no sea nula
+        private OperationResult ValidateRecepcionPersistence(Recepcion recepcion)
+        {
+            if (recepcion == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"]
+                };
+            }
+            return new OperationResult { Success = true };
         }
 
         public override async Task<List<Recepcion>> GetAllAsync()
         {
-            return await _context.Recepcion
-                                 .Where(c => c.Estado == true)
-                                 .ToListAsync();
+            return await _context.Set<Recepcion>().ToListAsync();
         }
 
         public override async Task<Recepcion> GetEntityByIdAsync(int id)
         {
-            if (id <= 0)
-            {
-                _logger.LogWarning("ID de recepción inválido.");
-                throw new ArgumentException("El ID de recepción debe ser mayor que cero.");
-            }
-
-            return await base.GetEntityByIdAsync(id);
-        }
-
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorEstadoReservaAsync(int idEstadoReserva)
-        {
             try
             {
-                return await _context.Recepcion
-                    .Where(r => r.IdEstadoReserva == idEstadoReserva)
-                    .ToListAsync();
+                var entity = await _context.Set<Recepcion>()
+                    .FirstOrDefaultAsync(r => r.Id == id);
+
+                return entity;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al obtener recepciones por estado de reserva: {ex.Message}");
-                return new List<Recepcion>();
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return null;
             }
         }
 
@@ -64,150 +65,186 @@ namespace SGHR.Persistence.Repositories
             var result = new OperationResult();
             try
             {
-                if (filter == null)
-                {
-                    _logger.LogWarning("El filtro no puede ser nulo.");
-                    result.Success = false;
-                    result.Message = "El filtro no puede ser nulo.";
-                    return result;
-                }
-
-                _logger.LogInformation("Aplicando filtro: {Filter}", filter);
-
                 var filteredEntities = await base.GetFilteredAsync(filter);
                 result.Success = true;
                 result.Data = filteredEntities.Data;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener recepciones con filtro: {Filter}", filter);
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
                 result.Success = false;
-                result.Message = "Error al obtener recepciones con filtro.";
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
             return result;
         }
 
         public override async Task<OperationResult> SaveEntityAsync(Recepcion recepcion)
         {
-            var validationResult = ValidateRecepcion(recepcion);
-            if (!validationResult.Success.HasValue || !validationResult.Success.Value)
-            {
-                return validationResult;
-            }
+            var result = ValidateRecepcionPersistence(recepcion);
+            if (result.Success != true)
+                return result;
 
-            return await base.SaveEntityAsync(recepcion);
-        }
-
-        public override async Task<OperationResult> UpdateEntityAsync(Recepcion recepcion)
-        {
-            var validationResult = ValidateRecepcion(recepcion);
-            if (!validationResult.Success.HasValue || !validationResult.Success.Value)
-            {
-                return validationResult;
-            }
-
-            return await base.UpdateEntityAsync(recepcion);
-        }
-
-        public override async Task<OperationResult> DeleteEntityAsync(Recepcion recepcion)
-        {
-            var result = new OperationResult();
             try
             {
-                if (recepcion.IdEstadoReserva == null || recepcion.IdEstadoReserva == 2)
-                {
-                    result.Success = false;
-                    result.Message = "No se puede eliminar una recepcion nula o en progreso.";
-                    return result;
-                }
-                return await base.DeleteEntityAsync(recepcion);
+                await base.SaveEntityAsync(recepcion);
+                result.Success = true;
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
                 result.Success = false;
-                result.Message = $"Ocurrió un error eliminando la recepción: {ex.Message}";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"];
             }
             return result;
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorClienteIdAsync(int idCliente)
+        public override async Task<OperationResult> UpdateEntityAsync(Recepcion recepcion)
         {
-            return await _context.Recepcion
-                .Where(r => r.IdEstadoReserva == idCliente)
-                .ToListAsync();
+            var result = ValidateRecepcionPersistence(recepcion);
+            if (result.Success != true)
+                return result;
+
+            try
+            {
+                await base.UpdateEntityAsync(recepcion);
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
+            }
+            return result;
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorHabitacionIdAsync(int idHabitacion)
+        public override async Task<OperationResult> DeleteEntityAsync(Recepcion recepcion)
         {
-            return await _context.Recepcion
-                .Where(r => r.IdEstadoReserva == idHabitacion)
-                .ToListAsync();
+            var validationResult = ValidateRecepcionPersistence(recepcion);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
+            var result = new OperationResult();
+            try
+            {
+                recepcion.Deleted = true;
+                recepcion.ModifyDate = DateTime.Now;
+                await base.UpdateEntityAsync(recepcion);
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DeleteFailed"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"];
+            }
+            return result;
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorFechaEntradaAsync(DateTime fechaInicio, DateTime fechaFin)
-        {
-            return await _context.Recepcion
-                .Where(r => r.FechaEntrada >= fechaInicio && r.FechaEntrada <= fechaFin)
-                .ToListAsync();
-        }
-
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorFechaSalidaConfirmadaAsync(DateTime fechaInicio, DateTime fechaFin)
-        {
-            return await _context.Recepcion
-                .Where(r => r.FechaSalidaConfirmacion >= fechaInicio && r.FechaSalidaConfirmacion <= fechaFin)
-                .ToListAsync();
-        }
         public override async Task<bool> ExistsAsync(Expression<Func<Recepcion, bool>> filter)
         {
             try
             {
-                if (filter == null)
-                {
-                    _logger.LogWarning("El filtro no puede ser nulo.");
-                    throw new ArgumentException("El filtro no puede ser nulo.");
-                }
-
-                _logger.LogInformation("Verificando existencia con filtro: {Filter}", filter);
-
                 return await base.ExistsAsync(filter);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al verificar existencia con filtro: {Filter}", filter);
-                throw;
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return false;
             }
         }
-        private OperationResult ValidateRecepcion(Recepcion recepcion)
+
+        public override async Task<OperationResult> RestoreEntityAsync(int id)
         {
-            if (recepcion == null)
+            try
             {
-                return new OperationResult { Success = false, Message = "La recepcion no puede ser nula." };
+                var recepcion = await _context.Set<Recepcion>()
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(r => r.Id == id);
+
+                var result = await base.RestoreEntityAsync(id);
+
+                
+                if (result.Success == true)
+                {
+                    result.Message = _messageMapper.SuccessMessages["RestoreSuccess"];
+                }
+
+                return result;
             }
-            if (recepcion.FechaEntrada == default)
+            catch (Exception ex)
             {
-                return new OperationResult { Success = false, Message = "La fecha de entrada es obligatoria." };
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Generic"]["GenericError"]
+                };
             }
-            if (recepcion.IdCliente.HasValue && recepcion.IdCliente <= 0)
+        }
+
+
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorClienteIdAsync(int idCliente)
+        {
+            try
             {
-                return new OperationResult { Success = false, Message = "El ID del cliente debe ser mayor que cero o nulo." };
+                return await _context.Set<Recepcion>()
+                    .Where(r => r.IdCliente.HasValue && r.IdCliente == idCliente)
+                    .ToListAsync();
             }
-            if (recepcion.IdHabitacion.HasValue && recepcion.IdHabitacion <= 0)
+            catch (Exception ex)
             {
-                return new OperationResult { Success = false, Message = "El ID de la habitacion debe ser mayor que cero o nulo." };
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return new List<Recepcion>();
             }
-            if (recepcion.IdEstadoReserva.HasValue && recepcion.IdEstadoReserva <= 0)
+        }
+
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorHabitacionIdAsync(int idHabitacion)
+        {
+            try
             {
-                return new OperationResult { Success = false, Message = "El ID del estado de la reserva debe ser mayor que cero o nulo." };
+                return await _context.Set<Recepcion>()
+                    .Where(r => r.IdHabitacion.HasValue && r.IdHabitacion == idHabitacion)
+                    .ToListAsync();
             }
-            if (recepcion.Observacion != null && recepcion.Observacion.Length > 500)
+            catch (Exception ex)
             {
-                return new OperationResult { Success = false, Message = "La observacion de la recepcion debe tener un máximo de 500 caracteres." };
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return new List<Recepcion>();
             }
-            if (recepcion.Deleted == true)
+        }
+
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorEstadoReservaAsync(int idEstadoReserva)
+        {
+            try
             {
-                return new OperationResult { Success = false, Message = "La recepcion ha sido borrada." };
+                return await _context.Set<Recepcion>()
+                    .Where(r => r.IdEstadoReserva.HasValue && r.IdEstadoReserva == idEstadoReserva)
+                    .ToListAsync();
             }
-            return new OperationResult { Success = true };
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return new List<Recepcion>();
+            }
+        }
+
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorPrecioInicialAsync(decimal precioInicial)
+        {
+            try
+            {
+                return await _context.Set<Recepcion>()
+                    .Where(r => r.PrecioInicial.HasValue &&
+                                Math.Round(r.PrecioInicial.Value, 2) == Math.Round(precioInicial, 2))
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return new List<Recepcion>();
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ namespace SGHR.Domain.Repository
         Task<OperationResult> UpdateEntityAsync(TEntity entity);
         Task<OperationResult> SaveEntityAsync(TEntity entity);
         Task<OperationResult> DeleteEntityAsync(TEntity entity);
+        Task<OperationResult> RestoreEntityAsync(int id);
         Task<List<TEntity>> GetAllAsync();
         Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> filter);
     }

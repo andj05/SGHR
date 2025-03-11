@@ -15,6 +15,5 @@ namespace SGHR.Domain.Entities.Reservation
         public string Numero { get; set; }
         public string? Detalle { get; set; }
         public int IdEstadoHabitacion { get; set; }
-        public DateTime FechaCreacion { get; set; }
     }
 }

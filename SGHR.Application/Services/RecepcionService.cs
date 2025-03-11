@@ -1,28 +1,30 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SGHR.Application.Dtos.Recepcion;
+﻿using SGHR.Application.Dtos.Recepcion;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Reservation;
 using SGHR.Persistence.Interfaces;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Persistence.Configurations;
 
 namespace SGHR.Application.Services
 {
     public class RecepcionService : IRecepcionService
     {
         private readonly IRecepcionRepository _recepcionRepository;
-        private readonly ILogger<RecepcionService> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly ILoggerManager _logger;
+        private readonly MessageMapper _messageMapper;
 
-        public RecepcionService(IRecepcionRepository recepcionRepository,
-                                ILogger<RecepcionService> logger,
-                                IConfiguration configuration)
+        public RecepcionService(
+            IRecepcionRepository recepcionRepository,
+            ILoggerManager logger,
+            MessageMapper messageMapper)
         {
             _recepcionRepository = recepcionRepository;
             _logger = logger;
-            _configuration = configuration;
+            _messageMapper = messageMapper;
         }
 
+        
         public async Task<OperationResult> GetAll()
         {
             var result = new OperationResult();
@@ -32,41 +34,49 @@ namespace SGHR.Application.Services
                 result.Data = recepciones.Where(r => !r.Deleted).ToList();
                 result.Success = true;
             }
-            catch (Exception ex)
+            catch (Exception ex) 
             {
-                _logger.LogError($"Error consiguiendo las recepciones: {ex.Message}");
+                _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
                 result.Success = false;
-                result.Message = "Error consiguiendo las recepciones.";
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
             return result;
         }
 
+        
         public async Task<OperationResult> GetById(int id)
         {
             var result = new OperationResult();
+            if (id <= 0)
+            {
+                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
             try
             {
                 var recepcion = await _recepcionRepository.GetEntityByIdAsync(id);
                 if (recepcion == null || recepcion.Deleted)
                 {
+                    _logger.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
                     result.Success = false;
-                    result.Message = "Recepcion no encontrada o eliminada.";
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    result.Success = true;
-                    result.Data = recepcion;
-                }
+                result.Success = true;
+                result.Data = recepcion;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error consiguiendo la recepcion por ID: {ex.Message}");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
                 result.Success = false;
-                result.Message = "Error consiguiendo la recepcion por ID.";
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
             return result;
         }
 
+        
         public async Task<OperationResult> Save(SaveRecepcionDto dto)
         {
             var result = new OperationResult();
@@ -87,74 +97,93 @@ namespace SGHR.Application.Services
                     CostoPenalidad = dto.CostoPenalidad,
                     Observacion = dto.Observacion,
                     Deleted = false,
-                    CreationUser = 1
+                    CreationUser = 1, //en produccion cambiar por el usuario actual
+                    FechaCreacion = DateTime.Now
                 };
 
-                var validationResult = ValidateRecepcion(recepcion);
+                var validationResult = ValidateRecepcionBusiness(recepcion);
                 if (!validationResult.Success.GetValueOrDefault())
                 {
                     return validationResult;
                 }
 
-                await _recepcionRepository.SaveEntityAsync(recepcion);
-                result.Success = true;
+                var saveResult = await _recepcionRepository.SaveEntityAsync(recepcion);
+                if (saveResult.Success != true)
+                {
+                    result.Success = false;
+                    result.Message = saveResult.Message;
+                }
+                else
+                {
+                    result.Success = true;
+                    result.Data = recepcion;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error guardando la recepcion: {ex.Message}");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["SaveFailed"]);
                 result.Success = false;
-                result.Message = "Error guardando la recepcion.";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"];
             }
             return result;
         }
 
+        
         public async Task<OperationResult> Update(UpdateRecepcionDto dto)
         {
             var result = new OperationResult();
             try
             {
-                var recepcion = await _recepcionRepository.GetEntityByIdAsync(dto.Id);
-                if (recepcion == null || recepcion.Deleted)
+                var existingRecepcion = await _recepcionRepository.GetEntityByIdAsync(dto.Id);
+                if (existingRecepcion == null || existingRecepcion.Deleted)
                 {
                     result.Success = false;
-                    result.Message = "Recepcion no encontrada o eliminada.";
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
+
+                existingRecepcion.IdCliente = dto.IdCliente;
+                existingRecepcion.IdHabitacion = dto.IdHabitacion;
+                existingRecepcion.IdEstadoReserva = dto.IdEstadoReserva;
+                existingRecepcion.FechaEntrada = dto.FechaEntrada;
+                existingRecepcion.FechaSalida = dto.FechaSalida;
+                existingRecepcion.FechaSalidaConfirmacion = dto.FechaSalidaConfirmacion;
+                existingRecepcion.PrecioInicial = dto.PrecioInicial;
+                existingRecepcion.Adelanto = dto.Adelanto;
+                existingRecepcion.PrecioRestante = dto.PrecioRestante;
+                existingRecepcion.TotalPagado = dto.TotalPagado;
+                existingRecepcion.CostoPenalidad = dto.CostoPenalidad;
+                existingRecepcion.Observacion = dto.Observacion;
+                existingRecepcion.ModifyDate = DateTime.Now;
+                existingRecepcion.ModifyUser = 1; //en produccion cambiar por el usuario actual
+
+                var validationResult = ValidateRecepcionBusiness(existingRecepcion);
+                if (!validationResult.Success.GetValueOrDefault())
                 {
-                    recepcion.IdCliente = dto.IdCliente;
-                    recepcion.IdHabitacion = dto.IdHabitacion;
-                    recepcion.IdEstadoReserva = dto.IdEstadoReserva;
-                    recepcion.FechaEntrada = dto.FechaEntrada;
-                    recepcion.FechaSalida = dto.FechaSalida;
-                    recepcion.FechaSalidaConfirmacion = dto.FechaSalidaConfirmacion;
-                    recepcion.PrecioInicial = dto.PrecioInicial;
-                    recepcion.Adelanto = dto.Adelanto;
-                    recepcion.PrecioRestante = dto.PrecioRestante;
-                    recepcion.TotalPagado = dto.TotalPagado;
-                    recepcion.CostoPenalidad = dto.CostoPenalidad;
-                    recepcion.Observacion = dto.Observacion;
-                    recepcion.ModifyDate = DateTime.Now;
-                    recepcion.ModifyUser = 1;
-
-                    var validationResult = ValidateRecepcion(recepcion);
-                    if (!validationResult.Success.GetValueOrDefault())
-                    {
-                        return validationResult;
-                    }
-
-                    await _recepcionRepository.UpdateEntityAsync(recepcion);
-                    result.Success = true;
+                    return validationResult;
                 }
+
+                var updateResult = await _recepcionRepository.UpdateEntityAsync(existingRecepcion);
+                if (updateResult.Success != true)
+                {
+                    result.Success = false;
+                    result.Message = updateResult.Message;
+                    return result;
+                }
+
+                result.Success = true;
+                result.Data = existingRecepcion;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error actualizando la recepcion: {ex.Message}");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
                 result.Success = false;
-                result.Message = "Error actualizando la recepcion.";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
             }
             return result;
         }
 
+        
         public async Task<OperationResult> Remove(RemoveRecepcionDto dto)
         {
             var result = new OperationResult();
@@ -164,63 +193,72 @@ namespace SGHR.Application.Services
                 if (recepcion == null)
                 {
                     result.Success = false;
-                    result.Message = "Recepcion no encontrada.";
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else if (recepcion.IdEstadoReserva == 2)
+                if (recepcion.IdEstadoReserva == 2)
                 {
                     result.Success = false;
-                    result.Message = "No se puede eliminar una recepcion en curso.";
+                    result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteInProgress"];
+                    return result;
                 }
-                else
+
+                var deleteResult = await _recepcionRepository.DeleteEntityAsync(recepcion);
+                if (deleteResult.Success != true)
                 {
-                    recepcion.Deleted = true;
-                    await _recepcionRepository.UpdateEntityAsync(recepcion);
-                    result.Success = true;
+                    result.Success = false;
+                    result.Message = deleteResult.Message;
+                    return result;
                 }
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error eliminando la recepcion: {ex.Message}");
+                _logger.LogError($"{_messageMapper.ErrorMessages["Operations"]["DeleteFailed"]}: {ex.Message}");
                 result.Success = false;
-                result.Message = "Error eliminando la recepcion.";
+                result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"];
             }
             return result;
         }
 
-        private OperationResult ValidateRecepcion(Recepcion recepcion)
+        
+        public async Task<OperationResult> Restore(int id)
         {
-            if (recepcion == null)
+            var result = new OperationResult();
+            if (id <= 0)
             {
-                return new OperationResult { Success = false, Message = "La recepcion no puede ser nula." };
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
             }
-            if (recepcion.FechaEntrada == default)
+            try
             {
-                return new OperationResult { Success = false, Message = "La fecha de entrada es obligatoria." };
+                
+                var existing = await _recepcionRepository.GetEntityByIdAsync(id);
+                if (!existing.Deleted)
+                {
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["Reservation"]["AlreadyActive"];
+                    return result;
+                }
+
+                result = await _recepcionRepository.RestoreEntityAsync(id);
+                if (result.Success!=true)
+                {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["RestoreFailed"]);
+                }
             }
-            if (recepcion.IdCliente.HasValue && recepcion.IdCliente <= 0)
+            catch (Exception ex)
             {
-                return new OperationResult { Success = false, Message = "El ID del cliente debe ser mayor que cero o nulo." };
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            if (recepcion.IdHabitacion.HasValue && recepcion.IdHabitacion <= 0)
-            {
-                return new OperationResult { Success = false, Message = "El ID de la habitacion debe ser mayor que cero o nulo." };
-            }
-            if (recepcion.IdEstadoReserva.HasValue && recepcion.IdEstadoReserva <= 0)
-            {
-                return new OperationResult { Success = false, Message = "El ID del estado de la reserva debe ser mayor que cero o nulo." };
-            }
-            if (recepcion.Observacion != null && recepcion.Observacion.Length > 500)
-            {
-                return new OperationResult { Success = false, Message = "La observacion de la recepcion debe tener un máximo de 500 caracteres." };
-            }
-            if (recepcion.Deleted == true)
-            {
-                return new OperationResult { Success = false, Message = "La recepcion fue eliminada." };
-            }
-            return new OperationResult { Success = true };
+            return result;
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorEstadoReservaAsync(int idEstadoReserva)
+        
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorEstadoReserva(int idEstadoReserva)
         {
             try
             {
@@ -228,12 +266,12 @@ namespace SGHR.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al obtener recepciones por estado de reserva: {ex.Message}");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
                 return new List<Recepcion>();
             }
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorClienteIdAsync(int idCliente)
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorClienteId(int idCliente)
         {
             try
             {
@@ -241,12 +279,12 @@ namespace SGHR.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al obtener recepciones por cliente: {ex.Message}");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
                 return new List<Recepcion>();
             }
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorHabitacionIdAsync(int idHabitacion)
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorHabitacionId(int idHabitacion)
         {
             try
             {
@@ -254,35 +292,66 @@ namespace SGHR.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al obtener recepciones por habitacion: {ex.Message}");
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
                 return new List<Recepcion>();
             }
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorFechaEntradaAsync(DateTime fechaInicio, DateTime fechaFin)
+        public async Task<List<Recepcion>> ObtenerRecepcionesPorPrecioInicial(decimal precioInicial)
         {
+            var result = new List<Recepcion>();
             try
             {
-                return await _recepcionRepository.ObtenerRecepcionesPorFechaEntradaAsync(fechaInicio, fechaFin);
+                if (precioInicial < 0)
+                {
+                    _logger.LogError(_messageMapper.ErrorMessages["Rate"]["InvalidPrice"]);
+                    return result;
+                }
+                result = await _recepcionRepository.ObtenerRecepcionesPorPrecioInicialAsync(precioInicial);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error al obtener recepciones por fecha de entrada: {ex.Message}");
-                return new List<Recepcion>();
+                _logger.LogError(ex, $"{_messageMapper.ErrorMessages["Generic"]["GenericError"]} [Price: {precioInicial}]");
             }
+            return result;
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorFechaSalidaConfirmadaAsync(DateTime fechaInicio, DateTime fechaFin)
+        
+        private OperationResult ValidateRecepcionBusiness(Recepcion recepcion)
         {
-            try
+            if (recepcion == null)
             {
-                return await _recepcionRepository.ObtenerRecepcionesPorFechaSalidaConfirmadaAsync(fechaInicio, fechaFin);
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"] };
             }
-            catch (Exception ex)
+            if (recepcion.FechaEntrada == default)
             {
-                _logger.LogError($"Error al obtener recepciones por fecha de salida confirmada: {ex.Message}");
-                return new List<Recepcion>();
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["MissingEntryDate"] };
             }
+            if (recepcion.IdCliente.HasValue && recepcion.IdCliente <= 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidClientID"] };
+            }
+            if (recepcion.IdHabitacion.HasValue && recepcion.IdHabitacion <= 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidRoomID"] };
+            }
+            if (recepcion.IdEstadoReserva.HasValue && recepcion.IdEstadoReserva <= 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidStatusID"] };
+            }
+            if (recepcion.Observacion != null && recepcion.Observacion.Length > 500)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["ObservationTooLong"] };
+            }
+            if (recepcion.Deleted)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidDeleteState"] };
+            }
+            if (recepcion.FechaCreacion == default)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["CreationDateRequired"] };
+            }
+            return new OperationResult { Success = true };
         }
     }
 }

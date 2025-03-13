@@ -1,5 +1,4 @@
-﻿
-namespace SGHR.Persistence.Configurations
+﻿namespace SGHR.Persistence.Configurations
 {
     public class MessageMapper
     {

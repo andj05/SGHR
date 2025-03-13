@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Servicios;
+using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
@@ -29,8 +30,8 @@ namespace SGHR.Api.Controllers
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var servicios = (IEnumerable<Servicios>)result.Data;
-            return Ok(servicios.Where(s => !s.Deleted));
+            var servicios = (IEnumerable<ServiciosDto>)result.Data;
+            return Ok(servicios);
         }
 
         // GET api/Servicios/GetServiciosByID/5

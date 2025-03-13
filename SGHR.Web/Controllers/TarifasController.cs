@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
+using SGHR.Domain.Entities.Configuration;
 
 namespace SGHR.Web.Controllers
 {
@@ -9,25 +10,38 @@ namespace SGHR.Web.Controllers
     {
         private readonly ITarifasService tarifasService;
 
-        public TarifasController(ITarifasService tarifasService)
+        public TarifasController(ITarifasService tarifasService) 
         {
             this.tarifasService = tarifasService;
         }
 
         // GET: TarifasController
-        public async Task<IActionResult> Index()
+        public async Task <IActionResult> Index()
         {
             var result = await tarifasService.GetAll();
-            if (result.Success != true)
+            if(result.Success == true) 
             {
-                List<TarifasDto> tarifasList = (List<TarifasDto>)result.Data;
-
-                return View(tarifasList);
+                List<TarifasDto> tarifas = (List<TarifasDto>)result.Data;
+                return View(tarifas);
             }
-            //tarifas
             return View();
         }
 
+        // GET: TarifasController/Details/5
+        public async Task<ActionResult> Details(int id)
+        {
+            var result = await tarifasService.GetById(id);
+
+            if (result.Success == true)
+            {
+                var tarifasEntity = (Tarifas)result.Data;
+                TarifasDto tarifasDto = TarifasMapper.ToDto(tarifasEntity);
+
+                return View(tarifasDto);
+            }
+
+            return View();
+        }
 
         // GET: TarifasController/Create
         public ActionResult Create()
@@ -38,11 +52,16 @@ namespace SGHR.Web.Controllers
         // POST: TarifasController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        public async Task<ActionResult> Create(SaveTarifasDto saveTarifasDto)
         {
             try
             {
-                return RedirectToAction(nameof(Index));
+                var result = await this.tarifasService.Save(saveTarifasDto);
+
+                if (result.Success == true)
+                    return RedirectToAction(nameof(Index));
+
+                return View();
             }
             catch
             {
@@ -51,40 +70,33 @@ namespace SGHR.Web.Controllers
         }
 
         // GET: TarifasController/Edit/5
-        public ActionResult Edit(int id)
+        public async Task<ActionResult> Edit(int id)
         {
+            var result = await tarifasService.GetById(id);
+
+            if (result.Success == true)
+            {
+                var tarifasEntity = (Tarifas)result.Data;
+                TarifasDto tarifasDto = TarifasMapper.ToDto(tarifasEntity);
+
+                return View(tarifasDto);
+            }
+
             return View();
         }
 
         // POST: TarifasController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public async Task<IActionResult> Edit(UpdateTarifasDto updateTarifasDto)
         {
             try
             {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
+                var result = await this.tarifasService.Update(updateTarifasDto);
+                if (result.Success == true)
+                    return RedirectToAction(nameof(Index));
+
                 return View();
-            }
-        }
-
-        // GET: TarifasController/Delete/5
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
-
-        // POST: TarifasController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
             }
             catch
             {

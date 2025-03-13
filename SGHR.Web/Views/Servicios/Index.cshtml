@@ -1,0 +1,64 @@
+﻿@model IEnumerable<SGHR.Application.Dtos.Servicios.ServiciosDto>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Servicios</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.IdServicio)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Nombre)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Descripcion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Estado)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeData)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeUser)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdServicio)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Nombre)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Descripcion)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Estado)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangeData)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangeUser)
+            </td>
+            <td>
+                @Html.ActionLink("Edit", "Edit", new {  id=item.IdServicio }) |
+                @Html.ActionLink("Details", "Details", new { id=item.IdServicio }) |
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

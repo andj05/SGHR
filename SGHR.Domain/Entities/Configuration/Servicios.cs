@@ -7,7 +7,7 @@ namespace SGHR.Domain.Entities.Configuration
         public required string Nombre { get; set; }
         public required string Descripcion { get; set; }
         public bool Estado { get; set; }
-        public int CreationUser { get; set; }
+        public int? CreationUser { get; set; }
         public DateTime? ModifyDate { get; set; }
         public int? ModifyUser { get; set; }
         public int? DeletedUser { get; set; }

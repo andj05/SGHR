@@ -5,6 +5,7 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repositories;
 
 namespace SGHR.Application.Services
 {
@@ -25,20 +26,25 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetAll()
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
             try
             {
-                var categorias = await _categoriaRepository.GetAllAsync();
-                operationResult.Success = true;
-                operationResult.Data = categorias;
+                var categoria = await _categoriaRepository.GetAllAsync();
+                var activecategoria = categoria
+                    .Where(t => !t.Deleted)
+                    .Select(CategoriaMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeData)
+                    .ToList();
+                result.Data = activecategoria;
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> GetById(int id)
@@ -75,15 +81,7 @@ namespace SGHR.Application.Services
 
             try
             {
-                var categoria = new Categoria
-                {
-                    
-                    Estado = dto.Estado,
-                    FechaCreacion = DateTime.Now,
-                    Descripcion = dto.Descripcion,
-                    CreationUser = 1 // En producción, obtener el usuario autenticado.
-                };
-
+                var categoria = CategoriaMapper.ToEntity(dto);
                 return await _categoriaRepository.SaveEntityAsync(categoria);
             }
             catch (Exception ex)
@@ -114,13 +112,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            categoria.Descripcion = dto.Descripcion ?? categoria.Descripcion;
-            categoria.Estado = dto.Estado;
-            categoria.ModifyDate = DateTime.Now;
-            categoria.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _categoriaRepository.UpdateEntityAsync(categoria);
-            return result;
+            categoria.UpdateFromDto(dto);
+            return await _categoriaRepository.UpdateEntityAsync(categoria);
         }
 
         public async Task<OperationResult> Remove(RemoveCategoriasDto dto)
@@ -140,12 +133,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            categoria.Deleted = true;
-            categoria.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-            categoria.ModifyDate = DateTime.Now;
-
-            var result = await _categoriaRepository.UpdateEntityAsync(categoria);
-            return result;
+            categoria.RemoveFromDto(dto);
+            return await _categoriaRepository.UpdateEntityAsync(categoria);
         }
 
         public async Task<OperationResult> Restore(int id)
@@ -158,13 +147,10 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            categoria.Deleted = false;
-            categoria.ModifyDate = DateTime.Now;
-            categoria.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _categoriaRepository.UpdateEntityAsync(categoria);
-            return result;
+            categoria.RestoreFromDto(1);
+            return await _categoriaRepository.UpdateEntityAsync(categoria);
         }
+
 
         private OperationResult ValidateCategoria(dynamic categoria)
         {
@@ -172,14 +158,14 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Categoría inválida" // Mensaje directo
+                    Message = "Categoría inválida" 
                 };
 
             if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 50)
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Descripción debe tener entre 1 y 50 caracteres" // Mensaje directo
+                    Message = "Descripción debe tener entre 1 y 50 caracteres" 
                 };
 
             return new OperationResult { Success = true };

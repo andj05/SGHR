@@ -29,8 +29,8 @@ namespace SGHR.Api.Controllers
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var tarifas = (IEnumerable<Tarifas>)result.Data;
-            return Ok(tarifas.Where(t => !t.Deleted));
+            var tarifas = (IEnumerable<TarifasDto>)result.Data;
+            return Ok(tarifas);
         }
 
         // GET api/Tarifas/GetTarifasByID/5

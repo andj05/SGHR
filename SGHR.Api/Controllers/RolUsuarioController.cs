@@ -29,8 +29,8 @@ namespace SGHR.Api.Controllers
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var roles = (IEnumerable<RolUsuario>)result.Data;
-            return Ok(roles.Where(r => !r.Deleted));
+            var roles = (IEnumerable<RolUsuarioDto>)result.Data;
+            return Ok(roles);
         }
 
         // GET api/RolUsuario/GetRolByID/5

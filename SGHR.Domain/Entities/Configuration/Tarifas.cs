@@ -4,9 +4,9 @@
 
     public sealed class Tarifas : BaseEntity<int>
     {
-
-        public DateOnly FechaInicio { get; set; }
-        public DateOnly FechaFin { get; set; }
+        public int Id { get; set; }
+        public DateOnly FechaInicio { get; set; } 
+        public DateOnly FechaFin { get; set; } 
         public decimal PrecioPorNoche { get; set; }
         public decimal Descuento { get; set; }
         public required string Descripcion { get; set; }

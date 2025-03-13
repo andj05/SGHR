@@ -4,6 +4,7 @@ using SGHR.Domain.Base;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repositories;
 using SGHR.Persistence.Repository;
 
 namespace SGHR.Application.Services
@@ -25,20 +26,25 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetAll()
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
             try
             {
-                var estados = await _estadoHabitacionRepository.GetAllAsync();
-                operationResult.Success = true;
-                operationResult.Data = estados;
+                var estadoHabitacion = await _estadoHabitacionRepository.GetAllAsync();
+                var activeEstadoHabitacion = estadoHabitacion
+                    .Where(t => !t.Deleted)
+                    .Select(EstadoHabitacionMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeData)
+                    .ToList();
+                result.Data = activeEstadoHabitacion;
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> GetById(int id)
@@ -46,15 +52,15 @@ namespace SGHR.Application.Services
             var operationResult = new OperationResult();
             try
             {
-                var categoria = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (categoria == null)
+                var estadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
+                if (estadoHabitacion == null)
                 {
                     operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     operationResult.Success = false;
                 }
                 else
                 {
-                    operationResult.Data = categoria;
+                    operationResult.Data = estadoHabitacion;
                     operationResult.Success = true;
                 }
             }
@@ -75,15 +81,8 @@ namespace SGHR.Application.Services
 
             try
             {
-                var estado = new EstadoHabitacion
-                {
-                    Descripcion = dto.Descripcion,
-                    FechaCreacion = DateTime.UtcNow,
-                    Estado = dto.Estado,
-                    CreationUser = 1
-                };
-
-                return await _estadoHabitacionRepository.SaveEntityAsync(estado);
+                var estadoHabitacion = EstadoHabitacionMapper.ToEntity(dto);
+                return await _estadoHabitacionRepository.SaveEntityAsync(estadoHabitacion);
             }
             catch (Exception ex)
             {
@@ -98,7 +97,6 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateEstadoHabitacionDto dto)
         {
-
             if (dto.IdEstadoHabitacion <= 0)
                 return new OperationResult
                 {
@@ -114,19 +112,12 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            estadoHabitacion.Descripcion = dto.Descripcion ?? estadoHabitacion.Descripcion;
-            estadoHabitacion.Estado = dto.Estado;
-            estadoHabitacion.FechaCreacion = dto.FechaCreacion != default ? dto.FechaCreacion : estadoHabitacion.FechaCreacion;
-            estadoHabitacion.ModifyDate = DateTime.Now;
-            estadoHabitacion.ModifyUser = 1;
-
-            var result = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
-            return result;
+            estadoHabitacion.UpdateFromDto(dto);
+            return await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
         }
 
         public async Task<OperationResult> Remove(RemoveEstadoHabitacionDto dto)
         {
-
             if (dto.IdEstadoHabitacion <= 0)
                 return new OperationResult
                 {
@@ -142,14 +133,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            estadoHabitacion.Deleted = true;
-            estadoHabitacion.DeletedUser = 1;
-            estadoHabitacion.ModifyDate = DateTime.Now; estadoHabitacion.Deleted = true;
-            estadoHabitacion.DeletedUser = 1;
-            estadoHabitacion.ModifyDate = DateTime.Now;
-
-            var result = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
-            return result;
+            estadoHabitacion.RemoveFromDto(dto);
+            return await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
         }
 
         public async Task<OperationResult> Restore(int id)
@@ -162,13 +147,10 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            estadoHabitacion.Deleted = false;
-            estadoHabitacion.ModifyDate = DateTime.Now;
-            estadoHabitacion.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
-            return result;
+            estadoHabitacion.RestoreFromDto(1); 
+            return await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
         }
+
 
         private OperationResult ValidateEstadoHabitacion(dynamic estado)
         {

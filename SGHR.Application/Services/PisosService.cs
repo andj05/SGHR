@@ -6,6 +6,7 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repositories;
 using SGHR.Persistence.Repository;
 
 namespace SGHR.Application.Services
@@ -27,23 +28,27 @@ namespace SGHR.Application.Services
             _messageMapper = messageMapper;
             _loggerManager = loggerManager;
         }
-
         public async Task<OperationResult> GetAll()
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
             try
             {
                 var pisos = await _pisoRepository.GetAllAsync();
-                operationResult.Data = pisos;
-                operationResult.Success = true;
+                var activeTarifas = pisos
+                    .Where(t => !t.Deleted)
+                    .Select(PisoMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeData)
+                    .ToList();
+                result.Data = activeTarifas;
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> GetById(int id)
@@ -80,15 +85,7 @@ namespace SGHR.Application.Services
 
             try
             {
-                var piso = new Piso
-                {   
-                    FechaCreacion = DateTime.UtcNow,
-                    Descripcion = dto.Descripcion,
-                    Estado = dto.Estado,
-                    CreationUser = 1 // Usar el usuario autenticado en producción
-
-                };
-
+                var piso = PisoMapper.ToEntity(dto);
                 return await _pisoRepository.SaveEntityAsync(piso);
             }
             catch (Exception ex)
@@ -119,15 +116,9 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            piso.Descripcion = dto.Descripcion ?? piso.Descripcion;
-            piso.Estado = dto.Estado != default ? dto.Estado : piso.Estado;
-            piso.ModifyDate = DateTime.Now;
-            piso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _pisoRepository.UpdateEntityAsync(piso);
-            return result;
+            piso.UpdateFromDto(dto);
+            return await _pisoRepository.UpdateEntityAsync(piso);
         }
-
 
         public async Task<OperationResult> Remove(RemovePisosDto dto)
         {
@@ -146,12 +137,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            piso.Deleted = true;
-            piso.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-            piso.ModifyDate = DateTime.Now;
-
-            var result = await _pisoRepository.UpdateEntityAsync(piso);
-            return result;
+            piso.RemoveFromDto(dto);
+            return await _pisoRepository.UpdateEntityAsync(piso);
         }
 
         public async Task<OperationResult> Restore(int id)
@@ -164,12 +151,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            piso.Deleted = false;
-            piso.ModifyDate = DateTime.Now;
-            piso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _pisoRepository.UpdateEntityAsync(piso);
-            return result;
+            piso.RestoreFromDto(1); // En producción, obtener el usuario autenticado.
+            return await _pisoRepository.UpdateEntityAsync(piso);
         }
 
         private OperationResult ValidatePiso(SavePisosDto dto)

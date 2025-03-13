@@ -32,8 +32,8 @@ namespace SGHR.Api.Controllers
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var pisos = (IEnumerable<Piso>)result.Data;
-            return Ok(pisos.Where(p => !p.Deleted));
+            var pisos = (IEnumerable<PisosDto>)result.Data;
+            return Ok(pisos);
         }
 
         // GET api/Piso/GetPisoByID/5

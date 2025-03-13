@@ -28,22 +28,27 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetAll()
         {
-            OperationResult operationResult = new OperationResult();
-
+            var result = new OperationResult();
             try
             {
                 var tarifas = await _tarifasRepository.GetAllAsync();
-                operationResult.Data = tarifas;
-                operationResult.Success = true;
+                var activeTarifas = tarifas
+                    .Where(t => !t.Deleted)
+                    .Select(TarifasMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeData)
+                    .ToList();
+                result.Data = activeTarifas;
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                _loggerManager.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            return operationResult;
+            return result;
         }
+
 
         public async Task<OperationResult> GetById(int id)
         {
@@ -73,27 +78,13 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SaveTarifasDto dto)
         {
-          
             var validationResult = ValidateTarifas(dto);
             if (validationResult.Success != true)
                 return validationResult;
 
             try
             {
-                var tarifa = new Tarifas
-                {
-                    FechaInicio = dto.FechaInicio,
-                    FechaFin = dto.FechaFin,
-                    PrecioPorNoche = dto.PrecioPorNoche,
-                    Descuento = dto.Descuento,
-                    Descripcion = dto.Descripcion,
-                    IdHabitacion = dto.IdHabitacion,
-                    Estado = dto.Estado,
-                    FechaCreacion = DateTime.UtcNow, // Agregado para consistencia
-                    CreationUser = 1
-                };
-
-
+                var tarifa = TarifasMapper.ToEntity(dto);
                 return await _tarifasRepository.SaveEntityAsync(tarifa);
             }
             catch (Exception ex)
@@ -124,18 +115,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            tarifa.FechaInicio = dto.FechaInicio;
-            tarifa.FechaFin = dto.FechaFin;
-            tarifa.PrecioPorNoche = dto.PrecioPorNoche;
-            tarifa.Descuento = dto.Descuento;
-            tarifa.Descripcion = dto.Descripcion;
-            tarifa.IdHabitacion = dto.IdHabitacion;
-            tarifa.Estado = dto.Estado;
-            tarifa.FechaCreacion = DateTime.UtcNow;
-            tarifa.CreationUser = 1;
-
-            var result = await _tarifasRepository.UpdateEntityAsync(tarifa);
-            return result;
+            tarifa.UpdateFromDto(dto);
+            return await _tarifasRepository.UpdateEntityAsync(tarifa);
         }
 
         public async Task<OperationResult> Remove(RemoveTarifasDto dto)
@@ -155,12 +136,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            tarifa.Deleted = true;
-            tarifa.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-            tarifa.ModifyDate = DateTime.Now;
-
-            var result = await _tarifasRepository.UpdateEntityAsync(tarifa);
-            return result;
+            tarifa.RemoveFromDto(dto);
+            return await _tarifasRepository.UpdateEntityAsync(tarifa);
         }
 
         public async Task<OperationResult> Restore(int id)
@@ -173,13 +150,10 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            tarifa.Deleted = false;
-            tarifa.ModifyDate = DateTime.Now;
-            tarifa.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _tarifasRepository.UpdateEntityAsync(tarifa);
-            return result;
+            tarifa.RestoreFromDto(1);
+            return await _tarifasRepository.UpdateEntityAsync(tarifa);
         }
+
 
         private OperationResult ValidateTarifas(dynamic tarifas)
         {

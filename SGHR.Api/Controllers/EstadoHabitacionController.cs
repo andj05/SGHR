@@ -30,8 +30,8 @@ namespace SGHR.Api.Controllers
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var estadoHabitacion = (IEnumerable<EstadoHabitacion>)result.Data;
-            return Ok(estadoHabitacion.Where(e => !e.Deleted));
+            var estadoHabitacion = (IEnumerable<EstadoHabitacionDto>)result.Data;
+            return Ok(estadoHabitacion);
         }
 
         // GET api/EstadoHabitacion/GetEstadoByID/5

@@ -19,17 +19,19 @@ namespace SGHR.Api.Controllers
             _messageMapper = messageMapper;
         }
 
-        [HttpGet("GetCategorias")]
+        // GET: api/Categoria/GetCategoria
+        [HttpGet("GetCategoria")]
         public async Task<IActionResult> Get()
         {
             var result = await _categoriaService.GetAll();
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var categorias = (IEnumerable<Categoria>)result.Data;
-            return Ok(categorias.Where(c => !c.Deleted));
+            var categorias = (IEnumerable<CategoriasDto>)result.Data;
+            return Ok(categorias);
         }
 
+        // GET api/Categoria/GetCategoriaByID/5
         [HttpGet("GetCategoriaByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -44,6 +46,7 @@ namespace SGHR.Api.Controllers
             return Ok(categoria);
         }
 
+        // GET api/Categoria/GetDeletedCategoria
         [HttpGet("GetDeletedCategoria")]
         public async Task<IActionResult> GetDeletedClientes()
         {
@@ -55,7 +58,8 @@ namespace SGHR.Api.Controllers
             return Ok(categorias.Where(c => c.Deleted));
         }
 
-        [HttpGet("GetDeletedTarifasByID/{id}")]
+        // GET api/Categoria/GetDeletedCategoriaByID/5
+        [HttpGet("GetDeletedCategoriasByID/{id}")]
         public async Task<IActionResult> GetDeletedClienteByID(int id)
         {
             var result = await _categoriaService.GetById(id);
@@ -69,6 +73,7 @@ namespace SGHR.Api.Controllers
             return Ok(categoria);
         }
 
+        // POST api/Categoria/SaveCategoria
         [HttpPost("SaveCategoria")]
         public async Task<IActionResult> Post([FromBody] SaveCategoriasDto categoriaDto)
         {
@@ -86,6 +91,7 @@ namespace SGHR.Api.Controllers
             }
         }
 
+        // PUT api/Categoria/UpdateCategoria/5
         [HttpPut("UpdateCategoria/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] UpdateCategoriasDto categoriaDto)
         {
@@ -113,6 +119,7 @@ namespace SGHR.Api.Controllers
             return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
+        // DELETE api/Categoria/DeleteCategoria/5
         [HttpDelete("DeleteCategoria/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
@@ -134,6 +141,7 @@ namespace SGHR.Api.Controllers
             return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
 
+        // PUT api/Categoria/RestoreCategoria/5
         [HttpPut("RestoreCategoria/{id}")]
         public async Task<IActionResult> Restore(int id)
         {

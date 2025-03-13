@@ -5,6 +5,7 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
+using SGHR.Persistence.Repositories;
 
 
 namespace SGHR.Application.Services
@@ -26,21 +27,25 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetAll()
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
             try
             {
-                var roles = await _rolUsuarioRepository.GetAllAsync();
-                operationResult.Data = roles;
-                operationResult.Success = true;
-                operationResult.Message = _messageMapper.SuccessMessages["GenericSuccess"];
+                var rolUsuarios = await _rolUsuarioRepository.GetAllAsync();
+                var activerolUsuarios = rolUsuarios
+                    .Where(t => !t.Deleted)
+                    .Select(RolUsuarioMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeData)
+                    .ToList();
+                result.Data = activerolUsuarios;
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> GetById(int id)
@@ -77,14 +82,7 @@ namespace SGHR.Application.Services
 
             try
             {
-                var rolUsuario = new RolUsuario
-                {
-                    FechaCreacion = DateTime.UtcNow,
-                    Descripcion = dto.Descripcion,
-                    Estado = dto.Estado,
-                    CreationUser = 1 // En producción, obtener el usuario autenticado
-                };
-
+                var rolUsuario = RolUsuarioMapper.ToEntity(dto);
                 return await _rolUsuarioRepository.SaveEntityAsync(rolUsuario);
             }
             catch (Exception ex)
@@ -115,13 +113,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            rolUsuario.Descripcion = dto.Descripcion ?? rolUsuario.Descripcion;
-            rolUsuario.Estado = dto.Estado ?? rolUsuario.Estado;
-            rolUsuario.ModifyDate = DateTime.Now;
-            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
-
-            var result = await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
-            return result;
+            rolUsuario.UpdateFromDto(dto);
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
         }
 
         public async Task<OperationResult> Remove(RemoveRolUsuarioDto dto)
@@ -141,12 +134,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            rolUsuario.Deleted = true;
-            rolUsuario.DeletedUser = 1; // En producción, obtener el usuario autenticado.
-            rolUsuario.ModifyDate = DateTime.Now;
-
-            var result = await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
-            return result;
+            rolUsuario.RemoveFromDto(dto);
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
         }
 
         public async Task<OperationResult> Restore(int id)
@@ -159,12 +148,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            rolUsuario.Deleted = false;
-            rolUsuario.ModifyDate = DateTime.Now;
-            rolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
-            return result;
+            rolUsuario.RestoreFromDto(1); 
+            return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
         }
 
         private OperationResult ValidateRolUsuario(dynamic rolUsuario)

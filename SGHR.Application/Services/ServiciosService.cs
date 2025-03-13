@@ -5,7 +5,8 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repository;
+using SGHR.Persistence.Repositories;
+
 
 namespace SGHR.Application.Services
 {
@@ -26,20 +27,25 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetAll()
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
             try
             {
                 var servicios = await _serviciosRepository.GetAllAsync();
-                operationResult.Data = servicios;
-                operationResult.Success = true;
+                var activeservicios = servicios
+                    .Where(t => !t.Deleted)
+                    .Select(ServiciosMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeData)
+                    .ToList();
+                result.Data = activeservicios;
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> GetById(int id)
@@ -76,15 +82,7 @@ namespace SGHR.Application.Services
 
             try
             {
-                var servicio = new Servicios
-                {
-                    FechaCreacion = DateTime.UtcNow,
-                    Nombre = dto.Nombre,
-                    Descripcion = dto.Descripcion,
-                    Estado = dto.Estado,
-                    CreationUser = 1
-                };
-
+                var servicio = ServiciosMapper.ToEntity(dto);
                 return await _serviciosRepository.SaveEntityAsync(servicio);
             }
             catch (Exception ex)
@@ -115,14 +113,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            servicio.Nombre = dto.Nombre ?? servicio.Nombre;
-            servicio.Descripcion = dto.Descripcion ?? servicio.Descripcion;
-            servicio.Estado = dto.Estado;
-            servicio.ModifyDate = DateTime.Now;
-            servicio.ModifyUser = 1; // En producción, obtener el usuario autenticado
-
-            var result = await _serviciosRepository.UpdateEntityAsync(servicio);
-            return result;
+            servicio.UpdateFromDto(dto);
+            return await _serviciosRepository.UpdateEntityAsync(servicio);
         }
 
         public async Task<OperationResult> Remove(RemoveServiciosDto dto)
@@ -142,12 +134,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            servicio.Deleted = true;
-            servicio.DeletedUser = 1;
-            servicio.ModifyDate = DateTime.Now;
-
-           var result = await _serviciosRepository.UpdateEntityAsync(servicio);
-            return result;
+            servicio.RemoveFromDto(dto);
+            return await _serviciosRepository.UpdateEntityAsync(servicio);
         }
 
         public async Task<OperationResult> Restore(int id)
@@ -160,12 +148,8 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            servicio.Deleted = false;
-            servicio.ModifyDate = DateTime.Now;
-            servicio.ModifyUser = 1; // En producción, obtener el usuario autenticado.
-
-            var result = await _serviciosRepository.UpdateEntityAsync(servicio);
-            return result;
+            servicio.RestoreFromDto(1); // En producción, obtener el usuario autenticado.
+            return await _serviciosRepository.UpdateEntityAsync(servicio);
         }
 
         private OperationResult ValidateServicios(dynamic service)

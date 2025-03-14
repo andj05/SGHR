@@ -6,9 +6,9 @@ namespace SGHR.Application.Interfaces
 {
     public interface IRecepcionService : IBaseService<SaveRecepcionDto, UpdateRecepcionDto, RemoveRecepcionDto>
     {
-        Task<List<Recepcion>> ObtenerRecepcionesPorEstadoReserva(int idEstadoReserva);
-        Task<List<Recepcion>> ObtenerRecepcionesPorClienteId(int idCliente);
-        Task<List<Recepcion>> ObtenerRecepcionesPorHabitacionId(int idHabitacion);
-        Task<List<Recepcion>> ObtenerRecepcionesPorPrecioInicial(decimal PrecioInicial);
+        Task<List<RecepcionDto>> ObtenerRecepcionesPorEstadoReserva(int idEstadoReserva);
+        Task<List<RecepcionDto>> ObtenerRecepcionesPorClienteId(int idCliente);
+        Task<List<RecepcionDto>> ObtenerRecepcionesPorHabitacionId(int idHabitacion);
+        Task<List<RecepcionDto>> ObtenerRecepcionesPorPrecioInicial(decimal PrecioInicial);
     }
 }

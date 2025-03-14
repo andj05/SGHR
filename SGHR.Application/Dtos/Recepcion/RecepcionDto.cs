@@ -2,6 +2,7 @@
 {
     public class RecepcionDto : DtoBase
     {
+        public int Id { get; set; }
         public int? IdCliente { get; set; }
         public int? IdHabitacion { get; set; }
         public int? IdEstadoReserva { get; set; }

@@ -23,7 +23,6 @@ namespace SGHR.Application.Services
             _logger = logger;
             _messageMapper = messageMapper;
         }
-
         
         public async Task<OperationResult> GetAll()
         {
@@ -31,7 +30,12 @@ namespace SGHR.Application.Services
             try
             {
                 var recepciones = await _recepcionRepository.GetAllAsync();
-                result.Data = recepciones.Where(r => !r.Deleted).ToList();
+                // filtra entidades eliminadas
+                var activeRecepciones = recepciones.Where(r => !r.Deleted)
+                    .Select(RecepcionMapper.ToDto)
+                    .OrderByDescending(r => r.ChangeDate)
+                    .ToList();
+                result.Data = activeRecepciones;
                 result.Success = true;
             }
             catch (Exception ex) 
@@ -64,8 +68,9 @@ namespace SGHR.Application.Services
                     result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     return result;
                 }
+
                 result.Success = true;
-                result.Data = recepcion;
+                result.Data = RecepcionMapper.ToDto(recepcion);
             }
             catch (Exception ex)
             {
@@ -82,24 +87,7 @@ namespace SGHR.Application.Services
             var result = new OperationResult();
             try
             {
-                var recepcion = new Recepcion
-                {
-                    IdCliente = dto.IdCliente,
-                    IdHabitacion = dto.IdHabitacion,
-                    IdEstadoReserva = dto.IdEstadoReserva,
-                    FechaEntrada = dto.FechaEntrada,
-                    FechaSalida = dto.FechaSalida,
-                    FechaSalidaConfirmacion = dto.FechaSalidaConfirmacion,
-                    PrecioInicial = dto.PrecioInicial,
-                    Adelanto = dto.Adelanto,
-                    PrecioRestante = dto.PrecioRestante,
-                    TotalPagado = dto.TotalPagado,
-                    CostoPenalidad = dto.CostoPenalidad,
-                    Observacion = dto.Observacion,
-                    Deleted = false,
-                    CreationUser = 1, //en produccion cambiar por el usuario actual
-                    FechaCreacion = DateTime.Now
-                };
+                var recepcion = RecepcionMapper.ToEntity(dto);
 
                 var validationResult = ValidateRecepcionBusiness(recepcion);
                 if (!validationResult.Success.GetValueOrDefault())
@@ -108,16 +96,7 @@ namespace SGHR.Application.Services
                 }
 
                 var saveResult = await _recepcionRepository.SaveEntityAsync(recepcion);
-                if (saveResult.Success != true)
-                {
-                    result.Success = false;
-                    result.Message = saveResult.Message;
-                }
-                else
-                {
-                    result.Success = true;
-                    result.Data = recepcion;
-                }
+                result.Success = true;
             }
             catch (Exception ex)
             {
@@ -142,20 +121,7 @@ namespace SGHR.Application.Services
                     return result;
                 }
 
-                existingRecepcion.IdCliente = dto.IdCliente;
-                existingRecepcion.IdHabitacion = dto.IdHabitacion;
-                existingRecepcion.IdEstadoReserva = dto.IdEstadoReserva;
-                existingRecepcion.FechaEntrada = dto.FechaEntrada;
-                existingRecepcion.FechaSalida = dto.FechaSalida;
-                existingRecepcion.FechaSalidaConfirmacion = dto.FechaSalidaConfirmacion;
-                existingRecepcion.PrecioInicial = dto.PrecioInicial;
-                existingRecepcion.Adelanto = dto.Adelanto;
-                existingRecepcion.PrecioRestante = dto.PrecioRestante;
-                existingRecepcion.TotalPagado = dto.TotalPagado;
-                existingRecepcion.CostoPenalidad = dto.CostoPenalidad;
-                existingRecepcion.Observacion = dto.Observacion;
-                existingRecepcion.ModifyDate = DateTime.Now;
-                existingRecepcion.ModifyUser = 1; //en produccion cambiar por el usuario actual
+                existingRecepcion.UpdateFromDto(dto);
 
                 var validationResult = ValidateRecepcionBusiness(existingRecepcion);
                 if (!validationResult.Success.GetValueOrDefault())
@@ -203,7 +169,9 @@ namespace SGHR.Application.Services
                     return result;
                 }
 
+                recepcion.RemoveFromDto(dto);
                 var deleteResult = await _recepcionRepository.DeleteEntityAsync(recepcion);
+
                 if (deleteResult.Success != true)
                 {
                     result.Success = false;
@@ -234,14 +202,15 @@ namespace SGHR.Application.Services
             try
             {
                 
-                var existing = await _recepcionRepository.GetEntityByIdAsync(id);
-                if (!existing.Deleted)
+                var recepcion = await _recepcionRepository.GetEntityByIdAsync(id);
+                if (!recepcion.Deleted)
                 {
                     result.Success = false;
                     result.Message = _messageMapper.ErrorMessages["Reservation"]["AlreadyActive"];
                     return result;
                 }
 
+                recepcion.RestoreFromDto(1);
                 result = await _recepcionRepository.RestoreEntityAsync(id);
                 if (result.Success!=true)
                 {
@@ -258,62 +227,84 @@ namespace SGHR.Application.Services
         }
 
         
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorEstadoReserva(int idEstadoReserva)
+        public async Task<List<RecepcionDto>> ObtenerRecepcionesPorEstadoReserva(int idEstadoReserva)
         {
             try
             {
-                return await _recepcionRepository.ObtenerRecepcionesPorEstadoReservaAsync(idEstadoReserva);
+                if (idEstadoReserva <= 0)
+                {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Reservation"]["InvalidStatusID"]);
+                    return new List<RecepcionDto>();
+                }
+
+                var recepciones = await _recepcionRepository.ObtenerRecepcionesPorEstadoReservaAsync(idEstadoReserva);
+                return recepciones.Where(r => !r.Deleted).Select(RecepcionMapper.ToDto).ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
-                return new List<Recepcion>();
+                _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                return new List<RecepcionDto>();
             }
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorClienteId(int idCliente)
+        public async Task<List<RecepcionDto>> ObtenerRecepcionesPorClienteId(int idCliente)
         {
             try
             {
-                return await _recepcionRepository.ObtenerRecepcionesPorClienteIdAsync(idCliente);
+                if (idCliente <= 0)
+                {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Reservation"]["InvalidClientID"]);
+                    return new List<RecepcionDto>();
+                }
+
+                var recepciones = await _recepcionRepository.ObtenerRecepcionesPorClienteIdAsync(idCliente);
+                return recepciones.Where(r => !r.Deleted).Select(RecepcionMapper.ToDto).ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
-                return new List<Recepcion>();
+                _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                return new List<RecepcionDto>();
             }
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorHabitacionId(int idHabitacion)
+        public async Task<List<RecepcionDto>> ObtenerRecepcionesPorHabitacionId(int idHabitacion)
         {
             try
             {
-                return await _recepcionRepository.ObtenerRecepcionesPorHabitacionIdAsync(idHabitacion);
+                if (idHabitacion <= 0)
+                {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Reservation"]["InvalidRoomID"]);
+                    return new List<RecepcionDto>();
+                }
+
+                var recepciones = await _recepcionRepository.ObtenerRecepcionesPorHabitacionIdAsync(idHabitacion);
+                return recepciones.Where(r => !r.Deleted).Select(RecepcionMapper.ToDto).ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
-                return new List<Recepcion>();
+                _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                return new List<RecepcionDto>();
             }
         }
 
-        public async Task<List<Recepcion>> ObtenerRecepcionesPorPrecioInicial(decimal precioInicial)
+        public async Task<List<RecepcionDto>> ObtenerRecepcionesPorPrecioInicial(decimal precioInicial)
         {
-            var result = new List<Recepcion>();
             try
             {
                 if (precioInicial < 0)
                 {
-                    _logger.LogError(_messageMapper.ErrorMessages["Rate"]["InvalidPrice"]);
-                    return result;
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Rate"]["InvalidPrice"]);
+                    return new List<RecepcionDto>();
                 }
-                result = await _recepcionRepository.ObtenerRecepcionesPorPrecioInicialAsync(precioInicial);
+
+                var recepciones = await _recepcionRepository.ObtenerRecepcionesPorPrecioInicialAsync(precioInicial);
+                return recepciones.Where(r => !r.Deleted).Select(RecepcionMapper.ToDto).ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"{_messageMapper.ErrorMessages["Generic"]["GenericError"]} [Price: {precioInicial}]");
+                _logger.LogError($"{_messageMapper.ErrorMessages["Generic"]["GenericError"]}: {ex}");
+                return new List<RecepcionDto>();
             }
-            return result;
         }
 
         

@@ -3,6 +3,6 @@
     public class RemoveHabitacionDto : DtoBase
     {
         public int Id { get; set; }
-        public bool Deleted { get; set; } = false;
+        public bool Deleted { get; set; }
     }
 }

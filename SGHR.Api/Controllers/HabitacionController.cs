@@ -2,7 +2,6 @@
 using SGHR.Application.Dtos.Habitacion;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Reservation;
 
 namespace SGHR.Api.Controllers
 {
@@ -45,7 +44,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetHabitacionesPorEstado/{idEstadoHabitacion:int}")]
         public async Task<IActionResult> GetByEstado(int idEstadoHabitacion)
         {
-            List<Habitacion> habitaciones = await _habitacionService.ObtenerHabitacionesPorEstadoId(idEstadoHabitacion);
+            List<HabitacionDto> habitaciones = await _habitacionService.ObtenerHabitacionesPorEstadoId(idEstadoHabitacion);
             if (habitaciones == null || !habitaciones.Any())
             {
                 return NotFound("No se encontraron habitaciones con el estado especificado.");
@@ -57,7 +56,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetHabitacionesPorNumero")]
         public async Task<IActionResult> GetByNumero([FromQuery] string numero)
         {
-            List<Habitacion> habitaciones = await _habitacionService.ObtenerHabitacionesPorNumero(numero);
+            List<HabitacionDto> habitaciones = await _habitacionService.ObtenerHabitacionesPorNumero(numero);
             if (habitaciones == null || !habitaciones.Any())
             {
                 return NotFound("No se encontraron habitaciones con el número especificado.");
@@ -69,7 +68,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetHabitacionesPorPiso/{idPiso:int}")]
         public async Task<IActionResult> GetByPiso(int idPiso)
         {
-            List<Habitacion> habitaciones = await _habitacionService.ObtenerHabitacionesPorPisoId(idPiso);
+            List<HabitacionDto> habitaciones = await _habitacionService.ObtenerHabitacionesPorPisoId(idPiso);
             if (habitaciones == null || !habitaciones.Any())
             {
                 return NotFound("No se encontraron habitaciones para el piso especificado.");
@@ -81,7 +80,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetHabitacionesPorCategoria/{idCategoria:int}")]
         public async Task<IActionResult> GetByCategoria(int idCategoria)
         {
-            List<Habitacion> habitaciones = await _habitacionService.ObtenerHabitacionesPorCategoriaId(idCategoria);
+            List<HabitacionDto> habitaciones = await _habitacionService.ObtenerHabitacionesPorCategoriaId(idCategoria);
             if (habitaciones == null || !habitaciones.Any())
             {
                 return NotFound("No se encontraron habitaciones para la categoría especificada.");

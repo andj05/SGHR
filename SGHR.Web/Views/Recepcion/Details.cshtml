@@ -1,0 +1,55 @@
+﻿@model SGHR.Application.Dtos.Recepcion.RecepcionDto
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Details</title>
+</head>
+<body>
+    <h1>Details</h1>
+
+    <div>
+        <hr />
+        <dl class="row">
+            <dt class="col-sm-2">Id</dt>
+            <dd class="col-sm-10"><span>@Model.Id</span></dd>
+            <dt class="col-sm-2">IdCliente</dt>
+            <dd class="col-sm-10"><span>@Model.IdCliente</span></dd>
+            <dt class="col-sm-2">IdHabitacion</dt>
+            <dd class="col-sm-10"><span>@Model.IdHabitacion</span></dd>
+            <dt class="col-sm-2">IdEstadoReserva</dt>
+            <dd class="col-sm-10"><span>@Model.IdEstadoReserva</span></dd>
+            <dt class="col-sm-2">FechaEntrada</dt>
+            <dd class="col-sm-10"><span>@Model.FechaEntrada</span></dd>
+            <dt class="col-sm-2">FechaSalida</dt>
+            <dd class="col-sm-10"><span>@Model.FechaSalida</span></dd>
+            <dt class="col-sm-2">FechaSalidaConfirmacion</dt>
+            <dd class="col-sm-10"><span>@Model.FechaSalidaConfirmacion</span></dd>
+            <dt class="col-sm-2">PrecioInicial</dt>
+            <dd class="col-sm-10"><span>@Model.PrecioInicial</span></dd>
+            <dt class="col-sm-2">Adelanto</dt>
+            <dd class="col-sm-10"><span>@Model.Adelanto</span></dd>
+            <dt class="col-sm-2">PrecioRestante</dt>
+            <dd class="col-sm-10"><span>@Model.PrecioRestante</span></dd>
+            <dt class="col-sm-2">TotalPagado</dt>
+            <dd class="col-sm-10"><span>@Model.TotalPagado</span></dd>
+            <dt class="col-sm-2">CostoPenalidad</dt>
+            <dd class="col-sm-10"><span>@Model.CostoPenalidad</span></dd>
+            <dt class="col-sm-2">Observacion</dt>
+            <dd class="col-sm-10"><span>@Model.Observacion</span></dd>
+            <dt class="col-sm-2">Estado</dt>
+            <dd class="col-sm-10"><span>@Model.Estado</span></dd>
+            <dt class="col-sm-2">ChangeDate</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeDate</span></dd>
+            <dt class="col-sm-2">ChangeUser</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeUser</span></dd>
+        </dl>
+    </div>
+    <div>
+        <a href="/Recepcion/Edit/@Model.Id">Edit</a> |
+        <a href="/Recepcion/Index">Back to List</a>
+    </div>
+</body>
+</html>

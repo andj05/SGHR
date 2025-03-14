@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Recepcion;
 using SGHR.Application.Interfaces;
-using SGHR.Domain.Entities.Reservation;
 using SGHR.Domain.Base;
 
 namespace SGHR.Api.Controllers
@@ -43,7 +42,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetRecepcionesByCliente/{idCliente}")]
         public async Task<IActionResult> GetByCliente(int idCliente)
         {
-            List<Recepcion> recepciones = await _recepcionService.ObtenerRecepcionesPorClienteId(idCliente);
+            List<RecepcionDto> recepciones = await _recepcionService.ObtenerRecepcionesPorClienteId(idCliente);
             if (recepciones == null || !recepciones.Any())
                 return NotFound("No se encontraron recepciones para este cliente.");
             return Ok(recepciones);
@@ -53,7 +52,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetRecepcionesByHabitacion/{idHabitacion}")]
         public async Task<IActionResult> GetByHabitacion(int idHabitacion)
         {
-            List<Recepcion> recepciones = await _recepcionService.ObtenerRecepcionesPorHabitacionId(idHabitacion);
+            List<RecepcionDto> recepciones = await _recepcionService.ObtenerRecepcionesPorHabitacionId(idHabitacion);
             if (recepciones == null || !recepciones.Any())
                 return NotFound("No se encontraron recepciones para esta habitación.");
             return Ok(recepciones);
@@ -63,7 +62,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetRecepcionesByEstadoReserva/{idEstadoReserva}")]
         public async Task<IActionResult> GetByEstadoReserva(int idEstadoReserva)
         {
-            List<Recepcion> recepciones = await _recepcionService.ObtenerRecepcionesPorEstadoReserva(idEstadoReserva);
+            List<RecepcionDto> recepciones = await _recepcionService.ObtenerRecepcionesPorEstadoReserva(idEstadoReserva);
             if (recepciones == null || !recepciones.Any())
                 return NotFound("No se encontraron recepciones con este estado de reserva.");
             return Ok(recepciones);
@@ -73,7 +72,7 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetRecepcionesByPrecioInicial")]
         public async Task<IActionResult> GetByPrecioInicial([FromQuery] decimal precioInicial)
         {
-            List<Recepcion> recepciones = await _recepcionService.ObtenerRecepcionesPorPrecioInicial(precioInicial);
+            List<RecepcionDto> recepciones = await _recepcionService.ObtenerRecepcionesPorPrecioInicial(precioInicial);
             if (recepciones == null || !recepciones.Any())
                 return NotFound("No se encontraron recepciones con este precio inicial.");
             return Ok(recepciones);
@@ -107,7 +106,7 @@ namespace SGHR.Api.Controllers
         {
             RemoveRecepcionDto dto = new RemoveRecepcionDto { Id = id };
             OperationResult result = await _recepcionService.Remove(dto);
-            if (result.Success!=true)
+            if (result.Success != true)
                 return BadRequest(result.Message);
             return Ok("Recepcion borrada.");
         }

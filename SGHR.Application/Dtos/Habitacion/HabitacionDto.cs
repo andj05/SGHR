@@ -2,6 +2,7 @@
 {
     public class HabitacionDto : DtoBase
     {
+        public int Id { get; set; }
         public bool Estado { get; set; }
         public int IdPiso { get; set; }
         public int IdCategoria { get; set; }

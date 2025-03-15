@@ -6,6 +6,7 @@ using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
 using SGHR.Persistence.Repositories;
+using SGHR.Persistence.Repository;
 
 
 namespace SGHR.Application.Services
@@ -34,7 +35,7 @@ namespace SGHR.Application.Services
                 var activerolUsuarios = rolUsuarios
                     .Where(t => !t.Deleted)
                     .Select(RolUsuarioMapper.ToDto)
-                    .OrderByDescending(h => h.ChangeData)
+                    .OrderByDescending(h => h.ChangeDate)
                     .ToList();
                 result.Data = activerolUsuarios;
                 result.Success = true;
@@ -44,6 +45,29 @@ namespace SGHR.Application.Services
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 result.Success = false;
                 result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+            }
+            return result;
+        }
+
+        public async Task<OperationResult> GetAllDelete()
+        {
+            var result = new OperationResult();
+            try
+            {
+                var rolUsuario = await _rolUsuarioRepository.GetAllAsync();
+                var activerolUsuario = rolUsuario
+                    .Where(t => t.Deleted)
+                    .Select(RolUsuarioMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                result.Data = activerolUsuario;
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
             }
             return result;
         }

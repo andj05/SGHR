@@ -63,19 +63,42 @@ namespace SGHR.Application.Tests.Services
         {
             // Arrange
             await _repository.SaveEntityAsync(new Servicios
-            { Nombre = "Limpieza", Descripcion = "Servicio de limpieza", Estado = true });
+            {
+                Nombre = "Servicio 1",
+                Descripcion = "Descripción 1",
+                Estado = true,
+                Deleted = false
+            });
 
             await _repository.SaveEntityAsync(new Servicios
-            { Nombre = "Mantenimiento", Descripcion = "Servicio técnico", Estado = true });
+            {
+                Nombre = "Servicio 2",
+                Descripcion = "Descripción 2",
+                Estado = true,
+                Deleted = false
+            });
+
+            await _repository.SaveEntityAsync(new Servicios
+            {
+                Nombre = "Servicio Eliminado",
+                Descripcion = "Descripción Eliminada",
+                Estado = true,
+                Deleted = true
+            });
 
             // Act
             var result = await _service.GetAll();
 
             // Assert
             Assert.True(result.Success);
-            var servicios = result.Data as List<Servicios>;
-            Assert.Equal(2, servicios?.Count);
+            var servicios = result.Data as List<ServiciosDto>;
+            Assert.NotNull(servicios);
+            Assert.Equal(2, servicios.Count);
+            Assert.DoesNotContain(servicios, s => s.Nombre == "Servicio Eliminado");
         }
+
+
+
 
         [Fact]
         public async Task GetById_WithValidId_ReturnsServicio()

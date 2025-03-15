@@ -6,6 +6,7 @@ using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
 using SGHR.Persistence.Repositories;
+using SGHR.Persistence.Repository;
 
 
 namespace SGHR.Application.Services
@@ -34,9 +35,32 @@ namespace SGHR.Application.Services
                 var activeservicios = servicios
                     .Where(t => !t.Deleted)
                     .Select(ServiciosMapper.ToDto)
-                    .OrderByDescending(h => h.ChangeData)
+                    .OrderByDescending(h => h.ChangeDate)
                     .ToList();
                 result.Data = activeservicios;
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
+            }
+            return result;
+        }
+
+        public async Task<OperationResult> GetAllDelete()
+        {
+            var result = new OperationResult();
+            try
+            {
+                var servicio = await _serviciosRepository.GetAllAsync();
+                var activeservicio = servicio
+                    .Where(t => t.Deleted)
+                    .Select(ServiciosMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                result.Data = activeservicio;
                 result.Success = true;
             }
             catch (Exception ex)

@@ -53,19 +53,38 @@ namespace SGHR.Application.Tests.Services
         {
             // Arrange
             await _repository.SaveEntityAsync(new RolUsuario
-            { Descripcion = "Admin", Estado = true });
+            {
+                Descripcion = "Admin",
+                Estado = true,
+                Deleted = false
+            });
 
             await _repository.SaveEntityAsync(new RolUsuario
-            { Descripcion = "Usuario", Estado = true });
+            {
+                Descripcion = "Usuario",
+                Estado = true,
+                Deleted = false
+            });
+
+            await _repository.SaveEntityAsync(new RolUsuario
+            {
+                Descripcion = "Eliminado",
+                Estado = true,
+                Deleted = true
+            });
 
             // Act
             var result = await _service.GetAll();
 
             // Assert
             Assert.True(result.Success);
-            var roles = result.Data as List<RolUsuario>;
-            Assert.Equal(2, roles?.Count);
+            var roles = result.Data as List<RolUsuarioDto>;
+            Assert.NotNull(roles);
+            Assert.Equal(2, roles.Count);
+            Assert.DoesNotContain(roles, r => r.Descripcion == "Eliminado");
         }
+
+
 
         [Fact]
         public async Task GetById_WithValidId_ReturnsRolUsuario()

@@ -12,7 +12,7 @@ public static class ServiciosMapper
             Nombre = entity.Nombre,
             Descripcion = entity.Descripcion,
             Estado = entity.Estado,
-            ChangeData = entity.ModifyDate,
+            ChangeDate = entity.ModifyDate,
             ChangeUser = entity.ModifyUser
         };
     }
@@ -37,7 +37,7 @@ public static class ServiciosMapper
         entity.Nombre = dto.Nombre;
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 
@@ -46,7 +46,7 @@ public static class ServiciosMapper
     {   
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 

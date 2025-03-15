@@ -1,10 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.EstadoHabitacion;
-using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
-using SGHR.Application.Services;
-using SGHR.Domain.Entities.Configuration;
+
 
 namespace SGHR.Web.Controllers
 {

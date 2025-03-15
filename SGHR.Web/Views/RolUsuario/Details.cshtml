@@ -4,50 +4,43 @@
     ViewData["Title"] = "Details";
 }
 
-<h1>Details</h1>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles del Rol de Usuario</title>
+</head>
+<body>
+    <h1>Detalles del Rol de Usuario</h1>
 
-<div>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.IdRolUsuario)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.IdRolUsuario)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Descripcion)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Descripcion)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Estado)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Estado)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FechaCreacion)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FechaCreacion)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ChangeData)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ChangeData)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ChangeUser)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ChangeUser)
-        </dd>
-    </dl>
-</div>
-<div>
-    @Html.ActionLink("Edit", "Edit", new { id = Model.IdRolUsuario }) |
-    <a asp-action="Index">Back to List</a>
-</div>
+    <div>
+        <h4>Información del Rol</h4>
+        <hr>
+        <dl class="row">
+            <dt class="col-sm-2">ID Rol</dt>
+            <dd class="col-sm-10"><span>@Model.IdRolUsuario</span></dd>
+
+            <dt class="col-sm-2">Descripción</dt>
+            <dd class="col-sm-10"><span>@Model.Descripcion</span></dd>
+
+            <dt class="col-sm-2">Estado</dt>
+            <dd class="col-sm-10"><span>@Model.Estado</span></dd>
+
+            <dt class="col-sm-2">Fecha de Creación</dt>
+            <dd class="col-sm-10"><span>@Model.FechaCreacion</span></dd>
+
+            <dt class="col-sm-2">Última Modificación</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeDate</span></dd>
+
+            <dt class="col-sm-2">Modificado por</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeUser</span></dd>
+        </dl>
+    </div>
+
+    <div>
+        <a href="/RolUsuario/Edit/@Model.IdRolUsuario">Editar</a> |
+        <a href="/RolUsuario/Index">Volver al listado</a>
+    </div>
+</body>
+</html>

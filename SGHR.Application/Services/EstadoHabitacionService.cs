@@ -33,7 +33,7 @@ namespace SGHR.Application.Services
                 var activeEstadoHabitacion = estadoHabitacion
                     .Where(t => !t.Deleted)
                     .Select(EstadoHabitacionMapper.ToDto)
-                    .OrderByDescending(h => h.ChangeData)
+                    .OrderByDescending(h => h.ChangeDate)
                     .ToList();
                 result.Data = activeEstadoHabitacion;
                 result.Success = true;
@@ -43,6 +43,29 @@ namespace SGHR.Application.Services
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
                 result.Success = false;
                 result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+            }
+            return result;
+        }
+
+        public async Task<OperationResult> GetAllDelete()
+        {
+            var result = new OperationResult();
+            try
+            {
+                var estadoHabitacion = await _estadoHabitacionRepository.GetAllAsync();
+                var activeestadoHabitacion = estadoHabitacion
+                    .Where(t => t.Deleted)
+                    .Select(EstadoHabitacionMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                result.Data = activeestadoHabitacion;
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
             }
             return result;
         }

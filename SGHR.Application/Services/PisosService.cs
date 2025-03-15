@@ -37,7 +37,7 @@ namespace SGHR.Application.Services
                 var activeTarifas = pisos
                     .Where(t => !t.Deleted)
                     .Select(PisoMapper.ToDto)
-                    .OrderByDescending(h => h.ChangeData)
+                    .OrderByDescending(h => h.ChangeDate)
                     .ToList();
                 result.Data = activeTarifas;
                 result.Success = true;
@@ -50,6 +50,30 @@ namespace SGHR.Application.Services
             }
             return result;
         }
+
+        public async Task<OperationResult> GetAllDelete()
+        {
+            var result = new OperationResult();
+            try
+            {
+                var piso = await _pisoRepository.GetAllAsync();
+                var activepiso = piso
+                    .Where(t => t.Deleted)
+                    .Select(PisoMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                result.Data = activepiso;
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
+            }
+            return result;
+        }
+
 
         public async Task<OperationResult> GetById(int id)
         {

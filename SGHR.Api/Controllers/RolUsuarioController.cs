@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.RolUsuario;
 using SGHR.Application.Interfaces;
+using SGHR.Application.Services;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
@@ -52,12 +54,15 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetDeletedRolUsuario")]
         public async Task<IActionResult> GetDeletedRoles()
         {
-            var result = await _rolUsuarioService.GetAll();
+            var result = await _rolUsuarioService.GetAllDelete();
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var roles = (IEnumerable<RolUsuario>)result.Data;
-            return Ok(roles.Where(r => r.Deleted));
+            var rolUsuario = result.Data as IEnumerable<RolUsuarioDto>;
+            if (rolUsuario == null || !rolUsuario.Any())
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(rolUsuario);
         }
 
         // GET api/RolUsuario/GetDeletedRolUsuarioByID/5

@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.Servicios;
 using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
+using SGHR.Application.Services;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
@@ -53,12 +55,15 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetDeletedServicios")]
         public async Task<IActionResult> GetDeletedServicios()
         {
-            var result = await _serviciosService.GetAll();
+            var result = await _serviciosService.GetAllDelete();
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var servicios = (IEnumerable<Servicios>)result.Data;
-            return Ok(servicios.Where(s => s.Deleted));
+            var servicio = result.Data as IEnumerable<ServiciosDto>;
+            if (servicio == null || !servicio.Any())
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(servicio);
         }
 
         // GET api/Servicios/GetDeletedServisciosByID/5

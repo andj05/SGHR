@@ -4,61 +4,50 @@
     ViewData["Title"] = "Index";
 }
 
-<h1>Tarifas List</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index</title>
+    <link rel="stylesheet" href="path/to/your/css/file.css"> 
+</head>
+<body>
+    <h1>Tarifas List</h1>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.IdTarifa)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.IdHabitacion)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PrecioPorNoche)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Descuento)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Descripcion)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Estado)
-            <th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.IdTarifa)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.IdHabitacion)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.PrecioPorNoche)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Descuento)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Descripcion)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Estado)
-            </td>
-            <td>
-                    @Html.ActionLink("Edit", "Edit", new { id = item.IdTarifa }) |
-                    @Html.ActionLink("Details", "Details", new { id = item.IdTarifa }) |
-            </td>
-        </tr>
-}
-    </tbody>
-</table>
+    <p>
+        <a href="/Tarifas/Create">Create New</a>
+    </p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>IdTarifa</th>
+                <th>IdHabitacion</th>
+                <th>PrecioPorNoche</th>
+                <th>Descuento</th>
+                <th>Descripcion</th>
+                <th>Estado</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td><span>@item.IdTarifa</span></td>
+                    <td><span>@item.IdHabitacion</span></td>
+                    <td><span>@item.PrecioPorNoche.ToString("C")</span></td>
+                    <td><span>@item.Descuento.ToString("C")</span></td>
+                    <td><span>@item.Descripcion</span></td>
+                    <td><span>@item.Estado</span></td>
+                    <td>
+                        <a href="/Tarifas/Edit/@item.IdTarifa">Edit</a> |
+                        <a href="/Tarifas/Details/@item.IdTarifa">Details</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</body>
+</html>
+

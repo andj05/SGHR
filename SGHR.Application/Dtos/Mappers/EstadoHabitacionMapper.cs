@@ -10,7 +10,8 @@ public static class EstadoHabitacionMapper
             IdEstadoHabitacion = entity.Id,
             Descripcion = entity.Descripcion,
             Estado = entity.Estado,
-            ChangeData = entity.ModifyDate,
+            FechaCreacion = DateTime.UtcNow,
+            ChangeDate = entity.ModifyDate,
             ChangeUser = entity.ModifyUser
         };
     }
@@ -33,7 +34,7 @@ public static class EstadoHabitacionMapper
     {
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 
@@ -42,7 +43,7 @@ public static class EstadoHabitacionMapper
     {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 

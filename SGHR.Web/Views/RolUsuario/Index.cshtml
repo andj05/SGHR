@@ -4,61 +4,49 @@
     ViewData["Title"] = "Index";
 }
 
-<h1>Index</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rol Usuario</title>
+    <link rel="stylesheet" href="path/to/your/css/file.css">
+</head>
+<body>
+    <h1>Rol Usuario</h1>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.IdRolUsuario)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Descripcion)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Estado)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FechaCreacion)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ChangeData)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ChangeUser)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.IdRolUsuario)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Descripcion)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Estado)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FechaCreacion)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ChangeData)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ChangeUser)
-            </td>
-            <td>
-                    @Html.ActionLink("Edit", "Edit", new { id = item.IdRolUsuario }) |
-                    @Html.ActionLink("Details", "Details", new { id = item.IdRolUsuario }) |
-            </td>
-        </tr>
-}
-    </tbody>
-</table>
+    <p>
+        <a href="/RolUsuario/Create">Create New</a>
+    </p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id Rol Usuario</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Fecha Creación</th>
+                <th>Change Date</th>
+                <th>Change User</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td><span>@item.IdRolUsuario</span></td>
+                    <td><span>@item.Descripcion</span></td>
+                    <td><span>@item.Estado</span></td>
+                    <td><span>@item.FechaCreacion</span></td>
+                    <td><span>@item.ChangeDate</span></td>
+                    <td><span>@item.ChangeUser</span></td>
+                    <td>
+                        <a href="/RolUsuario/Edit/@item.IdRolUsuario">Edit</a> |
+                        <a href="/RolUsuario/Details/@item.IdRolUsuario">Details</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</body>
+</html>

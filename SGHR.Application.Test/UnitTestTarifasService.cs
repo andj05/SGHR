@@ -55,13 +55,22 @@ namespace SGHR.Application.Tests.Services
             await _repository.SaveEntityAsync(new Tarifas
             {
                 Descripcion = "Tarifa 1",
-                PrecioPorNoche = 100
+                PrecioPorNoche = 100,
+                Deleted = false
             });
 
             await _repository.SaveEntityAsync(new Tarifas
             {
                 Descripcion = "Tarifa 2",
-                PrecioPorNoche = 200
+                PrecioPorNoche = 200,
+                Deleted = false
+            });
+
+            await _repository.SaveEntityAsync(new Tarifas
+            {
+                Descripcion = "Tarifa Eliminada",
+                PrecioPorNoche = 300,
+                Deleted = true
             });
 
             // Act
@@ -69,9 +78,12 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            var tarifas = result.Data as List<Tarifas>;
-            Assert.Equal(2, tarifas?.Count);
+            var tarifas = result.Data as List<TarifasDto>;
+            Assert.NotNull(tarifas);
+            Assert.Equal(2, tarifas.Count);
+            Assert.DoesNotContain(tarifas, t => t.Descripcion == "Tarifa Eliminada");
         }
+
 
         [Fact]
         public async Task GetById_WithValidId_ReturnsTarifa()

@@ -1,11 +1,9 @@
 ﻿using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
 
 namespace SGHR.Application.Services
 {
@@ -33,7 +31,30 @@ namespace SGHR.Application.Services
                 var activecategoria = categoria
                     .Where(t => !t.Deleted)
                     .Select(CategoriaMapper.ToDto)
-                    .OrderByDescending(h => h.ChangeData)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                result.Data = activecategoria;
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
+            }
+            return result;
+        }
+
+        public async Task<OperationResult> GetAllDelete()
+        {
+            var result = new OperationResult();
+            try
+            {
+                var categoria = await _categoriaRepository.GetAllAsync();
+                var activecategoria = categoria
+                    .Where(t => t.Deleted)
+                    .Select(CategoriaMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
                     .ToList();
                 result.Data = activecategoria;
                 result.Success = true;

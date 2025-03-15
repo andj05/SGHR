@@ -57,13 +57,22 @@ namespace SGHR.Application.Tests.Services
             await _repository.SaveEntityAsync(new Categoria
             {
                 Descripcion = "Categoría 1",
-                Estado = true
+                Estado = true,
+                Deleted = false
             });
 
             await _repository.SaveEntityAsync(new Categoria
             {
                 Descripcion = "Categoría 2",
-                Estado = true
+                Estado = true,
+                Deleted = false
+            });
+
+            await _repository.SaveEntityAsync(new Categoria
+            {
+                Descripcion = "Categoría Eliminada",
+                Estado = true,
+                Deleted = true
             });
 
             // Act
@@ -71,9 +80,13 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            var categorias = result.Data as List<Categoria>;
-            Assert.Equal(2, categorias?.Count);
+            var categorias = result.Data as List<CategoriasDto>;
+            Assert.NotNull(categorias);
+            Assert.Equal(2, categorias.Count);
+            Assert.DoesNotContain(categorias, c => c.Descripcion == "Categoría Eliminada");
         }
+
+
 
         [Fact]
         public async Task GetById_WithValidId_ReturnsCategoria()

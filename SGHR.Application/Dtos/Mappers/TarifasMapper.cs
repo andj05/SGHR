@@ -45,7 +45,7 @@ public static class TarifasMapper
         entity.Descuento = dto.Descuento;
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 
@@ -53,7 +53,7 @@ public static class TarifasMapper
     {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 

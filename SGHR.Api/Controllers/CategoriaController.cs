@@ -46,17 +46,21 @@ namespace SGHR.Api.Controllers
             return Ok(categoria);
         }
 
-        // GET api/Categoria/GetDeletedCategoria
-        [HttpGet("GetDeletedCategoria")]
-        public async Task<IActionResult> GetDeletedClientes()
+        // GET api/Cliente/GetDeletedCategorias
+        [HttpGet("GetDeletedCategorias")]
+        public async Task<IActionResult> GetDeletedCategorias()
         {
-            var result = await _categoriaService.GetAll();
+            var result = await _categoriaService.GetAllDelete();
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var categorias = (IEnumerable<Categoria>)result.Data;
-            return Ok(categorias.Where(c => c.Deleted));
+            var categoria = result.Data as IEnumerable<CategoriasDto>;
+            if (categoria == null || !categoria.Any())
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(categoria);
         }
+
 
         // GET api/Categoria/GetDeletedCategoriaByID/5
         [HttpGet("GetDeletedCategoriasByID/{id}")]

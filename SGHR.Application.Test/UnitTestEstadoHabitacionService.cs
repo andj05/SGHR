@@ -55,13 +55,22 @@ namespace SGHR.Application.Tests.Services
             await _repository.SaveEntityAsync(new EstadoHabitacion
             {
                 Descripcion = "Disponible",
-                Estado = true
+                Estado = true,
+                Deleted = false
             });
 
             await _repository.SaveEntityAsync(new EstadoHabitacion
             {
                 Descripcion = "Ocupado",
-                Estado = true
+                Estado = true,
+                Deleted = false
+            });
+
+            await _repository.SaveEntityAsync(new EstadoHabitacion
+            {
+                Descripcion = "Eliminado",
+                Estado = true,
+                Deleted = true
             });
 
             // Act
@@ -69,9 +78,12 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            var estados = result.Data as List<EstadoHabitacion>;
-            Assert.Equal(2, estados?.Count);
+            var estados = result.Data as List<EstadoHabitacionDto>;
+            Assert.NotNull(estados);
+            Assert.Equal(2, estados.Count);
+            Assert.DoesNotContain(estados, e => e.Descripcion == "Eliminado");
         }
+
 
         [Fact]
         public async Task GetById_WithValidId_ReturnsEstado()

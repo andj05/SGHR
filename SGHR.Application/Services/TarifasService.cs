@@ -35,7 +35,7 @@ namespace SGHR.Application.Services
                 var activeTarifas = tarifas
                     .Where(t => !t.Deleted)
                     .Select(TarifasMapper.ToDto)
-                    .OrderByDescending(h => h.ChangeData)
+                    .OrderByDescending(h => h.ChangeDate)
                     .ToList();
                 result.Data = activeTarifas;
                 result.Success = true;
@@ -49,6 +49,28 @@ namespace SGHR.Application.Services
             return result;
         }
 
+        public async Task<OperationResult> GetAllDelete()
+        {
+            var result = new OperationResult();
+            try
+            {
+                var tarifa = await _tarifasRepository.GetAllAsync();
+                var activetarifa = tarifa
+                    .Where(t => t.Deleted)
+                    .Select(TarifasMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                result.Data = activetarifa;
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                result.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                result.Success = false;
+            }
+            return result;
+        }
 
         public async Task<OperationResult> GetById(int id)
         {

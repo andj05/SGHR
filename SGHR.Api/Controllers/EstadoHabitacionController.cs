@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.EstadoHabitacion;
 using SGHR.Application.Interfaces;
+using SGHR.Application.Services;
 using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers
@@ -51,14 +53,17 @@ namespace SGHR.Api.Controllers
 
         // GET api/EstadoHabitacion/GetDeletedEstadoHabitacion
         [HttpGet("GetDeletedEstadoHabitacion")]
-        public async Task<IActionResult> GetDeletedClientes()
+        public async Task<IActionResult> GetDeletedEstadoHabitacion()
         {
-            var result = await _estadoHabitacionService.GetAll();
+            var result = await _estadoHabitacionService.GetAllDelete();
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var estadoHabitacion = (IEnumerable<EstadoHabitacion>)result.Data;
-            return Ok(estadoHabitacion.Where(e => e.Deleted));
+            var estadoHabitacion = result.Data as IEnumerable<EstadoHabitacionDto>;
+            if (estadoHabitacion == null || !estadoHabitacion.Any())
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(estadoHabitacion);
         }
 
         // GET api/EstadoHabitacion/GetDeletedEstadoHabitacionByID/5

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Categorias;
-using SGHR.Application.Dtos.Tarifas;
+using SGHR.Application.Dtos.RolUsuario;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
 using SGHR.Domain.Entities.Configuration;
@@ -23,8 +23,8 @@ namespace SGHR.Web.Controllers
             var result = await categoriasService.GetAll();
             if (result.Success == true)
             {
-                List<CategoriasDto> categoria = (List<CategoriasDto>)result.Data;
-                return View(categoria);
+                List<CategoriasDto> categorias = (List<CategoriasDto>)result.Data;
+                return View(categorias);
             }
             return View();
         }
@@ -36,8 +36,8 @@ namespace SGHR.Web.Controllers
 
             if (result.Success == true)
             {
-                var categoriaEntity = (Categoria)result.Data;
-                CategoriasDto categoriasDto = CategoriaMapper.ToDto(categoriaEntity);
+                var categoriasEntity = (Categoria)result.Data;
+                CategoriasDto categoriasDto = CategoriaMapper.ToDto(categoriasEntity);
 
                 return View(categoriasDto);
             }
@@ -78,8 +78,8 @@ namespace SGHR.Web.Controllers
 
             if (result.Success == true)
             {
-                var categoriaEntity = (Categoria)result.Data;
-                CategoriasDto categoriasDto = CategoriaMapper.ToDto(categoriaEntity);
+                var categoriasEntity = (Categoria)result.Data;
+                CategoriasDto categoriasDto = CategoriaMapper.ToDto(categoriasEntity);
 
                 return View(categoriasDto);
             }

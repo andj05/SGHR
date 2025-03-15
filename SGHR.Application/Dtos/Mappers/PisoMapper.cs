@@ -11,7 +11,8 @@ public static class PisoMapper
             IdPiso = entity.Id,
             Descripcion = entity.Descripcion,
             Estado = entity.Estado,
-            ChangeData = entity.ModifyDate,
+            ChangeDate = entity.ModifyDate,
+            FechaCreacion = DateTime.UtcNow,
             ChangeUser = entity.ModifyUser
         };
     }
@@ -34,7 +35,7 @@ public static class PisoMapper
     {
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 
@@ -43,7 +44,7 @@ public static class PisoMapper
     {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 

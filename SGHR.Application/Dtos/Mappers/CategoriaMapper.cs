@@ -11,7 +11,8 @@ public static class CategoriaMapper
             IdCategoria = entity.Id,
             Descripcion = entity.Descripcion,
             Estado = entity.Estado,
-            ChangeData = entity.ModifyDate,
+            FechaCreacion = entity.FechaCreacion,
+            ChangeDate = entity.ModifyDate,
             ChangeUser = entity.ModifyUser
         };
     }
@@ -34,7 +35,7 @@ public static class CategoriaMapper
     {
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 
@@ -43,7 +44,7 @@ public static class CategoriaMapper
     {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeData;
+        entity.ModifyDate = dto.ChangeDate;
         entity.ModifyUser = dto.ChangeUser;
     }
 

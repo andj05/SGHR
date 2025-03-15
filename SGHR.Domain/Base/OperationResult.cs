@@ -9,7 +9,7 @@ namespace SGHR.Domain.Base
             Data = new object(); 
         }
         public string? Message { get; set; }
-        public bool? Success { get; set; }
+        public bool Success { get; set; }
         public dynamic Data { get; set; }
 
     }

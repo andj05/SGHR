@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Pisos;
-using SGHR.Application.Dtos.Tarifas;
+using SGHR.Application.Dtos.RolUsuario;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
 using SGHR.Domain.Entities.Configuration;
+
+
 
 namespace SGHR.Web.Controllers
 {
@@ -23,8 +24,8 @@ namespace SGHR.Web.Controllers
             var result = await pisosService.GetAll();
             if (result.Success == true)
             {
-                List<PisosDto> pisos = (List<PisosDto>)result.Data;
-                return View(pisos);
+                List<PisosDto> piso = (List<PisosDto>)result.Data;
+                return View(piso);
             }
             return View();
         }
@@ -36,8 +37,8 @@ namespace SGHR.Web.Controllers
 
             if (result.Success == true)
             {
-                var pisosEntity = (Piso)result.Data;
-                PisosDto pisosDto = PisoMapper.ToDto(pisosEntity);
+                var pisoEntity = (Piso)result.Data;
+                PisosDto pisosDto = PisoMapper.ToDto(pisoEntity);
 
                 return View(pisosDto);
             }
@@ -54,11 +55,11 @@ namespace SGHR.Web.Controllers
         // POST: PisoController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create(SavePisosDto SavePisosDto)
+        public async Task<ActionResult> Create(SavePisosDto savePisosDto)
         {
             try
             {
-                var result = await this.pisosService.Save(SavePisosDto);
+                var result = await this.pisosService.Save(savePisosDto);
 
                 if (result.Success == true)
                     return RedirectToAction(nameof(Index));
@@ -78,10 +79,10 @@ namespace SGHR.Web.Controllers
 
             if (result.Success == true)
             {
-                var pisosEntity = (Piso)result.Data;
-                PisosDto tarifasDto = PisoMapper.ToDto(pisosEntity);
+                var pisoEntity = (Piso)result.Data;
+                PisosDto pisosDto = PisoMapper.ToDto(pisoEntity);
 
-                return View(tarifasDto);
+                return View(pisosDto);
             }
 
             return View();

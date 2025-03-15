@@ -55,19 +55,38 @@ namespace SGHR.Application.Tests.Services
         {
             // Arrange
             await _repository.SaveEntityAsync(new Piso
-            { Descripcion = "Piso 1", Estado = true });
+            {
+                Descripcion = "Piso 1",
+                Estado = true,
+                Deleted = false
+            });
 
             await _repository.SaveEntityAsync(new Piso
-            { Descripcion = "Piso 2", Estado = true });
+            {
+                Descripcion = "Piso 2",
+                Estado = true,
+                Deleted = false
+            });
+
+            await _repository.SaveEntityAsync(new Piso
+            {
+                Descripcion = "Piso Eliminado",
+                Estado = true,
+                Deleted = true
+            });
 
             // Act
             var result = await _service.GetAll();
 
             // Assert
             Assert.True(result.Success);
-            var pisos = result.Data as List<Piso>;
-            Assert.Equal(2, pisos?.Count);
+            var pisos = result.Data as List<PisosDto>;
+            Assert.NotNull(pisos);
+            Assert.Equal(2, pisos.Count);
+            Assert.DoesNotContain(pisos, p => p.Descripcion == "Piso Eliminado");
         }
+
+
 
         [Fact]
         public async Task GetById_WithValidId_ReturnsPiso()

@@ -1,8 +1,5 @@
-﻿
-
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SGHR.Application.Interfaces;
-using SGHR.Persistence.Repository;
 using SGHR.Application.Services;
 using SGHR.Persistence.Repositories;
 

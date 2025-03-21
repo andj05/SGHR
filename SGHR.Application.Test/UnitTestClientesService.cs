@@ -64,7 +64,36 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            var clientes = result.Data as List<Cliente>;
+            var clientes = result.Data as List<ClienteDto>;
+            Assert.Equal(2, clientes?.Count);
+        }
+
+        [Fact]
+        public async Task GerAllDelete_WithDeletedClientes_ReturnsAllDeletedClientes()
+        {
+            // Arrange
+            await _repository.SaveEntityAsync(new Cliente
+            {
+                NombreCompleto = "Cliente 1",
+                Documento = "12345678",
+                Clave = "clave123",
+                Deleted = true
+            });
+
+            await _repository.SaveEntityAsync(new Cliente
+            {
+                NombreCompleto = "Cliente 2",
+                Documento = "87654321",
+                Clave = "clave456",
+                Deleted = true
+            });
+
+            // Act
+            var result = await _service.GerAllDelete();
+
+            // Assert
+            Assert.True(result.Success);
+            var clientes = result.Data as List<ClienteDto>;
             Assert.Equal(2, clientes?.Count);
         }
 

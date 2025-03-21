@@ -29,13 +29,16 @@ namespace SGHR.Api.Controllers
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var clientes = (IEnumerable<Cliente>)result.Data;
-            return Ok(clientes.Where(c => !c.Deleted));
+            var cliente = result.Data as IEnumerable<ClienteDto>;
+            if (cliente == null)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(cliente);
         }
 
         // GET api/Cliente/GetClienteByID/5
         [HttpGet("GetClienteByID/{id}")]
-        public async Task<IActionResult> Get(int id)
+        public async Task<IActionResult> GetId(int id)
         {
             var result = await _clienteService.GetById(id);
             if (result.Success != true)
@@ -52,12 +55,15 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetDeletedClientes")]
         public async Task<IActionResult> GetDeletedClientes()
         {
-            var result = await _clienteService.GetAll();
+            var result = await _clienteService.GerAllDelete();
             if (result.Success != true)
                 return BadRequest(result.Message);
 
-            var clientes = (IEnumerable<Cliente>)result.Data;
-            return Ok(clientes.Where(c => c.Deleted));
+            var clientes = result.Data as IEnumerable<ClienteDto>;
+            if (clientes == null || !clientes.Any())
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(clientes);
         }
 
         // GET api/Cliente/GetDeletedClienteByID/5
@@ -77,15 +83,15 @@ namespace SGHR.Api.Controllers
 
         // POST api/Cliente/SaveCliente
         [HttpPost("SaveCliente")]
-        public async Task<IActionResult> Post([FromBody] SaveClienteDto cliente)
+        public async Task<IActionResult> Post([FromBody] SaveClienteDto clienteDto)
         {
             try
             {
-                var saveResult = await _clienteService.Save(cliente);
-                if (saveResult.Success != true)
-                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
+                var saveCliente = await _clienteService.Save(clienteDto);
+                if (saveCliente.Success == true)
+                    return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveCliente.Data });
 
-                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
+                return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveCliente.Message });
             }
             catch (Exception ex)
             {
@@ -95,7 +101,7 @@ namespace SGHR.Api.Controllers
 
         // PUT api/Cliente/UpdateCliente/5
         [HttpPut("UpdateCliente/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] UpdateClienteDto cliente)
+        public async Task<IActionResult> Put(int id, [FromBody] UpdateClienteDto clienteDto)
         {
             if (id <= 0)
                 return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
@@ -112,9 +118,9 @@ namespace SGHR.Api.Controllers
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            cliente.IdCliente = id;
-            var updateResult = await _clienteService.Update(cliente);
-            if (updateResult.Success != true)
+            clienteDto.IdCliente = id;
+            var updateResult = await _clienteService.Update(clienteDto);
+            if (updateResult.Success == true)
             {
                 return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
             }
@@ -139,7 +145,6 @@ namespace SGHR.Api.Controllers
             return BadRequest(restoreResult.Message);
         }
 
-        // DELETE api/Cliente/DeleteCliente/5
         [HttpDelete("DeleteCliente/{id}")]
         public async Task<IActionResult> DeleteLogic(int id)
         {
@@ -147,18 +152,31 @@ namespace SGHR.Api.Controllers
                 return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
             var result = await _clienteService.GetById(id);
-            if (result.Success != true || result.Data == null)
+            if (!result.Success || result.Data == null)
             {
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
             var removeDto = new RemoveClienteDto { IdCliente = id };
             var deleteResult = await _clienteService.Remove(removeDto);
-            if (deleteResult.Success != true)
+
+            if (deleteResult.Success)
             {
-                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
+                return Ok(new
+                {
+                    Message = _messageMapper.SuccessMessages["DeleteSuccess"],
+                    Data = deleteResult.Data
+                });
             }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
+            else
+            {
+                return BadRequest(new
+                {
+                    Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"],
+                    Error = deleteResult.Message
+                });
+            }
         }
+
     }
 }

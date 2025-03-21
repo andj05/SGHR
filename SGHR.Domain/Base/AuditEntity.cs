@@ -11,8 +11,8 @@
         }
 
         public bool Estado { get; set; }
-        public int CreationUser { get; set; }
-        public DateTime FechaCreacion { get; set; }
+        public int? CreationUser { get; set; }
+        public DateTime? FechaCreacion { get; set; }
         public DateTime? ModifyDate { get; set; }
         public int? ModifyUser { get; set; }
         public int? DeletedUser { get; set; }

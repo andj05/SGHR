@@ -11,5 +11,6 @@ namespace SGHR.Domain.Entities.Users
         public string? Clave { get; set; }
         public string? Telefono { get; set; }
         public string? Nacionalidad { get; set; }
+
     }
 }

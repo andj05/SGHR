@@ -1,25 +1,19 @@
 ﻿using Microsoft.Extensions.Configuration;
 using SGHR.Application.Dtos.Usuario;
 using SGHR.Application.Intefaces;
+using SGHR.Application.Mappers;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Users;
-using SGHR.Infraestructure.Logging.Base;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
 
 namespace SGHR.Application.Services
 {
     public class UsuariosService : IUsuariosService
     {
         private readonly IUsuarioRepository _usuarioRepository;
-        private readonly IConfiguration _configuration;
         private readonly MessageMapper _messageMapper;
         private readonly ILoggerManager _loggerManager;
-        private UsuarioRepository usuarioRepository;
-        private MessageMapper messageMapper;
-        private LoggerManager logger;
 
         public UsuariosService(IUsuarioRepository usuariosRepository,
                                MessageMapper messageMapper,
@@ -35,9 +29,39 @@ namespace SGHR.Application.Services
             var operationResult = new OperationResult();
             try
             {
-                var usuarios = await _usuarioRepository.GetAllAsync();
-                operationResult.Data = usuarios.Where(u => !u.Deleted).ToList();
+                var usuario = await _usuarioRepository.GetAllAsync();
+                var activeUsuario = usuario
+                    .Where(t => !t.Deleted)
+                    .Select(UsuarioMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                operationResult.Data = activeUsuario;
                 operationResult.Success = true;
+
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                operationResult.Success = false;
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+            }
+            return operationResult;
+        }
+
+        public async Task<OperationResult> GerAllDelete()
+        {
+            var operationResult = new OperationResult();
+            try
+            {
+                var usuario = await _usuarioRepository.GetAllAsync();
+                var deletedUsuario = usuario
+                    .Where(t => t.Deleted)
+                    .Select(UsuarioMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                operationResult.Data = deletedUsuario;
+                operationResult.Success = true;
+
             }
             catch (Exception ex)
             {
@@ -54,23 +78,48 @@ namespace SGHR.Application.Services
             try
             {
                 var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-                // Si el usuario existe pero está eliminado, se devuelve el mensaje NotFound.
-                if (usuario is Usuario usuarioData && usuarioData.Deleted)
+                if (usuario == null)
                 {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                    };
+                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    operationResult.Success = false;
                 }
-                operationResult.Data = usuario;
-                operationResult.Success = true;
+                else
+                {
+                    operationResult.Data = usuario;
+                    operationResult.Success = true;
+                }
             }
             catch (Exception ex)
             {
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Success = false;
                 operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                operationResult.Success = false;
+            }
+            return operationResult;
+        }
+
+        public async Task<OperationResult> Login(LoginRequestDto loginRequest)
+        {
+            var operationResult = new OperationResult();
+            try
+            {
+                var usuario = await _usuarioRepository.GetByEmailAsync(loginRequest.Correo);
+                if (usuario == null || usuario.Deleted || usuario.Clave != loginRequest.Clave)
+                {
+                    operationResult.Success = false;
+                    operationResult.Message = _messageMapper.ErrorMessages["User"]["InvalidCredentials"];
+                    return operationResult;
+                }
+
+                operationResult.Success = true;
+                operationResult.Message = _messageMapper.SuccessMessages["LoginSuccess"];
+                operationResult.Data = UsuarioMapper.ToDto(usuario);
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["LoginFailed"]);
+                operationResult.Success = false;
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["LoginFailed"]}: {ex.Message}";
             }
             return operationResult;
         }
@@ -78,22 +127,13 @@ namespace SGHR.Application.Services
         public async Task<OperationResult> Save(SaveUsuarioDto dto)
         {
             var validationResult = ValidateUsuario(dto);
-            if (validationResult.Success == true)
+            if (validationResult.Success != true)
                 return validationResult;
 
             try
             {
-                var usuario = new Usuario
-                {
-                    NombreCompleto = dto.NombreCompleto,
-                    Correo = dto.Correo,
-                    IdRolUsuario = dto.IdRolUsuario,
-                    Clave = dto.Clave,
-                    CreationUser = 1 // En producción, obtener el usuario autenticado.
-                };
-
-                var result = await _usuarioRepository.SaveEntityAsync(usuario);
-                return result;
+                var usuario = UsuarioMapper.ToEntity(dto);
+                return await _usuarioRepository.SaveEntityAsync(usuario);
             }
             catch (Exception ex)
             {
@@ -108,115 +148,60 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateUsuarioDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                if (dto.IdUsuario <= 0)
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                    };
+            if (dto.IdUsuario <= 0)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
-                var usuario = await _usuarioRepository.GetEntityByIdAsync(dto.IdUsuario);
-                if (usuario is not Usuario usuarioData || usuarioData.Deleted)
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                    };
+            var usuario = await _usuarioRepository.GetEntityByIdAsync(dto.IdUsuario);
+            if (usuario == null || usuario.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
-                usuarioData.NombreCompleto = dto.NombreCompleto ?? usuarioData.NombreCompleto;
-                usuarioData.Correo = dto.Correo ?? usuarioData.Correo;
-                usuarioData.IdRolUsuario = dto.IdRolUsuario ?? usuarioData.IdRolUsuario;
-                usuarioData.Clave = dto.Clave ?? usuarioData.Clave;
-                usuarioData.ModifyDate = DateTime.Now;
-                usuarioData.ModifyUser = 1;
-
-                var updateResult = await _usuarioRepository.UpdateEntityAsync(usuarioData);
-                operationResult.Success = updateResult.Success;
-                operationResult.Message = updateResult.Success == true
-                    ? updateResult.Message
-                    : $"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {updateResult.Message}";
-            }
-            catch (Exception ex)
-            {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex.Message}";
-            }
-            return operationResult;
+            usuario.UpdateFromDto(dto);
+            return await _usuarioRepository.UpdateEntityAsync(usuario);
         }
 
         public async Task<OperationResult> Remove(RemoveUsuarioDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                if (dto.IdUsuario <= 0)
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                    };
+            if (dto.IdUsuario <= 0)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
-                var usuario = await _usuarioRepository.GetEntityByIdAsync(dto.IdUsuario);
-                if (usuario is not Usuario usuarioData || usuarioData.Deleted)
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                    };
+            var usuario = await _usuarioRepository.GetEntityByIdAsync(dto.IdUsuario);
+            if (usuario == null || usuario.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
-                usuarioData.Deleted = true;
-                usuarioData.DeletedUser = 1;
-                usuarioData.ModifyDate = DateTime.Now;
-
-                var updateResult = await _usuarioRepository.UpdateEntityAsync(usuarioData);
-                operationResult.Success = updateResult.Success;
-                operationResult.Message = updateResult.Success == true
-                    ? _messageMapper.SuccessMessages["DeleteSuccess"]
-                    : $"{_messageMapper.ErrorMessages["Operations"]["DeleteFailed"]}: {updateResult.Message}";
-            }
-            catch (Exception ex)
-            {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DeleteFailed"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DeleteFailed"]}: {ex.Message}";
-            }
-            return operationResult;
+            usuario.RemoveFromDto(dto);
+            return await _usuarioRepository.UpdateEntityAsync(usuario);
         }
 
         public async Task<OperationResult> Restore(int id)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-                if (usuario is not Usuario usuarioData || !usuarioData.Deleted)
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                    };
+            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
+            if (usuario == null || !usuario.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = usuario == null
+                        ? _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        : _messageMapper.ErrorMessages["EntityBase"]["AlreadyActive"]
+                };
 
-                usuarioData.Deleted = false;
-                usuarioData.ModifyDate = DateTime.Now;
-                usuarioData.ModifyUser = 1;
-
-                var updateResult = await _usuarioRepository.UpdateEntityAsync(usuarioData);
-                operationResult.Success = updateResult.Success;
-                operationResult.Message = updateResult.Success == true
-                    ? _messageMapper.SuccessMessages["RestoreSuccess"]
-                    : $"{_messageMapper.ErrorMessages["Operations"]["RestoreFailed"]}: {updateResult.Message}";
-            }
-            catch (Exception ex)
-            {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["RestoreFailed"]}: {ex.Message}";
-            }
-            return operationResult;
+            usuario.RestoreFromDto(1);
+            return await _usuarioRepository.UpdateEntityAsync(usuario);
         }
 
         private OperationResult ValidateUsuario(dynamic usuario)

@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SGHR.Domain.Entities.Users;
-using SGHR.Persistence.Interfaces;
+using SGHR.Application.Dtos.Usuario;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using SGHR.Persistence.Configurations; // Para MessageMapper
+using SGHR.Persistence.Configurations;
+using SGHR.Application.Intefaces; // Para MessageMapper
 
 namespace SGHR.Api.Controllers
 {
@@ -13,16 +14,16 @@ namespace SGHR.Api.Controllers
     [ApiController]
     public class UsuarioController : ControllerBase
     {
-        private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IUsuariosService _usuariosService;
         private readonly IConfiguration _configuration;
         private readonly MessageMapper _messageMapper;
 
-        public UsuarioController(IUsuarioRepository usuarioRepository,
+        public UsuarioController(IUsuariosService usuarioService,
                                  ILogger<UsuarioController> logger,
                                  IConfiguration configuration,
                                  MessageMapper messageMapper)
         {
-            _usuarioRepository = usuarioRepository;
+            _usuariosService = usuarioService;
             _configuration = configuration;
             _messageMapper = messageMapper;
         }
@@ -61,20 +62,29 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetUsuarios")]
         public async Task<IActionResult> Get()
         {
-            var usuarios = await _usuarioRepository.GetAllAsync();
-            // Se retornan solo los usuarios activos (no eliminados)
-            return Ok(usuarios.Where(u => !u.Deleted));
+            var result = await _usuariosService.GetAll();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var usuario = result.Data as IEnumerable<UsuarioDto>;
+            if (usuario == null)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(usuario);
         }
 
         // GET api/Usuario/GetUsuarioByID/5
         [HttpGet("GetUsuarioByID/{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (usuario == null || usuario.Deleted)
-            {
+            var result = await _usuariosService.GetById(id);
+            if (result.Success != true)
+                return NotFound(result.Message);
+
+            var usuario = (Usuario)result.Data;
+            if (usuario.Deleted)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-            }
+
             return Ok(usuario);
         }
 
@@ -82,76 +92,74 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetDeletedUsuarios")]
         public async Task<IActionResult> GetDeletedUsuarios()
         {
-            var deletedUsers = await _usuarioRepository.GetFilteredAsync(u => u.Deleted);
-            if (deletedUsers.Success == true)
-            {
-                return Ok(deletedUsers.Data);
-            }
-            return BadRequest(deletedUsers.Message);
+            var result = await _usuariosService.GerAllDelete();
+            if (result.Success != true)
+                return BadRequest(result.Message);
+
+            var usuario = result.Data as IEnumerable<UsuarioDto>;
+            if (usuario == null || !usuario.Any())
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
+            return Ok(usuario);
         }
 
         // GET api/Usuario/GetDeletedUsuarioByID/5
         [HttpGet("GetDeletedUsuarioByID/{id}")]
         public async Task<IActionResult> GetDeletedUsuarioByID(int id)
         {
-            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (usuario == null || !usuario.Deleted)
-            {
+            var result = await _usuariosService.GetById(id);
+            if (result.Success != true || result.Data == null)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-            }
+
+            var usuario = (Usuario)result.Data;
+            if (!usuario.Deleted)
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+
             return Ok(usuario);
         }
 
         // POST: api/Usuarios/Login
         [HttpPost("Login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {
-            var usuario = await _usuarioRepository.GetByEmailAsync(request.Correo);
+            var result = await _usuariosService.Login(request);
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+
+            var usuario = result.Data as UsuarioDto;
             if (usuario == null)
             {
                 return NotFound(new { message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] });
             }
 
-            if (usuario.Deleted)
+            var token = GenerateJwtToken(new Usuario
             {
-                // Se podría agregar una clave específica, pero aquí se reutiliza "NotFound"
-                return BadRequest(new { message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] });
-            }
-
-            if (usuario.Clave != request.Clave)
-            {
-                // Se usa el mensaje de credenciales inválidas definido en la categoría Auth
-                return BadRequest(new { message = _messageMapper.ErrorMessages["Auth"]["InvalidCredentials"] });
-            }
-
-            var token = GenerateJwtToken(usuario);
+                Id = usuario.IdUsuario,
+                NombreCompleto = usuario.NombreCompleto,
+                Correo = usuario.Correo,
+                IdRolUsuario = usuario.IdRolUsuario
+            });
 
             return Ok(new
             {
                 token,
-                message = _messageMapper.SuccessMessages["GenericSuccess"],
-                usuario = new
-                {
-                    usuario.Id,
-                    usuario.NombreCompleto,
-                    usuario.Correo,
-                    usuario.IdRolUsuario,
-                    usuario.Deleted
-                }
+                message = _messageMapper.SuccessMessages["LoginSuccess"],
+                usuario
             });
         }
 
         // POST api/Usuario/SaveUsuario
         [HttpPost("SaveUsuario")]
-        public async Task<IActionResult> Post([FromBody] Usuario usuario)
+        public async Task<IActionResult> Post([FromBody] SaveUsuarioDto usuarioDto)
         {
             try
             {
-                var saveResult = await _usuarioRepository.SaveEntityAsync(usuario);
-                if (saveResult.Success != true)
-                {
+                var saveResult = await _usuariosService.Save(usuarioDto);
+                if (saveResult.Success == true)
                     return Ok(new { Message = _messageMapper.SuccessMessages["SaveSuccess"], Data = saveResult.Data });
-                }
+
                 return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"], Error = saveResult.Message });
             }
             catch (Exception ex)
@@ -162,41 +170,48 @@ namespace SGHR.Api.Controllers
 
         // PUT api/Usuario/UpdateUsuario/5
         [HttpPut("UpdateUsuario/{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] Usuario usuario)
+        public async Task<IActionResult> Put(int id, [FromBody] UpdateUsuarioDto usuarioDto)
         {
             if (id <= 0)
                 return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            var existingUsuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (existingUsuario == null || existingUsuario.Deleted)
+            var existingResult = await _usuariosService.GetById(id);
+            if (existingResult.Success != true || existingResult.Data == null)
             {
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            usuario.Id = id;
-            var updateUsuario = await _usuarioRepository.UpdateEntityAsync(usuario);
-            if (updateUsuario.Success == true)
+            var existingCliente = (Usuario)existingResult.Data;
+            if (existingCliente.Deleted)
             {
-                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateUsuario.Data });
+                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateUsuario.Message ?? "Error desconocido" });
+
+            usuarioDto.IdUsuario = id;
+            var updateResult = await _usuariosService.Update(usuarioDto);
+            if (updateResult.Success == true)
+            {
+                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
+            }
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
         // PUT api/Usuario/RestoreUsuario/5
         [HttpPut("RestoreUsuario/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (usuario == null)
+            var result = await _usuariosService.GetById(id);
+            if (result.Success != true || result.Data == null)
             {
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
-            var result = await _usuarioRepository.RestoreEntityAsync(usuario);
-            if (result.Success != true)
+
+            var restoreResult = await _usuariosService.Restore(id);
+            if (restoreResult.Success != true)
             {
                 return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
             }
-            return BadRequest(result.Message);
+            return BadRequest(restoreResult.Message);
         }
 
         // DELETE api/Usuario/DeleteUsuario/5
@@ -206,22 +221,31 @@ namespace SGHR.Api.Controllers
             if (id <= 0)
                 return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
 
-            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (usuario == null)
+            var result = await _usuariosService.GetById(id);
+            if (!result.Success || result.Data == null)
             {
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
             }
 
-            usuario.Deleted = true;
-            usuario.DeletedUser = 1;
-            usuario.ModifyDate = DateTime.Now;
+            var removeDto = new RemoveUsuarioDto { IdUsuario = id };
+            var deleteResult = await _usuariosService.Remove(removeDto);
 
-            var deleteResult = await _usuarioRepository.UpdateEntityAsync(usuario);
-            if (deleteResult.Success != true)
+            if (deleteResult.Success)
             {
-                return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
+                return Ok(new
+                {
+                    Message = _messageMapper.SuccessMessages["DeleteSuccess"],
+                    Data = deleteResult.Data
+                });
             }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
+            else
+            {
+                return BadRequest(new
+                {
+                    Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"],
+                    Error = deleteResult.Message
+                });
+            }
         }
     }
 }

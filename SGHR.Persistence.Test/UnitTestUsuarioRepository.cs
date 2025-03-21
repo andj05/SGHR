@@ -6,11 +6,6 @@ using SGHR.Persistence.Repositories;
 using SGHR.Persistence.Configurations;
 using SGHR.Infraestructure.Logging.Base;
 using SGHR.Infraestructure.Logging.Interfaces;
-using Xunit;
-using System;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
 
 namespace SGHR.Persistence.Test
 {

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SGHR.Web.Models;
 using System.Diagnostics;
 
-namespace SGHR.Web.Controllers
+namespace SGHR.Web1.Controllers
 {
     public class HomeController : Controller
     {

@@ -2,11 +2,8 @@
 
 namespace SGHR.Application.Dtos.Cliente
 {
-    public class UpdateClienteDto : PersonaDto
+    public class UpdateClienteDto : ClienteDto
     {
         public int IdCliente { get; set; }
-        public string? TipoDocumento { get; set; }
-        public string? Documento { get; set; }
-        public string? Nacionalidad { get; set; }
     }
 }

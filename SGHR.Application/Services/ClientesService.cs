@@ -1,25 +1,18 @@
-﻿using Microsoft.Extensions.Configuration;
-using SGHR.Application.Dtos.Cliente;
+﻿using SGHR.Application.Dtos.Cliente;
 using SGHR.Application.Intefaces;
+using SGHR.Application.Mappers;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Users;
-using SGHR.Infraestructure.Logging.Base;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
 
 namespace SGHR.Application.Services
 {
     public class ClientesService : IClientesService
     {
         private readonly IClienteRepository _clienteRepository;
-        private readonly IConfiguration _configuration;
         private readonly MessageMapper _messageMapper;
         private readonly ILoggerManager _loggerManager;
-        private ClienteRepository clienteRepository;
-        private MessageMapper messageMapper;
-        private LoggerManager logger;
 
         public ClientesService(IClienteRepository clienteRepository,
                                MessageMapper messageMapper,
@@ -35,9 +28,39 @@ namespace SGHR.Application.Services
             var operationResult = new OperationResult();
             try
             {
-                var clientes = await _clienteRepository.GetAllAsync();
-                operationResult.Data = clientes;
+                var cliente = await _clienteRepository.GetAllAsync();
+                var activeCliente = cliente
+                    .Where(t => !t.Deleted)
+                    .Select(ClienteMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                operationResult.Data = activeCliente;
                 operationResult.Success = true;
+
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                operationResult.Success = false;
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+            }
+            return operationResult;
+        }
+
+        public async Task<OperationResult> GerAllDelete()
+        {
+            var operationResult = new OperationResult();
+            try
+            {
+                var cliente = await _clienteRepository.GetAllAsync();
+                var activeCliente = cliente
+                    .Where(t => t.Deleted)
+                    .Select(ClienteMapper.ToDto)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToList();
+                operationResult.Data = activeCliente;
+                operationResult.Success = true;
+
             }
             catch (Exception ex)
             {
@@ -56,22 +79,23 @@ namespace SGHR.Application.Services
                 var cliente = await _clienteRepository.GetEntityByIdAsync(id);
                 if (cliente == null)
                 {
-                    operationResult.Success = false;
                     operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    operationResult.Success = false;
                 }
                 else
                 {
-                    operationResult.Success = true;
                     operationResult.Data = cliente;
+                    operationResult.Success = true;
                 }
             }
             catch (Exception ex)
             {
                 _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Success = false;
                 operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                operationResult.Success = false;
             }
             return operationResult;
+
         }
 
         public async Task<OperationResult> Save(SaveClienteDto dto)
@@ -82,18 +106,7 @@ namespace SGHR.Application.Services
 
             try
             {
-                var cliente = new Cliente
-                {
-                    TipoDocumento = dto.TipoDocumento,
-                    Documento = dto.Documento,
-                    NombreCompleto = dto.NombreCompleto,
-                    Correo = dto.Correo,
-                    Clave = dto.Clave,
-                    Telefono = dto.Telefono,
-                    Nacionalidad = dto.Nacionalidad,
-                    CreationUser = 1
-                };
-
+                var cliente = ClienteMapper.ToEntity(dto);
                 return await _clienteRepository.SaveEntityAsync(cliente);
             }
             catch (Exception ex)
@@ -109,104 +122,61 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateClienteDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                if (dto.IdCliente <= 0)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"] };
+            if (dto.IdCliente <= 0)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
-                var cliente = await _clienteRepository.GetEntityByIdAsync(dto.IdCliente);
-                if (cliente == null)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] };
+            var cliente = await _clienteRepository.GetEntityByIdAsync(dto.IdCliente);
+            if (cliente == null || cliente.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
-                if (cliente is not Cliente clienteData || clienteData.Deleted)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] };
-
-                clienteData.TipoDocumento = dto.TipoDocumento ?? clienteData.TipoDocumento;
-                clienteData.Documento = dto.Documento ?? clienteData.Documento;
-                clienteData.NombreCompleto = dto.NombreCompleto ?? clienteData.NombreCompleto;
-                clienteData.Correo = dto.Correo ?? clienteData.Correo;
-                clienteData.Clave = dto.Clave ?? clienteData.Clave;
-                clienteData.Telefono = dto.Telefono ?? clienteData.Telefono;
-                clienteData.Nacionalidad = dto.Nacionalidad ?? clienteData.Nacionalidad;
-                clienteData.ModifyDate = DateTime.Now;
-                clienteData.ModifyUser = 1;
-
-                var updateResult = await _clienteRepository.UpdateEntityAsync(clienteData);
-                operationResult.Success = updateResult.Success;
-                operationResult.Message = updateResult.Message;
-                operationResult.Data = updateResult.Data;
-            }
-            catch (Exception ex)
-            {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex.Message}";
-            }
-            return operationResult;
+            cliente.UpdateFromDto(dto);
+            return await _clienteRepository.UpdateEntityAsync(cliente);
         }
+
 
         public async Task<OperationResult> Remove(RemoveClienteDto dto)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                if (dto.IdCliente <= 0)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"] };
+            if (dto.IdCliente <= 0)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
 
-                var cliente = await _clienteRepository.GetEntityByIdAsync(dto.IdCliente);
-                if (cliente == null)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] };
+            var cliente = await _clienteRepository.GetEntityByIdAsync(dto.IdCliente);
+            if (cliente == null || cliente.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                };
 
-                if (cliente is not Cliente clienteData || clienteData.Deleted)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] };
-
-                clienteData.Deleted = true;
-                clienteData.DeletedUser = 1;
-                clienteData.ModifyDate = DateTime.Now;
-
-                var updateResult = await _clienteRepository.UpdateEntityAsync(clienteData);
-                operationResult.Success = updateResult.Success;
-                operationResult.Message = updateResult.Message;
-                operationResult.Data = updateResult.Data;
-            }
-            catch (Exception ex)
-            {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DeleteFailed"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DeleteFailed"]}: {ex.Message}";
-            }
-            return operationResult;
+            cliente.RemoveFromDto(dto);
+            return await _clienteRepository.UpdateEntityAsync(cliente);
         }
 
         public async Task<OperationResult> Restore(int id)
         {
-            var operationResult = new OperationResult();
-            try
-            {
-                var cliente = await _clienteRepository.GetEntityByIdAsync(id);
-                if (cliente == null)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] };
+            var cliente = await _clienteRepository.GetEntityByIdAsync(id);
+            if (cliente == null || !cliente.Deleted)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = cliente == null
+                        ? _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        : _messageMapper.ErrorMessages["EntityBase"]["AlreadyActive"]
+                };
 
-                if (cliente is not Cliente clienteData || !clienteData.Deleted)
-                    return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"] };
-
-                clienteData.Deleted = false;
-                clienteData.ModifyDate = DateTime.Now;
-                clienteData.ModifyUser = 1;
-
-                var updateResult = await _clienteRepository.UpdateEntityAsync(clienteData);
-                operationResult.Success = updateResult.Success;
-                operationResult.Message = updateResult.Message;
-                operationResult.Data = updateResult.Data;
-            }
-            catch (Exception ex)
-            {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["RestoreFailed"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["RestoreFailed"]}: {ex.Message}";
-            }
-            return operationResult;
+            cliente.RestoreFromDto(1);
+            return await _clienteRepository.UpdateEntityAsync(cliente);
         }
 
         private OperationResult ValidateCliente(dynamic cliente)
@@ -228,5 +198,7 @@ namespace SGHR.Application.Services
 
             return new OperationResult { Success = true };
         }
+
+
     }
 }

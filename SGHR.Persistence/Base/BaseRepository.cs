@@ -12,7 +12,7 @@ namespace SGHR.Persistence.Base
     {
         private readonly SGHRContext _context;
         private DbSet<TEntity> Entity { get; set; }
-        public BaseRepository(SGHRContext context)
+        protected BaseRepository(SGHRContext context)
         {
             _context = context;
             Entity = _context.Set<TEntity>();

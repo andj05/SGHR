@@ -66,30 +66,37 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            var usuarios = result.Data as List<Usuario>;
+            var usuarios = result.Data as List<UsuarioDto>;
+            Assert.NotNull(usuarios);
             Assert.Single(usuarios); // Solo debe retornar el usuario activo
         }
 
         [Fact]
-        public async Task GetById_WithDeletedUser_ReturnsNotFound()
+        public async Task Login_WithValidCredentials_ReturnsSuccess()
         {
             // Arrange
             var usuario = new Usuario
             {
-                NombreCompleto = "Eliminado",
-                Clave = "clave3",
-                Correo = "eliminado@test.com",
+                NombreCompleto = "Usuario",
+                Clave = "clave123",
+                Correo = "usuario@test.com",
                 IdRolUsuario = 1,
-                Deleted = true
+                Deleted = false
             };
             await _repository.SaveEntityAsync(usuario);
 
+            var loginRequest = new LoginRequestDto
+            {
+                Correo = "usuario@test.com",
+                Clave = "clave123"
+            };
+
             // Act
-            var result = await _service.GetById(usuario.Id);
+            var result = await _service.Login(loginRequest);
 
             // Assert
-            Assert.False(result.Success);
-            Assert.Equal(_messageMapper.ErrorMessages["EntityBase"]["NotFound"], result.Message);
+            Assert.True(result.Success);
+            Assert.Equal(_messageMapper.SuccessMessages["LoginSuccess"], result.Message);
         }
 
         [Fact]

@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
-using SGHR.Infraestructure.Logging.Base;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Base;
 using SGHR.Persistence.Configurations;
@@ -32,7 +29,7 @@ namespace SGHR.Persistence.Repositories
         {
             try
             {
-                return await _context.Set<Usuario>().Where(h => !h.Deleted).ToListAsync();
+                return await _context.Set<Usuario>().ToListAsync();
             }
             catch (Exception ex)
             {
@@ -66,37 +63,6 @@ namespace SGHR.Persistence.Repositories
             }
         }
 
-        public async Task<OperationResult> GetUsersByStatusAsync(int idEstadoUsuario)
-        {
-            try
-            {
-                if (idEstadoUsuario is not (0 or 1))
-                {
-                    // Se utiliza el mensaje de ID inválido como ejemplo para este caso.
-                    string invalidState = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
-                    return new OperationResult { Success = false, Message = $"{invalidState} Estado de usuario inválido. Debe ser 0 o 1." };
-                }
-
-                bool estado = idEstadoUsuario == 1;
-                var usuarios = await _context.Set<Usuario>()
-                    .AsNoTracking()
-                    .Where(u => u.Estado == estado)
-                    .ToListAsync();
-
-                _logger.LogInfo($"Se recuperaron {usuarios.Count} usuarios con el estado {idEstadoUsuario}");
-                return new OperationResult { Success = true, Data = usuarios };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al obtener usuarios con estado {idEstadoUsuario}");
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["Operations"]["DbException"] + ": " + ex.Message
-                };
-            }
-        }
-
         public override async Task<OperationResult> GetFilteredAsync(Expression<Func<Usuario, bool>> filter)
         {
             var result = new OperationResult();
@@ -124,6 +90,37 @@ namespace SGHR.Persistence.Repositories
             return result;
         }
 
+        public async Task<OperationResult> GetUsersByStatusAsync(int idEstadoUsuario)
+        {
+            try
+            {
+                if (idEstadoUsuario is not (0 or 1))
+                {
+                    string invalidState = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return new OperationResult { Success = false, Message = $"{invalidState} Estado de usuario inválido. Debe ser 0 o 1." };
+                }
+
+                bool estado = idEstadoUsuario == 1;
+                var usuario = await _context.Set<Usuario>()
+                    .AsNoTracking()
+                    .Where(c => c.Estado == estado)
+                    .ToListAsync();
+
+                _logger.LogInfo($"Se recuperaron {usuario.Count} usuario con el estado {idEstadoUsuario}");
+
+                return new OperationResult { Success = true, Data = usuario };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: Error al obtener usuario con estado {idEstadoUsuario}");
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["DbException"] + ": " + ex.Message
+                };
+            }
+        }
+
         public override async Task<Usuario> GetByEmailAsync(string email)
         {
             try
@@ -145,11 +142,21 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> SaveEntityAsync(Usuario usuario)
         {
+            if (usuario == null)
+            {
+                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
+            }
+
             try
             {
                 usuario.FechaCreacion = DateTime.UtcNow;
                 usuario.ModifyDate = DateTime.UtcNow;
-                usuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                usuario.ModifyUser = 1;
 
                 await _context.Set<Usuario>().AddAsync(usuario);
                 await _context.SaveChangesAsync();
@@ -167,7 +174,7 @@ namespace SGHR.Persistence.Repositories
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"] + ": " + ex.Message
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
                 };
             }
         }
@@ -187,15 +194,18 @@ namespace SGHR.Persistence.Repositories
                     };
                 }
 
-                // Actualizar los datos modificables
-                existingUsuario.NombreCompleto = usuario.NombreCompleto;
-                existingUsuario.Correo = usuario.Correo;
-                existingUsuario.IdRolUsuario = usuario.IdRolUsuario;
-                existingUsuario.Clave = usuario.Clave;
-                existingUsuario.ModifyDate = DateTime.UtcNow;
-                existingUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                // Actualizar los datos modificables con Entity Framework Core
+                _context.Entry(existingUsuario).CurrentValues.SetValues(usuario);
 
-                _context.Update(existingUsuario);
+                // Excluir propiedades que no deben ser actualizadas
+                _context.Entry(existingUsuario).Property(x => x.FechaCreacion).IsModified = false;
+                _context.Entry(existingUsuario).Property(x => x.CreationUser).IsModified = false;
+
+                // Actualizar ModifyDate y ModifyUser
+                existingUsuario.ModifyDate = DateTime.UtcNow;
+                existingUsuario.ModifyUser = 1; // Obtener el usuario autenticado en producción
+
+                // Guardar cambios
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
@@ -276,9 +286,11 @@ namespace SGHR.Persistence.Repositories
                         Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                     };
                 }
+
                 existingUsuario.Deleted = false;
                 existingUsuario.ModifyDate = DateTime.UtcNow;
                 existingUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
                 await _context.SaveChangesAsync();
                 return new OperationResult
                 {

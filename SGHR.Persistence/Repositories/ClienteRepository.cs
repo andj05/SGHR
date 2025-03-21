@@ -1,6 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
 using SGHR.Persistence.Base;
@@ -9,7 +7,6 @@ using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using System.Linq.Expressions;
 using SGHR.Infraestructure.Logging.Interfaces;
-using SGHR.Infraestructure.Logging.Base;
 
 namespace SGHR.Persistence.Repositories
 {
@@ -180,23 +177,18 @@ namespace SGHR.Persistence.Repositories
                     };
                 }
 
-                // Actualizar los datos modificables
-                existingCliente.TipoDocumento = cliente.TipoDocumento;
-                existingCliente.Documento = cliente.Documento;
-                existingCliente.NombreCompleto = cliente.NombreCompleto;
-                existingCliente.Clave = cliente.Clave;
-                existingCliente.Correo = cliente.Correo;
-                existingCliente.Telefono = cliente.Telefono;
-                existingCliente.Nacionalidad = cliente.Nacionalidad;
-                existingCliente.Estado = cliente.Estado;
-                existingCliente.CreationUser = cliente.CreationUser;
-                existingCliente.Nacionalidad = cliente.Nacionalidad;
-                existingCliente.FechaCreacion = cliente.FechaCreacion;
-                existingCliente.ModifyDate = DateTime.Now;
-                existingCliente.ModifyUser = 1; // En producción, obtener el cliente autenticado.
+                // Actualizar los datos modificables con Entity Framework Core
+                _context.Entry(existingCliente).CurrentValues.SetValues(cliente);
+
+                // Excluir propiedades que no deben ser actualizadas
+                _context.Entry(existingCliente).Property(x => x.FechaCreacion).IsModified = false;
+                _context.Entry(existingCliente).Property(x => x.CreationUser).IsModified = false;
+
+                // Actualizar ModifyDate y ModifyUser
+                existingCliente.ModifyDate = DateTime.UtcNow;
+                existingCliente.ModifyUser = 1; // Obtener el usuario autenticado en producción
 
                 // Guardar cambios
-                _context.Update(existingCliente);
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
@@ -277,6 +269,7 @@ namespace SGHR.Persistence.Repositories
                         Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                     };
                 }
+
                 existingCliente.Deleted = false;
                 existingCliente.ModifyDate = DateTime.UtcNow;
                 existingCliente.ModifyUser = 1; // En producción, obtener el cliente autenticado.

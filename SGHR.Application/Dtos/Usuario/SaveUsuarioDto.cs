@@ -2,8 +2,8 @@
 
 namespace SGHR.Application.Dtos.Usuario
 {
-    public class SaveUsuarioDto : PersonaDto
+    public class SaveUsuarioDto : UsuarioDto
     {
-        public int IdRolUsuario { get; set; }
+        public int IdUsuario { get; set; }
     }
 }

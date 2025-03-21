@@ -76,7 +76,8 @@ namespace SGHR.Persistence.Configurations
                     ["InvalidRoleID"] = "Campo IdRolUsuario inválido.",
                     ["MissingEmail"] = "Campo Correo requerido.",
                     ["EmailInUse"] = "Correo ya registrado.",
-                    ["MissingRole"] = "El rol del usuario es obligatorio."
+                    ["MissingRole"] = "El rol del usuario es obligatorio.",
+                    ["LoginFailed"] = "Inicio de sesión fallido."
                 },
                 // Validaciones específicas de tarifas
                 ["Rate"] = new Dictionary<string, string>
@@ -114,7 +115,8 @@ namespace SGHR.Persistence.Configurations
                 ["CheckInCompleted"] = "Check-in completado (ID: {0}).",
                 ["CheckOutCompleted"] = "Check-out completado (ID: {0}).",
                 ["ReportResolved"] = "Reporte resuelto (ID: {0}).",
-                ["PasswordChanged"] = "Contraseña actualizada."
+                ["PasswordChanged"] = "Contraseña actualizada.",
+                ["LoginSuccess"] = "Inicio de sesión exitoso.",
             };
         }
     }

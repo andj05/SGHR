@@ -55,7 +55,7 @@ namespace SGHR.Application.Tests.Services
             _service = new ServiciosService(
                 _repository,
                 _messageMapper,
-                _logger);  
+                _logger);
         }
 
         [Fact]
@@ -64,24 +64,24 @@ namespace SGHR.Application.Tests.Services
             // Arrange
             await _repository.SaveEntityAsync(new Servicios
             {
-                Nombre = "Servicio 1",
-                Descripcion = "Descripción 1",
+                Nombre = "Servicio Prueba Uno",
+                Descripcion = "Esta es una descripción detallada para el servicio de prueba uno.",
                 Estado = true,
                 Deleted = false
             });
 
             await _repository.SaveEntityAsync(new Servicios
             {
-                Nombre = "Servicio 2",
-                Descripcion = "Descripción 2",
+                Nombre = "Servicio Prueba Dos",
+                Descripcion = "Esta es una descripción detallada para el servicio de prueba dos.",
                 Estado = true,
                 Deleted = false
             });
 
             await _repository.SaveEntityAsync(new Servicios
             {
-                Nombre = "Servicio Eliminado",
-                Descripcion = "Descripción Eliminada",
+                Nombre = "Servicio Eliminado Prueba",
+                Descripcion = "Esta es una descripción detallada para el servicio eliminado.",
                 Estado = true,
                 Deleted = true
             });
@@ -94,18 +94,19 @@ namespace SGHR.Application.Tests.Services
             var servicios = result.Data as List<ServiciosDto>;
             Assert.NotNull(servicios);
             Assert.Equal(2, servicios.Count);
-            Assert.DoesNotContain(servicios, s => s.Nombre == "Servicio Eliminado");
+            Assert.DoesNotContain(servicios, s => s.Nombre == "Servicio Eliminado Prueba");
         }
-
-
-
 
         [Fact]
         public async Task GetById_WithValidId_ReturnsServicio()
         {
             // Arrange
             var servicio = new Servicios
-            { Nombre = "Test", Descripcion = "Test Desc", Estado = true };
+            {
+                Nombre = "Servicio Prueba Completo",
+                Descripcion = "Esta es una descripción detallada para el servicio de prueba completo.",
+                Estado = true
+            };
             await _repository.SaveEntityAsync(servicio);
 
             // Act
@@ -122,8 +123,8 @@ namespace SGHR.Application.Tests.Services
             // Arrange
             var dto = new SaveServiciosDto
             {
-                Nombre = "Nuevo Servicio",
-                Descripcion = "Descripción del servicio",
+                Nombre = "Nuevo Servicio Prueba Completo",
+                Descripcion = "Esta es una descripción detallada para el nuevo servicio de prueba completo.",
                 Estado = true
             };
 
@@ -141,14 +142,18 @@ namespace SGHR.Application.Tests.Services
         {
             // Arrange
             var servicio = new Servicios
-            { Nombre = "Original", Descripcion = "Original Desc", Estado = true };
+            {
+                Nombre = "Servicio Original Completo",
+                Descripcion = "Esta es una descripción detallada para el servicio original completo.",
+                Estado = true
+            };
             await _repository.SaveEntityAsync(servicio);
 
             var dto = new UpdateServiciosDto
             {
                 IdServicio = servicio.Id,
-                Nombre = "Servicio Actualizado",
-                Descripcion = "Nueva descripción",
+                Nombre = "Servicio Actualizado Completo",
+                Descripcion = "Esta es una descripción detallada para el servicio actualizado completo.",
                 Estado = false
             };
 
@@ -166,7 +171,11 @@ namespace SGHR.Application.Tests.Services
         public async Task Remove_WithExistingId_MarksAsDeleted()
         {
             // Arrange
-            var servicio = new Servicios { Nombre = "To Delete", Descripcion = "To Delete Desc" };
+            var servicio = new Servicios
+            {
+                Nombre = "Servicio Para Eliminar Completo",
+                Descripcion = "Esta es una descripción detallada para el servicio que será eliminado."
+            };
             await _repository.SaveEntityAsync(servicio);
 
             // Act
@@ -175,7 +184,7 @@ namespace SGHR.Application.Tests.Services
             // Assert
             Assert.True(result.Success);
             var deleted = await _repository.GetEntityByIdAsync(servicio.Id);
-            Assert.True(deleted.Deleted); 
+            Assert.True(deleted.Deleted);
         }
 
         [Fact]
@@ -183,7 +192,11 @@ namespace SGHR.Application.Tests.Services
         {
             // Arrange
             var servicio = new Servicios
-            { Nombre = "Deleted", Descripcion = "Deleted Desc", Deleted = true };
+            {
+                Nombre = "Servicio Eliminado Completo",
+                Descripcion = "Esta es una descripción detallada para el servicio eliminado que será restaurado.",
+                Deleted = true
+            };
             await _repository.SaveEntityAsync(servicio);
 
             // Act

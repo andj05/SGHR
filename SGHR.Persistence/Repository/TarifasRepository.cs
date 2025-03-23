@@ -24,6 +24,19 @@ namespace SGHR.Persistence.Repositories
             _messageMapper = messageMapper;
         }
 
+        private OperationResult ValidateTarifaPersistence(Tarifas tarifa)
+        {
+            if (tarifa == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"] 
+                };
+            }
+            return new OperationResult { Success = true };
+        }
+
         public override async Task<List<Tarifas>> GetAllAsync()
         {
             try
@@ -47,7 +60,10 @@ namespace SGHR.Persistence.Repositories
 
             try
             {
-                var tarifas = await _context.Set<Tarifas>().FindAsync(id);
+                var tarifas = await _context.Set<Tarifas>()
+                    .IgnoreQueryFilters() 
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
                 if (tarifas == null)
                 {
                     _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
@@ -60,6 +76,24 @@ namespace SGHR.Persistence.Repositories
                 _logger.LogError(ex, _messageMapper.ErrorMessages["Tarifas"]["GetByIdError"]);
                 throw;
             }
+        }
+
+        public override async Task<OperationResult> GetFilteredAsync(Expression<Func<Tarifas, bool>> filter)
+        {
+            var result = new OperationResult();
+            try
+            {
+                var filteredEntities = await base.GetFilteredAsync(filter);
+                result.Success = true;
+                result.Data = filteredEntities.Data;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
+            }
+            return result;
         }
 
         public override async Task<bool> ExistsAsync(Expression<Func<Tarifas, bool>> filter)
@@ -81,22 +115,28 @@ namespace SGHR.Persistence.Repositories
             }
         }
 
-        public override async Task<OperationResult> SaveEntityAsync(Tarifas tarifas)
+        public override async Task<OperationResult> SaveEntityAsync(Tarifas tarifa)
         {
+            var validationResult = ValidateTarifaPersistence(tarifa);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
-                tarifas.FechaCreacion = DateTime.UtcNow;
-                tarifas.ModifyDate = DateTime.UtcNow;
-                tarifas.ModifyUser = 1;
+                tarifa.FechaCreacion = DateTime.UtcNow;
+                tarifa.ModifyDate = DateTime.UtcNow;
+                tarifa.ModifyUser = 1;
 
-                await _context.Set<Tarifas>().AddAsync(tarifas);
+                await _context.Set<Tarifas>().AddAsync(tarifa);
                 await _context.SaveChangesAsync();
 
                 return new OperationResult
                 {
                     Success = true,
                     Message = _messageMapper.SuccessMessages["SaveSuccess"],
-                    Data = tarifas
+                    Data = tarifa
                 };
             }
             catch (Exception ex)
@@ -112,11 +152,16 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> UpdateEntityAsync(Tarifas tarifa)
         {
+            var validationResult = ValidateTarifaPersistence(tarifa);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
 
             var result = new OperationResult();
             try
             {
-                var existingTarifa = await _context.Set<Tarifas>().FindAsync( tarifa.Id);
+                var existingTarifa = await _context.Set<Tarifas>().FindAsync(tarifa.Id);
                 if (existingTarifa == null)
                 {
                     return new OperationResult
@@ -128,6 +173,7 @@ namespace SGHR.Persistence.Repositories
 
                 existingTarifa.Descripcion = tarifa.Descripcion;
                 existingTarifa.Estado = tarifa.Estado;
+                existingTarifa.PrecioPorNoche = tarifa.PrecioPorNoche;
                 existingTarifa.ModifyDate = DateTime.Now;
                 existingTarifa.ModifyUser = 1; // Usar ID de usuario real
 
@@ -147,9 +193,15 @@ namespace SGHR.Persistence.Repositories
             return result;
         }
 
-        public override async Task<OperationResult> DeleteEntityAsync(Tarifas tarifas)
+        public override async Task<OperationResult> DeleteEntityAsync(Tarifas tarifa)
         {
-            if (tarifas == null || tarifas.Id <= 0)
+            var validationResult = ValidateTarifaPersistence(tarifa);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
+            if (tarifa.Id <= 0)
             {
                 return new OperationResult
                 {
@@ -160,7 +212,7 @@ namespace SGHR.Persistence.Repositories
 
             try
             {
-                var existingTarifa = await _context.Tarifas.FindAsync(tarifas.Id);
+                var existingTarifa = await _context.Tarifas.FindAsync(tarifa.Id);
                 if (existingTarifa == null)
                 {
                     return new OperationResult
@@ -190,11 +242,20 @@ namespace SGHR.Persistence.Repositories
             }
         }
 
-        public override async Task<OperationResult> RestoreEntityAsync(Tarifas tarifas)
+        public override async Task<OperationResult> RestoreEntityAsync(Tarifas tarifa)
         {
+            var validationResult = ValidateTarifaPersistence(tarifa);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
-                var existingTarifa = await _context.Set<Tarifas>().FindAsync(tarifas.Id);
+                var existingTarifa = await _context.Set<Tarifas>()
+                                               .IgnoreQueryFilters()
+                                               .FirstOrDefaultAsync(t => t.Id == tarifa.Id);
+
                 if (existingTarifa == null)
                 {
                     return new OperationResult
@@ -208,13 +269,14 @@ namespace SGHR.Persistence.Repositories
                 existingTarifa.ModifyDate = DateTime.Now;
                 existingTarifa.ModifyUser = 1; // Usar ID de usuario real
 
+                _context.Update(existingTarifa);
                 await _context.SaveChangesAsync();
+
                 return new OperationResult
                 {
                     Success = true,
                     Message = _messageMapper.SuccessMessages["RestoreSuccess"]
                 };
-
             }
             catch (Exception ex)
             {

@@ -1,13 +1,10 @@
 ﻿using SGHR.Application.Dtos.Servicios;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
-using SGHR.Persistence.Repository;
-
+using System.Text.RegularExpressions;
 
 namespace SGHR.Application.Services
 {
@@ -100,7 +97,7 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SaveServiciosDto dto)
         {
-            var validation = ValidateServicios(dto);
+            var validation = await ValidateServicios(dto);
             if (validation.Success != true)
                 return validation;
 
@@ -137,6 +134,11 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
+            // Validación de negocio antes de actualizar
+            var validation = await ValidateServicios(dto);
+            if (validation.Success != true)
+                return validation;
+
             servicio.UpdateFromDto(dto);
             return await _serviciosRepository.UpdateEntityAsync(servicio);
         }
@@ -158,7 +160,12 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            servicio.RemoveFromDto(dto);
+            // Validación de negocio antes de eliminar
+            var validation = await ValidateServicioRemoval(dto);
+            if (!validation.Success)
+                return validation;
+
+            servicio.Deleted = true;
             return await _serviciosRepository.UpdateEntityAsync(servicio);
         }
 
@@ -172,18 +179,19 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            servicio.RestoreFromDto(1); // En producción, obtener el usuario autenticado.
-            return await _serviciosRepository.UpdateEntityAsync(servicio);
+            servicio.Deleted = false;
+            return await _serviciosRepository.RestoreEntityAsync(servicio);
         }
 
-        private OperationResult ValidateServicios(dynamic service)
+        private async Task<OperationResult> ValidateServicios(dynamic service)
         {
+            // Validaciones de campo (ya existentes)
             if (service == null)
             {
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Servicios"]["NullServicio"]
+                    Message = "El servicio no puede estar vacío."
                 };
             }
 
@@ -192,7 +200,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Servicios"]["MissingName"]
+                    Message = "El nombre del servicio no puede estar vacío."
                 };
             }
 
@@ -201,11 +209,94 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Servicios"]["InvalidDescription"]
+                    Message = "La descripción del servicio no puede estar vacía y debe tener menos de 255 caracteres."
                 };
             }
 
+            // Validaciones de negocio
+
+            // 1. Validar longitud mínima del nombre (regla de negocio)
+            if (service.Nombre.Length < 10)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "El nombre del servicio debe tener al menos 10 caracteres."
+                };
+            }
+
+            // 2. Validar que el nombre no contenga caracteres especiales o símbolos inapropiados
+            if (!IsValidServiceName(service.Nombre))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "El nombre del servicio contiene caracteres no permitidos."
+                };
+            }
+
+            // 3. Validar longitud mínima de descripción (regla de negocio)
+            if (service.Descripcion.Length < 25)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La descripción del servicio debe tener al menos 25 caracteres."
+                };
+            }
+
+            // 4. Verificar si el nombre del servicio ya existe (evitar duplicados)
+            var serviciosExistentes = await _serviciosRepository.GetAllAsync();
+
+            // Para un servicio nuevo (SaveServiciosDto)
+            if (service is SaveServiciosDto)
+            {
+                var existingService = serviciosExistentes
+                    .FirstOrDefault(s => s.Nombre.Trim().ToLower() == service.Nombre.Trim().ToLower() && !s.Deleted);
+
+                if (existingService != null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = "Ya existe un servicio con este nombre."
+                    };
+                }
+            }
+            // Para actualización (UpdateServiciosDto)
+            else if (service is UpdateServiciosDto)
+            {
+                var existingService = serviciosExistentes
+                    .FirstOrDefault(s =>
+                        s.Nombre.Trim().ToLower() == service.Nombre.Trim().ToLower() &&
+                        s.Id != service.IdServicio &&
+                        !s.Deleted);
+
+                if (existingService != null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = "Ya existe otro servicio con este nombre."
+                    };
+                }
+            }
+
             return new OperationResult { Success = true };
+        }
+
+        private async Task<OperationResult> ValidateServicioRemoval(RemoveServiciosDto dto)
+        {
+            return new OperationResult { Success = true };
+        }
+
+        // Método auxiliar para validar el formato del nombre del servicio
+        private bool IsValidServiceName(string name)
+        {
+            // Permitir letras, números, espacios y algunos caracteres específicos
+            // Rechazar caracteres especiales como @, #, $, %, etc.
+            var regex = new Regex(@"^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_(),.]+$");
+            return regex.IsMatch(name);
         }
     }
 }

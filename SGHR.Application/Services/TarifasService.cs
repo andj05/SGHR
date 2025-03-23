@@ -2,7 +2,6 @@
 using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 
@@ -100,7 +99,7 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SaveTarifasDto dto)
         {
-            var validationResult = ValidateTarifas(dto);
+            var validationResult = await ValidateTarifas(dto);
             if (validationResult.Success != true)
                 return validationResult;
 
@@ -137,9 +136,14 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
+            var validationResult = await ValidateTarifas(dto);
+            if (validationResult.Success != true)
+                return validationResult;
+
             tarifa.UpdateFromDto(dto);
             return await _tarifasRepository.UpdateEntityAsync(tarifa);
         }
+
 
         public async Task<OperationResult> Remove(RemoveTarifasDto dto)
         {
@@ -158,7 +162,18 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            tarifa.RemoveFromDto(dto);
+            // Validación de negocio: No se pueden eliminar tarifas que estén actualmente vigentes
+            var currentDate = DateOnly.FromDateTime(DateTime.Now);
+            if (tarifa.FechaInicio <= currentDate && tarifa.FechaFin >= currentDate)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se puede eliminar una tarifa que está actualmente vigente"
+                };
+            }
+
+            tarifa.Deleted = true;
             return await _tarifasRepository.UpdateEntityAsync(tarifa);
         }
 
@@ -172,12 +187,41 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            tarifa.RestoreFromDto(1);
-            return await _tarifasRepository.UpdateEntityAsync(tarifa);
+            // Validación de negocio: Verificar si las fechas de la tarifa ya han pasado
+            var currentDate = DateOnly.FromDateTime(DateTime.Now);
+            if (tarifa.FechaFin < currentDate)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se puede restaurar una tarifa con fechas ya vencidas"
+                };
+            }
+
+            var allTarifas = await _tarifasRepository.GetAllAsync();
+            var overlappingTarifa = allTarifas
+                .Where(t => !t.Deleted &&
+                       t.IdHabitacion == tarifa.IdHabitacion &&
+                       t.Id != tarifa.Id &&
+                       ((t.FechaInicio <= tarifa.FechaInicio && t.FechaFin >= tarifa.FechaInicio) ||
+                        (t.FechaInicio <= tarifa.FechaFin && t.FechaFin >= tarifa.FechaFin) ||
+                        (t.FechaInicio >= tarifa.FechaInicio && t.FechaFin <= tarifa.FechaFin)))
+                .FirstOrDefault();
+
+            if (overlappingTarifa != null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La tarifa se solapa con otra tarifa existente para la misma habitación"
+                };
+            }
+
+            tarifa.Deleted = false;
+            return await _tarifasRepository.RestoreEntityAsync(tarifa);
         }
 
-
-        private OperationResult ValidateTarifas(dynamic tarifas)
+        private async Task<OperationResult> ValidateTarifas(dynamic tarifas)
         {
             if (tarifas == null)
             {
@@ -209,8 +253,137 @@ namespace SGHR.Application.Services
                 return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Tarifas"]["InvalidDiscount"] };
             }
 
+            // VALIDACIONES DE NEGOCIO
+
+            // 1. Validar que la fecha de inicio sea anterior a la fecha de fin
+            if (tarifas.FechaInicio >= tarifas.FechaFin)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La fecha de inicio debe ser anterior a la fecha de fin"
+                };
+            }
+
+            // 2. Validar que las fechas no estén en el pasado
+            var currentDate = DateOnly.FromDateTime(DateTime.Now);
+            if (tarifas.FechaInicio < currentDate)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se pueden crear tarifas con fechas pasadas"
+                };
+            }
+
+
+            // 3. Validar la duración mínima y máxima de la tarifa
+            TimeSpan duration = tarifas.FechaFin.ToDateTime(TimeOnly.MinValue) - tarifas.FechaInicio.ToDateTime(TimeOnly.MinValue);
+            if (duration.TotalDays < 7)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La duración de la tarifa debe ser de al menos 7 días"
+                };
+            }
+
+            if (duration.TotalDays > 365)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La duración de la tarifa no puede exceder 1 año"
+                };
+            }
+
+            // 4. Validar el descuento según la duración del periodo
+            if (duration.TotalDays < 30 && tarifas.Descuento > 20)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se puede aplicar un descuento mayor al 20% para estancias menores a 30 días"
+                };
+            }
+
+            // 5. Validar el precio según tipo de temporada (alta o baja)
+            bool isHighSeason = IsHighSeason(tarifas.FechaInicio, tarifas.FechaFin);
+            if (isHighSeason && tarifas.Descuento > 15)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "En temporada alta el descuento máximo permitido es del 15%"
+                };
+            }
+
+            // 6. Validar que no existan solapamientos con otras tarifas para la misma habitación
+            int tarifaId = 0;
+            if (tarifas is UpdateTarifasDto dto)
+            {
+                tarifaId = dto.IdTarifa;
+            }
+
+            var allTarifas = await _tarifasRepository.GetAllAsync();
+            var overlappingTarifa = allTarifas
+                .Where(t => !t.Deleted &&
+                       t.IdHabitacion == tarifas.IdHabitacion &&
+                       t.Id != tarifaId &&
+                       ((t.FechaInicio <= tarifas.FechaInicio && t.FechaFin >= tarifas.FechaInicio) ||
+                        (t.FechaInicio <= tarifas.FechaFin && t.FechaFin >= tarifas.FechaFin) ||
+                        (t.FechaInicio >= tarifas.FechaInicio && t.FechaFin <= tarifas.FechaFin)))
+                .FirstOrDefault();
+
+            if (overlappingTarifa != null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La tarifa se solapa con otra tarifa existente para la misma habitación"
+                };
+            }
+
+            // 7. Validar cambios excesivos de precio (para actualizaciones)
+            if (tarifas is UpdateTarifasDto)
+            {
+                var existingTarifa = await _tarifasRepository.GetEntityByIdAsync(tarifaId);
+                if (existingTarifa != null)
+                {
+                    double priceChange = Math.Abs((double)(tarifas.PrecioPorNoche - existingTarifa.PrecioPorNoche) / (double)existingTarifa.PrecioPorNoche * 100);
+                    if (priceChange > 30)
+                    {
+                        return new OperationResult
+                        {
+                            Success = false,
+                            Message = "El cambio de precio no puede exceder el 30% del precio actual"
+                        };
+                    }
+                }
+            }
+
             return new OperationResult { Success = true };
         }
 
+
+        // Método auxiliar para determinar temporada alta sin depender de un servicio externo
+        private bool IsHighSeason(DateOnly startDate, DateOnly endDate)
+        {
+            // Considera temporada alta: 
+            // - Navidad y Año Nuevo (15 Dic - 15 Ene)
+            // - Semana Santa (cambia cada año, pero para simplificar usamos Marzo)
+            // - Verano (Junio-Agosto)
+
+            bool containsChristmas = (startDate.Month == 12 && startDate.Day >= 15) ||
+                                    (endDate.Month == 1 && endDate.Day <= 15) ||
+                                    (startDate.Month <= 1 && endDate.Month >= 12);
+
+            bool containsSummerMonths = (startDate.Month <= 8 && endDate.Month >= 6) &&
+                                        !(startDate.Month <= 5 && endDate.Month <= 5);
+
+            bool containsMarch = (startDate.Month <= 3 && endDate.Month >= 3);
+
+            return containsChristmas || containsSummerMonths || containsMarch;
+        }
     }
 }

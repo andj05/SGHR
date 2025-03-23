@@ -2,16 +2,13 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SGHR.Application.Dtos.Categorias;
-using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Base;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Configurations;
-using SGHR.Persistence.Interfaces;
 using SGHR.Persistence.Repository;
-using Xunit;
 
 namespace SGHR.Application.Tests.Services
 {
@@ -187,7 +184,7 @@ namespace SGHR.Application.Tests.Services
             var result = await _service.Save(dto);
 
             Assert.False(result.Success);
-            Assert.Contains("debe tener entre 1 y 50 caracteres", result.Message); // Nueva validación
+            Assert.Contains("La descripción de la categoría es obligatoria", result.Message); 
         }
 
         [Fact]
@@ -198,7 +195,7 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.False(result.Success);
-            Assert.Contains(_messageMapper.ErrorMessages["EntityBase"]["NotFound"], result.Message);
+            Assert.Contains("ID no válido.", result.Message);
         }
 
         public void Dispose()

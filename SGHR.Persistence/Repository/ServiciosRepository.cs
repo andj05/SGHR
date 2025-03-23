@@ -29,6 +29,19 @@ namespace SGHR.Persistence.Repository
             _messageMapper = messageMapper;
         }
 
+        private OperationResult ValidateServicioPersistence(Servicios servicio)
+        {
+            if (servicio == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
+            }
+            return new OperationResult { Success = true };
+        }
+
         public override async Task<List<Servicios>> GetAllAsync()
         {
             try
@@ -52,7 +65,10 @@ namespace SGHR.Persistence.Repository
 
             try
             {
-                var servicio = await _context.Set<Servicios>().FindAsync(id);
+                var servicio = await _context.Set<Servicios>()
+                                             .IgnoreQueryFilters() // Include deleted entities
+                                             .FirstOrDefaultAsync(s => s.Id == id);
+
                 if (servicio == null)
                 {
                     _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
@@ -65,6 +81,24 @@ namespace SGHR.Persistence.Repository
                 _logger.LogError(ex, _messageMapper.ErrorMessages["Servicios"]["GetByIdError"]);
                 throw;
             }
+        }
+
+        public override async Task<OperationResult> GetFilteredAsync(Expression<Func<Servicios, bool>> filter)
+        {
+            var result = new OperationResult();
+            try
+            {
+                var filteredEntities = await base.GetFilteredAsync(filter);
+                result.Success = true;
+                result.Data = filteredEntities.Data;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
+            }
+            return result;
         }
 
         public override async Task<bool> ExistsAsync(Expression<Func<Servicios, bool>> filter)
@@ -88,6 +122,11 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(Servicios servicio)
         {
+            var validationResult = ValidateServicioPersistence(servicio);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
 
             try
             {
@@ -118,6 +157,11 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(Servicios servicio)
         {
+            var validationResult = ValidateServicioPersistence(servicio);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
 
             var result = new OperationResult();
             try
@@ -156,7 +200,13 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> DeleteEntityAsync(Servicios servicio)
         {
-            if (servicio == null || servicio.Id <= 0)
+            var validationResult = ValidateServicioPersistence(servicio);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
+            if (servicio.Id <= 0)
             {
                 return new OperationResult
                 {
@@ -199,9 +249,19 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> RestoreEntityAsync(Servicios servicio)
         {
+            var validationResult = ValidateServicioPersistence(servicio);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
-                var existingServicio = await _context.Set<Servicios>().FindAsync(servicio.Id);
+                // Primero buscamos el servicio ignorando los filtros (para poder encontrar los eliminados)
+                var existingServicio = await _context.Set<Servicios>()
+                                                  .IgnoreQueryFilters()
+                                                  .FirstOrDefaultAsync(s => s.Id == servicio.Id);
+
                 if (existingServicio == null)
                 {
                     return new OperationResult
@@ -215,7 +275,9 @@ namespace SGHR.Persistence.Repository
                 existingServicio.ModifyDate = DateTime.UtcNow;
                 existingServicio.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
+                _context.Update(existingServicio);
                 await _context.SaveChangesAsync();
+
                 return new OperationResult
                 {
                     Success = true,

@@ -29,6 +29,19 @@ namespace SGHR.Persistence.Repository
             _messageMapper = messageMapper;
         }
 
+        private OperationResult ValidateCategoriaPersistence(Categoria categoria)
+        {
+            if (categoria == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
+            }
+            return new OperationResult { Success = true };
+        }
+
         public override async Task<List<Categoria>> GetAllAsync()
         {
             try
@@ -52,7 +65,10 @@ namespace SGHR.Persistence.Repository
 
             try
             {
-                var categoria = await _context.Set<Categoria>().FindAsync(id);
+                var categoria = await _context.Set<Categoria>()
+                                              .IgnoreQueryFilters() // Include deleted entities
+                                              .FirstOrDefaultAsync(c => c.Id == id);
+
                 if (categoria == null)
                 {
                     _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
@@ -66,6 +82,7 @@ namespace SGHR.Persistence.Repository
                 throw;
             }
         }
+
 
         public override async Task<bool> ExistsAsync(Expression<Func<Categoria, bool>> filter)
         {
@@ -88,6 +105,11 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(Categoria categoria)
         {
+            var validationResult = ValidateCategoriaPersistence(categoria);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
 
             try
             {
@@ -118,6 +140,12 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(Categoria categoria)
         {
+            var validationResult = ValidateCategoriaPersistence(categoria);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             var result = new OperationResult();
             try
             {
@@ -154,7 +182,13 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> DeleteEntityAsync(Categoria categoria)
         {
-            if (categoria == null || categoria.Id <= 0)
+            var validationResult = ValidateCategoriaPersistence(categoria);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
+            if (categoria.Id <= 0)
             {
                 return new OperationResult
                 {
@@ -197,9 +231,19 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> RestoreEntityAsync(Categoria categoria)
         {
+            var validationResult = ValidateCategoriaPersistence(categoria);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
-                var existingCategoria = await _context.Set<Categoria>().FindAsync(categoria.Id);
+                // Buscamos la categoría ignorando los filtros (para poder encontrar los eliminados)
+                var existingCategoria = await _context.Set<Categoria>()
+                                              .IgnoreQueryFilters()
+                                              .FirstOrDefaultAsync(e => e.Id == categoria.Id);
+
                 if (existingCategoria == null)
                 {
                     return new OperationResult
@@ -213,7 +257,9 @@ namespace SGHR.Persistence.Repository
                 existingCategoria.ModifyDate = DateTime.UtcNow;
                 existingCategoria.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
+                _context.Update(existingCategoria);
                 await _context.SaveChangesAsync();
+
                 return new OperationResult
                 {
                     Success = true,

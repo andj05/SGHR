@@ -29,6 +29,19 @@ namespace SGHR.Persistence.Repository
             _messageMapper = messageMapper;
         }
 
+        private OperationResult ValidateRolUsuarioPersistence(RolUsuario rolUsuario)
+        {
+            if (rolUsuario == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
+            }
+            return new OperationResult { Success = true };
+        }
+
         public override async Task<List<RolUsuario>> GetAllAsync()
         {
             try
@@ -52,7 +65,10 @@ namespace SGHR.Persistence.Repository
 
             try
             {
-                var rolUsuario = await _context.Set<RolUsuario>().FindAsync(id);
+                var rolUsuario = await _context.Set<RolUsuario>()
+                                               .IgnoreQueryFilters() 
+                                               .FirstOrDefaultAsync(r => r.Id == id);
+
                 if (rolUsuario == null)
                 {
                     _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
@@ -66,6 +82,7 @@ namespace SGHR.Persistence.Repository
                 throw;
             }
         }
+
 
         public override async Task<bool> ExistsAsync(Expression<Func<RolUsuario, bool>> filter)
         {
@@ -88,6 +105,11 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(RolUsuario rolUsuario)
         {
+            var validationResult = ValidateRolUsuarioPersistence(rolUsuario);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
 
             try
             {
@@ -118,6 +140,11 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(RolUsuario rolUsuario)
         {
+            var validationResult = ValidateRolUsuarioPersistence(rolUsuario);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
 
             var result = new OperationResult();
             try
@@ -155,7 +182,13 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> DeleteEntityAsync(RolUsuario rolUsuario)
         {
-            if (rolUsuario == null || rolUsuario.Id <= 0)
+            var validationResult = ValidateRolUsuarioPersistence(rolUsuario);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
+            if (rolUsuario.Id <= 0)
             {
                 return new OperationResult
                 {
@@ -198,9 +231,19 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> RestoreEntityAsync(RolUsuario rolUsuario)
         {
+            var validationResult = ValidateRolUsuarioPersistence(rolUsuario);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
-                var existingRolUsuario = await _context.Set<RolUsuario>().FindAsync(rolUsuario.Id);
+                // Primero buscamos el rol de usuario ignorando los filtros (para poder encontrar los eliminados)
+                var existingRolUsuario = await _context.Set<RolUsuario>()
+                                                   .IgnoreQueryFilters()
+                                                   .FirstOrDefaultAsync(r => r.Id == rolUsuario.Id);
+
                 if (existingRolUsuario == null)
                 {
                     return new OperationResult
@@ -214,7 +257,9 @@ namespace SGHR.Persistence.Repository
                 existingRolUsuario.ModifyDate = DateTime.UtcNow;
                 existingRolUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
+                _context.Update(existingRolUsuario);
                 await _context.SaveChangesAsync();
+
                 return new OperationResult
                 {
                     Success = true,

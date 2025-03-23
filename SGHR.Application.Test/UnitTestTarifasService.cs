@@ -84,7 +84,6 @@ namespace SGHR.Application.Tests.Services
             Assert.DoesNotContain(tarifas, t => t.Descripcion == "Tarifa Eliminada");
         }
 
-
         [Fact]
         public async Task GetById_WithValidId_ReturnsTarifa()
         {
@@ -108,8 +107,8 @@ namespace SGHR.Application.Tests.Services
             {
                 Descripcion = "Nueva Tarifa",
                 PrecioPorNoche = 99.99m,
-                FechaInicio = DateOnly.FromDateTime(DateTime.Now),
-                FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
+                FechaInicio = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
+                FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(10)),
                 IdHabitacion = 1,
                 Descuento = 10
             };
@@ -127,14 +126,29 @@ namespace SGHR.Application.Tests.Services
         public async Task Update_WithValidData_ModifiesExistingTarifa()
         {
             // Arrange
-            var tarifa = new Tarifas { Descripcion = "Original", PrecioPorNoche = 100 };
+            var tarifa = new Tarifas
+            {
+                Descripcion = "Original",
+                PrecioPorNoche = 100,
+                FechaInicio = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
+                // Aumentar la duración a 14 días para cumplir con la regla de duración mínima de 7 días
+                FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(14)),
+                IdHabitacion = 1,
+                Descuento = 0,
+                Deleted = false
+            };
             await _repository.SaveEntityAsync(tarifa);
 
             var dto = new UpdateTarifasDto
             {
                 IdTarifa = tarifa.Id,
                 Descripcion = "Actualizada",
-                PrecioPorNoche = 150
+                // Modificar el precio para que no exceda el 30% de cambio
+                PrecioPorNoche = 130, // 30% de aumento sobre 100
+                FechaInicio = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
+                FechaFin = DateOnly.FromDateTime(DateTime.Now.AddDays(14)),
+                IdHabitacion = 1,
+                Descuento = 10
             };
 
             // Act
@@ -144,18 +158,32 @@ namespace SGHR.Application.Tests.Services
             Assert.True(result.Success);
             var updated = await _repository.GetEntityByIdAsync(tarifa.Id);
             Assert.Equal("Actualizada", updated.Descripcion);
-            Assert.Equal(150, updated.PrecioPorNoche);
+            Assert.Equal(130, updated.PrecioPorNoche);
         }
 
         [Fact]
         public async Task Remove_WithExistingId_MarksAsDeleted()
         {
             // Arrange
-            var tarifa = new Tarifas { Descripcion = "To Delete" };
+            var tarifa = new Tarifas
+            {
+                Descripcion = "To Delete",
+                PrecioPorNoche = 100,
+                FechaInicio = DateOnly.FromDateTime(DateTime.Today.AddDays(-10)),
+                FechaFin = DateOnly.FromDateTime(DateTime.Today.AddDays(-5)),
+                IdHabitacion = 1,
+                Descuento = 0,
+                Deleted = false
+            };
             await _repository.SaveEntityAsync(tarifa);
 
+            var dto = new RemoveTarifasDto
+            {
+                IdTarifa = tarifa.Id,
+            };
+
             // Act
-            var result = await _service.Remove(new RemoveTarifasDto { IdTarifa = tarifa.Id });
+            var result = await _service.Remove(dto);
 
             // Assert
             Assert.True(result.Success);
@@ -167,7 +195,16 @@ namespace SGHR.Application.Tests.Services
         public async Task Restore_WithDeletedTarifa_UnmarksDeleted()
         {
             // Arrange
-            var tarifa = new Tarifas { Descripcion = "Deleted", Deleted = true };
+            var tarifa = new Tarifas
+            {
+                Descripcion = "Deleted",
+                PrecioPorNoche = 100,
+                FechaInicio = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
+                FechaFin = DateOnly.FromDateTime(DateTime.Today.AddDays(10)),
+                IdHabitacion = 1,
+                Descuento = 0,
+                Deleted = true
+            };
             await _repository.SaveEntityAsync(tarifa);
 
             // Act

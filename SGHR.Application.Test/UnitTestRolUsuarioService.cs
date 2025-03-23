@@ -157,7 +157,7 @@ namespace SGHR.Application.Tests.Services
             // Assert
             Assert.True(result.Success);
             var deleted = await _repository.GetEntityByIdAsync(rol.Id);
-            Assert.True(deleted.Deleted); 
+            Assert.True(deleted.Deleted);
         }
 
         [Fact]

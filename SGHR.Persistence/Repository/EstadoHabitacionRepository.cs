@@ -7,7 +7,6 @@ using SGHR.Persistence.Context;
 using SGHR.Persistence.Interfaces;
 using SGHR.Persistence.Configurations;
 using System.Linq.Expressions;
-using SGHR.Domain.Entities.Configuration;
 
 namespace SGHR.Persistence.Repository
 {
@@ -29,6 +28,19 @@ namespace SGHR.Persistence.Repository
             _messageMapper = messageMapper;
         }
 
+        private OperationResult ValidateEstadoHabitacionPersistence(EstadoHabitacion estadoHabitacion)
+        {
+            if (estadoHabitacion == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
+            }
+            return new OperationResult { Success = true };
+        }
+
         // Obtener todos los estados de habitación
         public override async Task<List<EstadoHabitacion>> GetAllAsync()
         {
@@ -43,7 +55,6 @@ namespace SGHR.Persistence.Repository
             }
         }
 
-        // Obtener entidad por ID
         public override async Task<EstadoHabitacion> GetEntityByIdAsync(int id)
         {
             if (id <= 0)
@@ -54,7 +65,10 @@ namespace SGHR.Persistence.Repository
 
             try
             {
-                var estadoHabitacion = await _context.Set<EstadoHabitacion>().FindAsync(id);
+                var estadoHabitacion = await _context.Set<EstadoHabitacion>()
+                                                     .IgnoreQueryFilters() 
+                                                     .FirstOrDefaultAsync(e => e.Id == id);
+
                 if (estadoHabitacion == null)
                 {
                     _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
@@ -68,6 +82,7 @@ namespace SGHR.Persistence.Repository
                 throw;
             }
         }
+
 
         // Verificar existencia
         public override async Task<bool> ExistsAsync(Expression<Func<EstadoHabitacion, bool>> filter)
@@ -91,6 +106,12 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(EstadoHabitacion estadoHabitacion)
         {
+            var validationResult = ValidateEstadoHabitacionPersistence(estadoHabitacion);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
                 estadoHabitacion.FechaCreacion = DateTime.UtcNow;
@@ -99,7 +120,6 @@ namespace SGHR.Persistence.Repository
 
                 await _context.Set<EstadoHabitacion>().AddAsync(estadoHabitacion);
                 await _context.SaveChangesAsync();
-
 
                 return new OperationResult
                 {
@@ -121,6 +141,12 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(EstadoHabitacion estadoHabitacion)
         {
+            var validationResult = ValidateEstadoHabitacionPersistence(estadoHabitacion);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             var result = new OperationResult();
             try
             {
@@ -158,7 +184,13 @@ namespace SGHR.Persistence.Repository
         // Eliminar entidad
         public override async Task<OperationResult> DeleteEntityAsync(EstadoHabitacion estadoHabitacion)
         {
-            if (estadoHabitacion == null || estadoHabitacion.Id <= 0)
+            var validationResult = ValidateEstadoHabitacionPersistence(estadoHabitacion);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
+            if (estadoHabitacion.Id <= 0)
             {
                 return new OperationResult
                 {
@@ -201,9 +233,18 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> RestoreEntityAsync(EstadoHabitacion estadoHabitacion)
         {
+            var validationResult = ValidateEstadoHabitacionPersistence(estadoHabitacion);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
-                var existingEstadoHabitacion = await _context.Set<EstadoHabitacion>().FindAsync(estadoHabitacion.Id);
+                var existingEstadoHabitacion = await _context.Set<EstadoHabitacion>()
+                                                       .IgnoreQueryFilters()
+                                                       .FirstOrDefaultAsync(e => e.Id == estadoHabitacion.Id);
+
                 if (existingEstadoHabitacion == null)
                 {
                     return new OperationResult
@@ -215,9 +256,11 @@ namespace SGHR.Persistence.Repository
 
                 existingEstadoHabitacion.Deleted = false;
                 existingEstadoHabitacion.ModifyDate = DateTime.UtcNow;
-                existingEstadoHabitacion.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                existingEstadoHabitacion.ModifyUser = 1; 
 
+                _context.Update(existingEstadoHabitacion);
                 await _context.SaveChangesAsync();
+
                 return new OperationResult
                 {
                     Success = true,

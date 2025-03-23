@@ -6,9 +6,6 @@ using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Interfaces;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
-using SGHR.Persistence.Repositories;
-using SGHR.Persistence.Repository;
-
 namespace SGHR.Application.Services
 {
     public class PisosService : IPisosService
@@ -28,18 +25,19 @@ namespace SGHR.Application.Services
             _messageMapper = messageMapper;
             _loggerManager = loggerManager;
         }
+
         public async Task<OperationResult> GetAll()
         {
             var result = new OperationResult();
             try
             {
                 var pisos = await _pisoRepository.GetAllAsync();
-                var activeTarifas = pisos
+                var activePisos = pisos
                     .Where(t => !t.Deleted)
                     .Select(PisoMapper.ToDto)
                     .OrderByDescending(h => h.ChangeDate)
                     .ToList();
-                result.Data = activeTarifas;
+                result.Data = activePisos;
                 result.Success = true;
             }
             catch (Exception ex)
@@ -57,12 +55,12 @@ namespace SGHR.Application.Services
             try
             {
                 var piso = await _pisoRepository.GetAllAsync();
-                var activepiso = piso
+                var deletedPisos = piso
                     .Where(t => t.Deleted)
                     .Select(PisoMapper.ToDto)
                     .OrderByDescending(h => h.ChangeDate)
                     .ToList();
-                result.Data = activepiso;
+                result.Data = deletedPisos;
                 result.Success = true;
             }
             catch (Exception ex)
@@ -73,7 +71,6 @@ namespace SGHR.Application.Services
             }
             return result;
         }
-
 
         public async Task<OperationResult> GetById(int id)
         {
@@ -103,9 +100,15 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SavePisosDto dto)
         {
+            // Validaciones básicas del objeto
             var validationResult = ValidatePiso(dto);
             if (validationResult.Success != true)
                 return validationResult;
+
+            // Validaciones de negocio específicas para guardar
+            var businessValidationResult = await ValidatePisoBusinessRules(dto);
+            if (businessValidationResult.Success != true)
+                return businessValidationResult;
 
             try
             {
@@ -140,6 +143,16 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
+            // Validación básica del objeto
+            var validationResult = ValidatePiso(dto);
+            if (validationResult.Success != true)
+                return validationResult;
+
+            // Validaciones de negocio específicas para actualizar
+            var businessValidationResult = await ValidatePisoUpdateBusinessRules(dto, piso);
+            if (businessValidationResult.Success != true)
+                return businessValidationResult;
+
             piso.UpdateFromDto(dto);
             return await _pisoRepository.UpdateEntityAsync(piso);
         }
@@ -161,9 +174,16 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            piso.RemoveFromDto(dto);
+            // Validación de negocio para eliminar
+            var removeValidationResult = await ValidatePisoRemoveBusinessRules(piso);
+            if (removeValidationResult.Success != true)
+                return removeValidationResult;
+
+            piso.Deleted = true;
+            piso.ModifyDate = DateTime.Now;
             return await _pisoRepository.UpdateEntityAsync(piso);
         }
+
 
         public async Task<OperationResult> Restore(int id)
         {
@@ -175,19 +195,170 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
-            piso.RestoreFromDto(1); // En producción, obtener el usuario autenticado.
+            // Validación de negocio para restaurar
+            var restoreValidationResult = await ValidatePisoRestoreBusinessRules(piso);
+            if (restoreValidationResult.Success != true)
+                return restoreValidationResult;
+
+            piso.Deleted = false;
+            piso.ModifyDate = DateTime.Now;
+            piso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+
             return await _pisoRepository.UpdateEntityAsync(piso);
         }
 
-        private OperationResult ValidatePiso(SavePisosDto dto)
+        // Validaciones básicas de datos
+        private OperationResult ValidatePiso(dynamic dto)
         {
             if (dto == null)
-                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Pisos"]["NullPiso"] };
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Pisos"]["NullEstado"]
+                };
 
-            if (string.IsNullOrWhiteSpace(dto.Descripcion) || dto.Descripcion.Length > 50)
-                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Pisos"]["InvalidDescription"] };
+            if (string.IsNullOrWhiteSpace(dto.Descripcion))
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La descripción del piso no puede estar vacía."
+                };
+
+            if (dto.Descripcion.Length > 50)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La descripción del piso no puede exceder los 50 caracteres."
+                };
 
             return new OperationResult { Success = true };
+        }
+
+        private async Task<OperationResult> ValidatePisoBusinessRules(SavePisosDto dto)
+        {
+            // Validar que no exista otro piso con la misma descripción
+            var existingPisos = await _pisoRepository.GetAllAsync();
+            if (existingPisos.Any(p => !p.Deleted &&
+                p.Descripcion.Equals(dto.Descripcion, StringComparison.OrdinalIgnoreCase)))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "Ya existe un piso con la misma descripción."
+                };
+            }
+
+            // Validar que no exceda el número máximo de pisos permitidos
+            if (existingPisos.Count(p => !p.Deleted) >= 100) // Supongamos un límite de 100 pisos activos
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "Se ha excedido el número máximo de pisos permitidos."
+                };
+            }
+
+            return new OperationResult { Success = true };
+        }
+
+        private async Task<OperationResult> ValidatePisoUpdateBusinessRules(UpdatePisosDto dto, Piso existingPiso)
+        {
+            // Validar que no exista otro piso con la misma descripción (excepto el mismo piso)
+            var existingPisos = await _pisoRepository.GetAllAsync();
+            if (existingPisos.Any(p => !p.Deleted &&
+                p.Id != dto.IdPiso &&
+                p.Descripcion.Equals(dto.Descripcion, StringComparison.OrdinalIgnoreCase)))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "Ya existe un piso con la misma descripción."
+                };
+            }
+
+            // Verificar si es un piso del sistema o predeterminado (si aplica)
+            if (IsSystemPiso(existingPiso))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se permite modificar pisos del sistema."
+                };
+            }
+
+            return new OperationResult { Success = true };
+        }
+
+        private async Task<OperationResult> ValidatePisoRemoveBusinessRules(Piso piso)
+        {
+            // No permitir eliminar pisos del sistema o predeterminados
+            if (IsSystemPiso(piso))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se permite eliminar pisos del sistema."
+                };
+            }
+
+            // Verificar si el piso está en uso (por ejemplo, si hay habitaciones asociadas)
+            var isInUse = await IsPisoInUse(piso.Id);
+            if (isInUse)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se puede eliminar el piso porque está en uso."
+                };
+            }
+
+            return new OperationResult { Success = true };
+        }
+
+        private async Task<OperationResult> ValidatePisoRestoreBusinessRules(Piso piso)
+        {
+            // Verificar que no exista otro piso activo con el mismo nombre
+            var existingPisos = await _pisoRepository.GetAllAsync();
+            if (existingPisos.Any(p => !p.Deleted &&
+                p.Id != piso.Id &&
+                p.Descripcion.Equals(piso.Descripcion, StringComparison.OrdinalIgnoreCase)))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "Ya existe un piso activo con la misma descripción."
+                };
+            }
+
+            // Verificar que no exceda el límite de pisos activos
+            if (existingPisos.Count(p => !p.Deleted) >= 100) // Supongamos un límite de 100 pisos activos
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "Se ha excedido el número máximo de pisos permitidos."
+                };
+            }
+
+            return new OperationResult { Success = true };
+        }
+
+        // Función para verificar si un piso es del sistema o predeterminado
+        private bool IsSystemPiso(Piso piso)
+        {
+            // Implementar lógica de identificación de pisos del sistema
+            // Por ejemplo, pisos con IDs específicos o con nombres específicos
+            var systemPisoIds = new[] { 1 }; // IDs hipotéticos de pisos del sistema
+            var systemPisoNames = new[] { "Planta Principal" }; // Nombres hipotéticos
+
+            return systemPisoIds.Contains(piso.Id) ||
+                   systemPisoNames.Contains(piso.Descripcion);
+        }
+
+        // Método para verificar si un piso está en uso
+        private async Task<bool> IsPisoInUse(int pisoId)
+        {
+            return false; 
         }
     }
 }

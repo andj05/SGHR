@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SGHR.Application.Dtos.Pisos;
-using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Infraestructure.Logging.Base;
@@ -127,7 +126,7 @@ namespace SGHR.Application.Tests.Services
         public async Task Remove_WithExistingId_MarksAsDeleted()
         {
             // Arrange
-            var piso = new Piso { Descripcion = "To Delete", Estado = true };
+            var piso = new Piso { Id = 2, Descripcion = "To Delete", Estado = true }; // Establece Id explícitamente
             await _repository.SaveEntityAsync(piso);
 
             // Act
@@ -136,8 +135,9 @@ namespace SGHR.Application.Tests.Services
             // Assert
             Assert.True(result.Success);
             var deleted = await _repository.GetEntityByIdAsync(piso.Id);
-            Assert.True(deleted.Deleted); // ✅ Verifica soft delete
+            Assert.True(deleted.Deleted);
         }
+
 
         [Fact]
         public async Task Restore_WithDeletedPiso_UnmarksDeleted()
@@ -146,7 +146,7 @@ namespace SGHR.Application.Tests.Services
             var piso = new Piso
             {
                 Descripcion = "Deleted Piso",
-                Deleted = true // Soft-delete previo
+                Deleted = true 
             };
             await _repository.SaveEntityAsync(piso);
 

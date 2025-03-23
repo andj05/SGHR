@@ -76,11 +76,16 @@
                     ["EmailInUse"] = "Correo ya registrado."
                 },
                 // Validaciones específicas de tarifas
-                ["Rate"] = new Dictionary<string, string>
+                ["Tarifas"] = new Dictionary<string, string>
                 {
                     ["InvalidDateRange"] = "Rango FechaInicio-FechaFin inválido.",
                     ["InvalidPrice"] = "Campo PrecioPorNoche debe ser > 0.",
-                    ["DateOverlap"] = "Conflicto con tarifa existente."
+                    ["DateOverlap"] = "Conflicto con tarifa existente.",
+                    ["NullTarifa"] = "Tarifa es nula.",
+                    ["InvalidDescription"] = "Descripción inválida.",
+                    ["InvalidHabitacionID"] = "ID de habitación inválido.",
+                    ["MissingDates"] = "Fechas faltantes.",
+                    ["InvalidDiscount"] = "Descuento inválido."
                 },
                 // Validaciones específicas de reportes
                 ["Report"] = new Dictionary<string, string>

@@ -29,6 +29,19 @@ namespace SGHR.Persistence.Repository
             _messageMapper = messageMapper;
         }
 
+        private OperationResult ValidatePisoPersistence(Piso piso)
+        {
+            if (piso == null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                };
+            }
+            return new OperationResult { Success = true };
+        }
+
         public override async Task<List<Piso>> GetAllAsync()
         {
             try
@@ -52,7 +65,10 @@ namespace SGHR.Persistence.Repository
 
             try
             {
-                var piso = await _context.Set<Piso>().FindAsync(id);
+                var piso = await _context.Set<Piso>()
+                                         .IgnoreQueryFilters() // Include deleted entities
+                                         .FirstOrDefaultAsync(p => p.Id == id);
+
                 if (piso == null)
                 {
                     _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
@@ -66,6 +82,7 @@ namespace SGHR.Persistence.Repository
                 throw;
             }
         }
+
 
         public override async Task<bool> ExistsAsync(Expression<Func<Piso, bool>> filter)
         {
@@ -88,6 +105,11 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> SaveEntityAsync(Piso piso)
         {
+            var validationResult = ValidatePisoPersistence(piso);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
 
             try
             {
@@ -118,6 +140,12 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> UpdateEntityAsync(Piso piso)
         {
+            var validationResult = ValidatePisoPersistence(piso);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             var result = new OperationResult();
             try
             {
@@ -154,7 +182,13 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> DeleteEntityAsync(Piso piso)
         {
-            if (piso == null || piso.Id <= 0)
+            var validationResult = ValidatePisoPersistence(piso);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
+            if (piso.Id <= 0)
             {
                 return new OperationResult
                 {
@@ -197,9 +231,19 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<OperationResult> RestoreEntityAsync(Piso piso)
         {
+            var validationResult = ValidatePisoPersistence(piso);
+            if (validationResult.Success != true)
+            {
+                return validationResult;
+            }
+
             try
             {
-                var existingPiso = await _context.Set<Piso>().FindAsync(piso.Id);
+                // Primero buscamos el piso ignorando los filtros (para poder encontrar los eliminados)
+                var existingPiso = await _context.Set<Piso>()
+                                              .IgnoreQueryFilters()
+                                              .FirstOrDefaultAsync(p => p.Id == piso.Id);
+
                 if (existingPiso == null)
                 {
                     return new OperationResult
@@ -213,7 +257,9 @@ namespace SGHR.Persistence.Repository
                 existingPiso.ModifyDate = DateTime.UtcNow;
                 existingPiso.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
+                _context.Update(existingPiso);
                 await _context.SaveChangesAsync();
+
                 return new OperationResult
                 {
                     Success = true,

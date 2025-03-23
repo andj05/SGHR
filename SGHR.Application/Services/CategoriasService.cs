@@ -73,8 +73,16 @@ namespace SGHR.Application.Services
             var operationResult = new OperationResult();
             try
             {
+                // Validación de negocio: ID debe ser válido
+                if (id <= 0)
+                {
+                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    operationResult.Success = false;
+                    return operationResult;
+                }
+
                 var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria == null )
+                if (categoria == null)
                 {
                     operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     operationResult.Success = false;
@@ -96,9 +104,25 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Save(SaveCategoriasDto dto)
         {
+            // Validación de negocio antes de guardar
             var validationResult = ValidateCategoria(dto);
             if (validationResult.Success != true)
                 return validationResult;
+
+            // Validar duplicidad con datos existentes (validación de negocio)
+            var existingCategorias = await _categoriaRepository.GetAllAsync();
+            var duplicateCategoria = existingCategorias
+                .Where(c => !c.Deleted && string.Equals(c.Descripcion, dto.Descripcion, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault();
+
+            if (duplicateCategoria != null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "Ya existe una categoría activa con esta descripción"
+                };
+            }
 
             try
             {
@@ -118,6 +142,7 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateCategoriasDto dto)
         {
+            // Validación de negocio: ID debe ser válido
             if (dto.IdCategoria <= 0)
                 return new OperationResult
                 {
@@ -132,6 +157,32 @@ namespace SGHR.Application.Services
                     Success = false,
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
+
+            // Validación de datos a actualizar
+            var validationResult = ValidateCategoria(dto);
+            if (validationResult.Success != true)
+                return validationResult;
+
+            // Validar duplicidad con datos existentes (validación de negocio)
+            if (!string.IsNullOrEmpty(dto.Descripcion) &&
+                !string.Equals(categoria.Descripcion, dto.Descripcion, StringComparison.OrdinalIgnoreCase))
+            {
+                var existingCategorias = await _categoriaRepository.GetAllAsync();
+                var duplicateCategoria = existingCategorias
+                    .Where(c => c.Id!= dto.IdCategoria &&
+                           !c.Deleted &&
+                           string.Equals(c.Descripcion, dto.Descripcion, StringComparison.OrdinalIgnoreCase))
+                    .FirstOrDefault();
+
+                if (duplicateCategoria != null)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = "Ya existe una categoría activa con esta descripción"
+                    };
+                }
+            }
 
             categoria.UpdateFromDto(dto);
             return await _categoriaRepository.UpdateEntityAsync(categoria);
@@ -139,6 +190,7 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Remove(RemoveCategoriasDto dto)
         {
+            // Validación de negocio: ID debe ser válido
             if (dto.IdCategoria <= 0)
                 return new OperationResult
                 {
@@ -154,12 +206,47 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
+            // Validación de negocio: Verificar si es una categoría del sistema (protegida)
+            if (categoria.GetType().GetProperty("EsCategoriaSistema") != null)
+            {
+                var esCategoriaSistema = (bool?)categoria.GetType().GetProperty("EsCategoriaSistema").GetValue(categoria, null);
+                if (esCategoriaSistema == true)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = "No se puede eliminar una categoría del sistema"
+                    };
+                }
+            }
+            var todasLasEntidades = await _categoriaRepository.GetAllAsync(); // Reemplaza con el repositorio adecuado
+            var tieneEntidadesAsociadas = todasLasEntidades.Any(e =>
+                e.GetType().GetProperty("IdCategoria") != null &&
+                (int)e.GetType().GetProperty("IdCategoria").GetValue(e, null) == dto.IdCategoria);
+
+            if (tieneEntidadesAsociadas)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se puede eliminar la categoría porque tiene entidades asociadas"
+                };
+            }
+
             categoria.RemoveFromDto(dto);
             return await _categoriaRepository.UpdateEntityAsync(categoria);
         }
 
         public async Task<OperationResult> Restore(int id)
         {
+            // Validación de negocio: ID debe ser válido
+            if (id <= 0)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
+                };
+
             var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
             if (categoria == null || !categoria.Deleted)
                 return new OperationResult
@@ -168,26 +255,71 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
                 };
 
+            // Validación de negocio: Verificar duplicados al restaurar
+            var existingCategorias = await _categoriaRepository.GetAllAsync();
+            var duplicateCategoria = existingCategorias
+                .Where(c => c.Id != id &&
+                       !c.Deleted &&
+                       string.Equals(c.Descripcion, categoria.Descripcion, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault();
+
+            if (duplicateCategoria != null)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "No se puede restaurar la categoría porque ya existe una categoría activa con la misma descripción"
+                };
+            }
+
             categoria.RestoreFromDto(1);
             return await _categoriaRepository.UpdateEntityAsync(categoria);
         }
 
-
         private OperationResult ValidateCategoria(dynamic categoria)
         {
+            // Validación de negocio: Objeto debe existir
             if (categoria == null)
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Categoría inválida" 
+                    Message = "Categoría inválida"
                 };
 
-            if (string.IsNullOrWhiteSpace(categoria.Descripcion) || categoria.Descripcion.Length > 50)
+            // Validación de negocio: Descripción requerida y con longitud adecuada
+            if (string.IsNullOrWhiteSpace(categoria.Descripcion))
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Descripción debe tener entre 1 y 50 caracteres" 
+                    Message = "La descripción de la categoría es obligatoria"
                 };
+
+            if (categoria.Descripcion.Length > 50)
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La descripción no puede exceder los 50 caracteres"
+                };
+
+            // Validación de negocio: Descripción debe tener caracteres válidos
+            if (!System.Text.RegularExpressions.Regex.IsMatch(categoria.Descripcion, @"^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_\.]+$"))
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = "La descripción contiene caracteres no permitidos"
+                };
+
+            // Validación de negocio: Usuario responsable debe ser válido
+            if (categoria.GetType().GetProperty("IdUsuario") != null)
+            {
+                var idUsuario = (int?)categoria.GetType().GetProperty("IdUsuario").GetValue(categoria, null);
+                if (!idUsuario.HasValue || idUsuario.Value <= 0)
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = "El usuario responsable es obligatorio"
+                    };
+            }
 
             return new OperationResult { Success = true };
         }

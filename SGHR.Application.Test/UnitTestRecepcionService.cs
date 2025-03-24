@@ -65,7 +65,7 @@ namespace SGHR.Application.Test
         public async Task GetById_ShouldReturnFailure_WhenEntityDeleted()
         {
             // Arrange
-            var deletedRecepcion = new Recepcion { Id = 205, Deleted = true };
+            var deletedRecepcion = new Recepcion { Id = 205, Deleted = true, CreationUser = 1 };
             await _context.Recepcion.AddAsync(deletedRecepcion);
             await _context.SaveChangesAsync();
 
@@ -207,7 +207,8 @@ namespace SGHR.Application.Test
                 FechaEntrada = DateTime.Now,
                 IdCliente = 1,
                 IdHabitacion = 1,
-                IdEstadoReserva = 1
+                IdEstadoReserva = 1,
+                CreationUser = 1
             };
             await _context.Recepcion.AddAsync(existing);
             await _context.SaveChangesAsync();
@@ -241,7 +242,8 @@ namespace SGHR.Application.Test
                 FechaEntrada = DateTime.Now,
                 IdCliente = 1, 
                 IdHabitacion = 1,
-                IdEstadoReserva = 1
+                IdEstadoReserva = 1,
+                CreationUser = 1
             };
             await _context.Recepcion.AddAsync(existing);
             await _context.SaveChangesAsync();
@@ -275,7 +277,8 @@ namespace SGHR.Application.Test
                 FechaEntrada = DateTime.Now,
                 IdCliente = 1,
                 IdHabitacion = 1, 
-                IdEstadoReserva = 1
+                IdEstadoReserva = 1,
+                CreationUser = 1
             };
             await _context.Recepcion.AddAsync(existing);
             await _context.SaveChangesAsync();
@@ -309,7 +312,8 @@ namespace SGHR.Application.Test
                 FechaEntrada = DateTime.Now,
                 IdCliente = 1,
                 IdHabitacion = 1,
-                IdEstadoReserva = 1 
+                IdEstadoReserva = 1,
+                CreationUser = 1
             };
             await _context.Recepcion.AddAsync(existing);
             await _context.SaveChangesAsync();
@@ -354,7 +358,8 @@ namespace SGHR.Application.Test
                 Id = 2,
                 Observacion = "Valid",
                 FechaEntrada = DateTime.Now,
-                IdEstadoReserva = 1
+                IdEstadoReserva = 1,
+                CreationUser = 1
             };
             await _context.Recepcion.AddAsync(existing);
             await _context.SaveChangesAsync();
@@ -376,6 +381,402 @@ namespace SGHR.Application.Test
         }
 
         [Fact]
+        public async Task Save_ShouldReturnFailure_WhenInvalidExitDate()
+        {
+            // Arrange
+            var dto = new SaveRecepcionDto
+            {
+                FechaEntrada = DateTime.Now,
+                FechaSalida = DateTime.Now.AddDays(-1),
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidExitDate"], result.Message);
+        }
+
+        [Fact]
+        public async Task Save_ShouldReturnFailure_WhenInvalidExitConfirmationDate()
+        {
+            // Arrange
+            var dto = new SaveRecepcionDto
+            {
+                FechaEntrada = DateTime.Now,
+                FechaSalidaConfirmacion = DateTime.Now.AddDays(-1),
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidExitConfirmationDate"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Save_ShouldReturnFailure_WhenInvalidPrice(decimal invalidPrice)
+        {
+            // Arrange
+            var dto = new SaveRecepcionDto
+            {
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                PrecioInicial = invalidPrice
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidPrice"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Save_ShouldReturnFailure_WhenInvalidAdvance(decimal invalidAdvance)
+        {
+            // Arrange
+            var dto = new SaveRecepcionDto
+            {
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                Adelanto = invalidAdvance
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidAdvance"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Save_ShouldReturnFailure_WhenInvalidRemainingPrice(decimal invalidRemainingPrice)
+        {
+            // Arrange
+            var dto = new SaveRecepcionDto
+            {
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                PrecioRestante = invalidRemainingPrice
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidRemainingPrice"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Save_ShouldReturnFailure_WhenInvalidTotalPaid(decimal invalidTotalPaid)
+        {
+            // Arrange
+            var dto = new SaveRecepcionDto
+            {
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                TotalPagado = invalidTotalPaid
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidTotalPaid"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Save_ShouldReturnFailure_WhenInvalidPenaltyCost(decimal invalidPenaltyCost)
+        {
+            // Arrange
+            var dto = new SaveRecepcionDto
+            {
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CostoPenalidad = invalidPenaltyCost
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidPenaltyCost"], result.Message);
+        }
+
+        [Fact]
+        public async Task Update_ShouldReturnFailure_WhenInvalidExitDate()
+        {
+            // Arrange
+            var existing = new Recepcion
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(existing);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateRecepcionDto
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                FechaSalida = DateTime.Now.AddDays(-1),
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidExitDate"], result.Message);
+        }
+
+        [Fact]
+        public async Task Update_ShouldReturnFailure_WhenInvalidExitConfirmationDate()
+        {
+            // Arrange
+            var existing = new Recepcion
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(existing);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateRecepcionDto
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                FechaSalidaConfirmacion = DateTime.Now.AddDays(-1),
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidExitConfirmationDate"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Update_ShouldReturnFailure_WhenInvalidPrice(decimal invalidPrice)
+        {
+            // Arrange
+            var existing = new Recepcion
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(existing);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateRecepcionDto
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                PrecioInicial = invalidPrice
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidPrice"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Update_ShouldReturnFailure_WhenInvalidAdvance(decimal invalidAdvance)
+        {
+            // Arrange
+            var existing = new Recepcion
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(existing);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateRecepcionDto
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                Adelanto = invalidAdvance
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidAdvance"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Update_ShouldReturnFailure_WhenInvalidRemainingPrice(decimal invalidRemainingPrice)
+        {
+            // Arrange
+            var existing = new Recepcion
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(existing);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateRecepcionDto
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                PrecioRestante = invalidRemainingPrice
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidRemainingPrice"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Update_ShouldReturnFailure_WhenInvalidTotalPaid(decimal invalidTotalPaid)
+        {
+            // Arrange
+            var existing = new Recepcion
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(existing);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateRecepcionDto
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                TotalPagado = invalidTotalPaid 
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidTotalPaid"], result.Message);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        public async Task Update_ShouldReturnFailure_WhenInvalidPenaltyCost(decimal invalidPenaltyCost)
+        {
+            // Arrange
+            var existing = new Recepcion
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(existing);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateRecepcionDto
+            {
+                Id = 100,
+                FechaEntrada = DateTime.Now,
+                IdCliente = 1,
+                IdHabitacion = 1,
+                IdEstadoReserva = 1,
+                CostoPenalidad = invalidPenaltyCost
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["InvalidPenaltyCost"], result.Message);
+        }
+
+
+        [Fact]
         public async Task Remove_ShouldReturnFailure_WhenInProgress()
         {
             // Arrange
@@ -383,7 +784,8 @@ namespace SGHR.Application.Test
             {
                 Id = 1,
                 IdEstadoReserva = 2,
-                FechaEntrada = DateTime.Now
+                FechaEntrada = DateTime.Now,
+                CreationUser = 1
             };
             await _context.Recepcion.AddAsync(recepcion);
             await _context.SaveChangesAsync();
@@ -415,7 +817,7 @@ namespace SGHR.Application.Test
         public async Task Restore_ShouldReturnFailure_WhenAlreadyActive()
         {
             // Arrange
-            var active = new Recepcion { Id = 777, Deleted = false };
+            var active = new Recepcion { Id = 777, Deleted = false, CreationUser = 1 };
             await _context.Recepcion.AddAsync(active);
             await _context.SaveChangesAsync();
 
@@ -425,6 +827,30 @@ namespace SGHR.Application.Test
             // Assert
             Assert.False(result.Success);
             Assert.Equal(_messageMapper.ErrorMessages["Reservation"]["AlreadyActive"], result.Message);
+        }
+
+        [Fact]
+        public async Task Remove_ShouldReturnFailure_WhenAlreadyReserved()
+        {
+            // Arrange
+            var reservedRecepcion = new Recepcion
+            {
+                Id = 888,
+                Deleted = false,
+                IdEstadoReserva = 3, 
+                CreationUser = 1
+            };
+            await _context.Recepcion.AddAsync(reservedRecepcion);
+            await _context.SaveChangesAsync();
+
+            var dto = new RemoveRecepcionDto { Id = 888 };
+
+            // Act
+            var result = await _service.Remove(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Operations"]["DeleteInProgress"], result.Message);
         }
 
         [Theory]

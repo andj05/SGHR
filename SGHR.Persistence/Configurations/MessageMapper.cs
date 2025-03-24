@@ -53,7 +53,15 @@
                     ["AlreadyActive"] = "La entidad ya está activa.",
                     ["InvalidDateRange"] = "Rango de fechas inválido.",
                     ["RoomNotAvailable"] = "Habitación no disponible en el periodo seleccionado.",
-                    ["PaymentInsufficient"] = "Pago insuficiente."
+                    ["PaymentInsufficient"] = "Pago insuficiente.",
+                    ["InvalidExitDate"] = "La fecha de salida no puede ser anterior a la fecha de entrada.",
+                    ["InvalidExitConfirmationDate"] = "La fecha de confirmación de salida no puede ser anterior a la fecha de entrada.",
+                    ["InvalidPrice"] = "El precio no puede ser menor que 0.",
+                    ["InvalidAdvance"] = "El adelanto no puede ser menor que 0.",
+                    ["InvalidRemainingPrice"] = "El precio restante no puede ser menor que 0.",
+                    ["InvalidTotalPaid"] = "El total pagado no puede ser menor que 0.",
+                    ["InvalidPenaltyCost"] = "El costo de penalidad no puede ser menor que 0."
+
                 },
                 // Validaciones específicas de habitaciones
                 ["Room"] = new Dictionary<string, string>
@@ -63,7 +71,8 @@
                     ["InvalidStatusID"] = "El ID del estado debe ser mayor que cero.",
                     ["InvalidFloorID"] = "El ID del piso debe ser mayor que cero.",
                     ["InvalidCategoryID"] = "El ID de la categoría debe ser mayor que cero.",
-                    ["DetailTooLong"] = "El detalle debe tener un máximo de 100 caracteres."
+                    ["DetailTooLong"] = "El detalle debe tener un máximo de 100 caracteres.",
+                    ["DuplicateNumber"] = "Una habitación con este número ya existe."
                 },
                 // Validaciones específicas de clientes
                 ["Client"] = new Dictionary<string, string>

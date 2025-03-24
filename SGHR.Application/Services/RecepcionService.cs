@@ -89,7 +89,7 @@ namespace SGHR.Application.Services
             {
                 var recepcion = RecepcionMapper.ToEntity(dto);
 
-                var validationResult = ValidateRecepcionBusiness(recepcion);
+                var validationResult = await ValidateRecepcionBusiness(recepcion);
                 if (!validationResult.Success.GetValueOrDefault())
                 {
                     return validationResult;
@@ -123,7 +123,9 @@ namespace SGHR.Application.Services
 
                 existingRecepcion.UpdateFromDto(dto);
 
-                var validationResult = ValidateRecepcionBusiness(existingRecepcion);
+                existingRecepcion.UpdateFromDto(dto);
+
+                var validationResult = await ValidateRecepcionBusiness(existingRecepcion);
                 if (!validationResult.Success.GetValueOrDefault())
                 {
                     return validationResult;
@@ -156,13 +158,20 @@ namespace SGHR.Application.Services
             try
             {
                 var recepcion = await _recepcionRepository.GetEntityByIdAsync(dto.Id);
-                if (recepcion == null)
+                if (recepcion.Deleted)
                 {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["AlreadyDeleted"]);
                     result.Success = false;
-                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    result.Message = _messageMapper.ErrorMessages["Operations"]["AlreadyDeleted"];
                     return result;
                 }
                 if (recepcion.IdEstadoReserva == 2)
+                {
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteInProgress"];
+                    return result;
+                }
+                if (recepcion.IdEstadoReserva == 3)
                 {
                     result.Success = false;
                     result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteInProgress"];
@@ -308,7 +317,7 @@ namespace SGHR.Application.Services
         }
 
         
-        private OperationResult ValidateRecepcionBusiness(Recepcion recepcion)
+        public async Task<OperationResult> ValidateRecepcionBusiness(Recepcion recepcion)
         {
             if (recepcion == null)
             {
@@ -342,6 +351,39 @@ namespace SGHR.Application.Services
             {
                 return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["EntityBase"]["CreationDateRequired"] };
             }
+
+            // business
+            if (recepcion.FechaSalida.HasValue && recepcion.FechaSalida < recepcion.FechaEntrada)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidExitDate"] };
+            }
+            if (recepcion.FechaSalidaConfirmacion.HasValue && recepcion.FechaSalidaConfirmacion < recepcion.FechaEntrada)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidExitConfirmationDate"] };
+            }
+
+            
+            if (recepcion.PrecioInicial.HasValue && recepcion.PrecioInicial < 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidPrice"] };
+            }
+            if (recepcion.Adelanto.HasValue && recepcion.Adelanto < 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidAdvance"] };
+            }
+            if (recepcion.PrecioRestante.HasValue && recepcion.PrecioRestante < 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidRemainingPrice"] };
+            }
+            if (recepcion.TotalPagado.HasValue && recepcion.TotalPagado < 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidTotalPaid"] };
+            }
+            if (recepcion.CostoPenalidad.HasValue && recepcion.CostoPenalidad < 0)
+            {
+                return new OperationResult { Success = false, Message = _messageMapper.ErrorMessages["Reservation"]["InvalidPenaltyCost"] };
+            }
+
             return new OperationResult { Success = true };
         }
     }

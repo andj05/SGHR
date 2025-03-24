@@ -97,6 +97,39 @@ namespace SGHR.Application.Test
             Assert.Equal(_messageMapper.ErrorMessages["EntityBase"]["NotFound"], result.Message);
         }
 
+        [Fact]
+        public async Task Save_ShouldReturnFailure_WhenDuplicateNumber()
+        {
+            // Arrange
+            var existingRoom = new Habitacion
+            {
+                Id = 27,
+                Numero = "101",
+                IdEstadoHabitacion = 1,
+                IdPiso = 1,
+                IdCategoria = 1,
+                CreationUser = 1
+            };
+            await _context.Habitacion.AddAsync(existingRoom);
+            await _context.SaveChangesAsync();
+
+            var dto = new SaveHabitacionDto
+            {
+                Numero = "101", // Duplicate number
+                IdEstadoHabitacion = 1,
+                IdPiso = 1,
+                IdCategoria = 1,
+                ChangeUser = 1
+            };
+
+            // Act
+            var result = await _service.Save(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Room"]["DuplicateNumber"], result.Message);
+        }
+
         [Theory]
         [InlineData(null, "MissingNumber")]
         [InlineData("", "MissingNumber")]
@@ -208,6 +241,51 @@ namespace SGHR.Application.Test
         }
 
         [Fact]
+        public async Task Update_ShouldReturnFailure_WhenDuplicateNumber()
+        {
+            // Arrange
+            var existingRoom1 = new Habitacion
+            {
+                Id = 33,
+                Numero = "101",
+                IdEstadoHabitacion = 1,
+                IdPiso = 1,
+                IdCategoria = 1,
+                CreationUser = 1
+            };
+            var existingRoom2 = new Habitacion
+            {
+                Id = 2,
+                Numero = "102",
+                IdEstadoHabitacion = 1,
+                IdPiso = 1,
+                IdCategoria = 1,
+                CreationUser = 1
+            };
+            await _context.Habitacion.AddAsync(existingRoom1);
+            await _context.Habitacion.AddAsync(existingRoom2);
+            await _context.SaveChangesAsync();
+
+            var dto = new UpdateHabitacionDto
+            {
+                Id = 2,
+                Numero = "101", // Duplicate number
+                IdEstadoHabitacion = 1,
+                IdPiso = 1,
+                IdCategoria = 1,
+                ChangeUser = 1
+            };
+
+            // Act
+            var result = await _service.Update(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Room"]["DuplicateNumber"], result.Message);
+        }
+
+
+        [Fact]
         public async Task Update_ShouldReturnFailure_WhenEntityNotFound()
         {
             // Arrange
@@ -224,30 +302,32 @@ namespace SGHR.Application.Test
         [Theory]
         [InlineData(null, "MissingNumber")]
         [InlineData("", "MissingNumber")]
-        [InlineData("123456789012345678901234567890123456789012345678900320000001", "NumberTooLong")]
+        [InlineData("1234567890123456789012345678901234567890123456789003200000012221", "NumberTooLong")]
         public async Task Update_ShouldReturnFailure_WhenNumberInvalid(string number, string expectedErrorKey)
         {
             // Arrange
             var existingRoom = new Habitacion
             {
-                Id = 599,
+                Id = 593,
                 Numero = "2",
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = 1,
                 IdPiso = 1,
-                IdCategoria = 1
+                IdCategoria = 1,
+                CreationUser = 1
             };
             await _context.Habitacion.AddAsync(existingRoom);
             await _context.SaveChangesAsync();
 
             var invalidDto = new UpdateHabitacionDto
             {
-                Id = 599,
+                Id = 593,
                 Numero = number,
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = 1,
                 IdPiso = 1,
-                IdCategoria = 1
+                IdCategoria = 1,
+                ChangeUser = 1
             };
 
             // Act
@@ -266,7 +346,7 @@ namespace SGHR.Application.Test
             // Arrange
             var existingRoom = new Habitacion
             {
-                Id = 788,
+                Id = 787,
                 Numero = "2",
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = 1,
@@ -278,7 +358,7 @@ namespace SGHR.Application.Test
 
             var invalidDto = new UpdateHabitacionDto
             {
-                Id = 788,
+                Id = 787,
                 Numero = "2",
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = statusId, 
@@ -302,7 +382,7 @@ namespace SGHR.Application.Test
             // Arrange
             var existingRoom = new Habitacion
             {
-                Id = 90,
+                Id = 91,
                 Numero = "2",
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = 1,
@@ -314,7 +394,7 @@ namespace SGHR.Application.Test
 
             var invalidDto = new UpdateHabitacionDto
             {
-                Id = 90,
+                Id = 91,
                 Numero = "2",
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = 1,
@@ -338,7 +418,7 @@ namespace SGHR.Application.Test
             // Arrange
             var existingRoom = new Habitacion
             {
-                Id = 40,
+                Id = 42,
                 Numero = "2",
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = 1,
@@ -350,7 +430,7 @@ namespace SGHR.Application.Test
 
             var invalidDto = new UpdateHabitacionDto
             {
-                Id = 40,
+                Id = 42,
                 Numero = "2",
                 Detalle = "Valid detail",
                 IdEstadoHabitacion = 1,
@@ -461,6 +541,31 @@ namespace SGHR.Application.Test
         }
 
         [Fact]
+        public async Task Remove_ShouldReturnFailure_WhenRoomReserved()
+        {
+            // Arrange
+            var reservedRoom = new Habitacion
+            {
+                Id = 9,
+                IdEstadoHabitacion = 3,
+                Numero = "308",
+                CreationUser = 1
+            };
+            await _context.Habitacion.AddAsync(reservedRoom);
+            await _context.SaveChangesAsync();
+
+            var dto = new RemoveHabitacionDto { Id = 9 };
+
+            // Act
+            var result = await _service.Remove(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(_messageMapper.ErrorMessages["Operations"]["DeleteInProgress"], result.Message);
+        }
+
+
+        [Fact]
         public async Task Remove_ShouldReturnFailure_WhenRoomOccupied()
         {
             // Arrange
@@ -468,7 +573,8 @@ namespace SGHR.Application.Test
             {
                 Id = 8,
                 IdEstadoHabitacion = 2,
-                Numero = "307"
+                Numero = "307",
+                CreationUser = 1
             };
             await _context.Habitacion.AddAsync(occupiedRoom);
             await _context.SaveChangesAsync();

@@ -87,7 +87,7 @@ namespace SGHR.Application.Services
                 var habitacion = HabitacionMapper.ToEntity(dto);
 
                 // validacion de reglas de negocio
-                var validationResult = ValidateHabitacionBusiness(habitacion);
+                var validationResult = await ValidateHabitacionBusiness(habitacion);
                 if (!validationResult.Success.GetValueOrDefault())
                 {
                     return validationResult;
@@ -111,7 +111,7 @@ namespace SGHR.Application.Services
             try
             {
                 var habitacion = await _habitacionRepository.GetEntityByIdAsync(dto.Id);
-                if (habitacion.Deleted)
+                if (habitacion == null || habitacion.Deleted)
                 {
                     _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
                     result.Success = false;
@@ -121,7 +121,7 @@ namespace SGHR.Application.Services
 
                 habitacion.UpdateFromDto(dto);
 
-                var validationResult = ValidateHabitacionBusiness(habitacion);
+                var validationResult = await ValidateHabitacionBusiness(habitacion);
                 if (!validationResult.Success.GetValueOrDefault())
                 {
                     return validationResult;
@@ -200,6 +200,15 @@ namespace SGHR.Application.Services
 
                 // confirmar que la habitacion no esta ocupada
                 if (habitacion.IdEstadoHabitacion == 2)
+                {
+                    _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["DeleteInProgress"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["Operations"]["DeleteInProgress"];
+                    return result;
+                }
+
+                //verificar que la habitacion no esta reservada
+                if (habitacion.IdEstadoHabitacion == 3)
                 {
                     _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["DeleteInProgress"]);
                     result.Success = false;
@@ -304,7 +313,7 @@ namespace SGHR.Application.Services
             }
         }
 
-        private OperationResult ValidateHabitacionBusiness(Habitacion habitacion)
+        private async Task<OperationResult> ValidateHabitacionBusiness(Habitacion habitacion)
         {
             if (string.IsNullOrWhiteSpace(habitacion.Numero))
             {
@@ -354,6 +363,18 @@ namespace SGHR.Application.Services
                     Message = _messageMapper.ErrorMessages["Room"]["InvalidCategoryID"]
                 };
             }
+
+            // business
+            var habitacionesConNumero = await _habitacionRepository.ObtenerHabitacionesPorNumeroAsync(habitacion.Numero);
+            if (habitacionesConNumero.Any(h => h.Id != habitacion.Id))
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = _messageMapper.ErrorMessages["Room"]["DuplicateNumber"]
+                };
+            }
+
             return new OperationResult { Success = true };
         }
     }

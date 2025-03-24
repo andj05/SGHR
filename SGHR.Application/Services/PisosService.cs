@@ -214,21 +214,21 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Pisos"]["NullEstado"]
+                    Message = _messageMapper.ErrorMessages["Pisos"]["NullPiso"]
                 };
 
             if (string.IsNullOrWhiteSpace(dto.Descripcion))
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del piso no puede estar vacía."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["EmptyDescription"]
                 };
 
             if (dto.Descripcion.Length > 50)
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del piso no puede exceder los 50 caracteres."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["DescriptionTooLong"]
                 };
 
             return new OperationResult { Success = true };
@@ -244,7 +244,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Ya existe un piso con la misma descripción."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["DuplicateDescription"]
                 };
             }
 
@@ -254,7 +254,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Se ha excedido el número máximo de pisos permitidos."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["MaxPisosExceeded"]
                 };
             }
 
@@ -272,7 +272,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Ya existe un piso con la misma descripción."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["DuplicateDescriptionUpdate"]
                 };
             }
 
@@ -282,7 +282,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "No se permite modificar pisos del sistema."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["SystemPisoModification"]
                 };
             }
 
@@ -297,7 +297,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "No se permite eliminar pisos del sistema."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["SystemPisoDeletion"]
                 };
             }
 
@@ -308,7 +308,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "No se puede eliminar el piso porque está en uso."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["PisoInUse"]
                 };
             }
 
@@ -326,7 +326,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Ya existe un piso activo con la misma descripción."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["DuplicateDescriptionRestore"]
                 };
             }
 
@@ -336,12 +336,13 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Se ha excedido el número máximo de pisos permitidos."
+                    Message = _messageMapper.ErrorMessages["Pisos"]["MaxPisosExceeded"]
                 };
             }
 
             return new OperationResult { Success = true };
         }
+
 
         // Función para verificar si un piso es del sistema o predeterminado
         private bool IsSystemPiso(Piso piso)

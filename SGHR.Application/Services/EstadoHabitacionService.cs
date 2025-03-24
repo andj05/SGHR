@@ -222,7 +222,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El estado de habitación no puede ser nulo."
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["NullEstado"]
                 };
 
             // Validación de la descripción
@@ -230,14 +230,14 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del estado no puede estar vacía."
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["EmptyDescription"]
                 };
 
             if (estado.Descripcion.Length > 50)
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del estado no debe exceder 50 caracteres."
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["DescriptionTooLong"]
                 };
 
             // Validar que la descripción no contenga caracteres especiales no permitidos
@@ -245,7 +245,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción contiene caracteres no permitidos."
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["InvalidDescriptionCharacters"]
                 };
 
             // Si el estado incluye un color, validar el formato
@@ -256,7 +256,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El formato de color hexadecimal no es válido."
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["InvalidColorHex"]
                 };
             }
 
@@ -267,7 +267,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El orden debe ser un número positivo."
+                    Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["InvalidOrder"]
                 };
             }
 
@@ -308,7 +308,7 @@ namespace SGHR.Application.Services
                     return new OperationResult
                     {
                         Success = false,
-                        Message = "Ya existe un estado de habitación con esta descripción."
+                        Message = _messageMapper.ErrorMessages["EstadoHabitacion"]["DuplicateDescription"]
                     };
                 }
 
@@ -321,35 +321,6 @@ namespace SGHR.Application.Services
                 {
                     Success = false,
                     Message = "Error al verificar duplicados: " + ex.Message
-                };
-            }
-        }
-
-        private async Task<OperationResult> ValidateNotLastActiveState()
-        {
-            try
-            {
-                var estadosActivos = await _estadoHabitacionRepository.GetAllAsync();
-                int activeCount = estadosActivos.Count(e => !e.Deleted);
-
-                if (activeCount <= 1)
-                {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = "No se puede eliminar el último estado activo."
-                    };
-                }
-
-                return new OperationResult { Success = true };
-            }
-            catch (Exception ex)
-            {
-                _loggerManager.LogError(ex, "Error al validar si es el último estado activo");
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = "Error al validar estados activos: " + ex.Message
                 };
             }
         }
@@ -367,25 +338,6 @@ namespace SGHR.Application.Services
                 descripcion.Trim().ToLower() == name ||
                 descripcion.Trim().ToLower().StartsWith($"{name}_"));
         }
-
-        private bool IsValidDefaultStateModification(dynamic currentState, dynamic newState)
-        {
-            // Si es un estado predeterminado, solo permitir cambios en ciertos campos
-            // y no en propiedades críticas como Descripción o EsPredeterminado
-            if (currentState.Descripcion.Trim().ToLower() != newState.Descripcion.Trim().ToLower())
-            {
-                return false;
-            }
-
-            // Verificar si se intenta cambiar la propiedad EsPredeterminado
-            if (currentState.GetType().GetProperty("EsPredeterminado") != null &&
-                newState.GetType().GetProperty("EsPredeterminado") != null &&
-                currentState.EsPredeterminado && !newState.EsPredeterminado)
-            {
-                return false;
-            }
-
-            return true;
-        }
+      
     }
 }

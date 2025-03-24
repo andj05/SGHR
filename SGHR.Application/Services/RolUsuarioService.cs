@@ -217,21 +217,21 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El rol de usuario no puede ser nulo."
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["NullRole"]
                 };
 
             if (string.IsNullOrWhiteSpace(rolUsuario.Descripcion))
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del rol no puede estar vacía."
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["EmptyDescription"]
                 };
 
             if (rolUsuario.Descripcion.Length > 50)
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del rol no puede exceder los 50 caracteres."
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["DescriptionTooLong"]
                 };
 
             return new OperationResult { Success = true };
@@ -247,13 +247,12 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Ya existe un rol con la misma descripción."
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["DuplicateDescription"]
                 };
             }
 
             return new OperationResult { Success = true };
         }
-
 
         private async Task<OperationResult> ValidateRolUsuarioUpdateBusinessRules(UpdateRolUsuarioDto dto, RolUsuario existingRol)
         {
@@ -266,13 +265,12 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Ya existe un rol con la misma descripción."
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["DuplicateDescriptionUpdate"]
                 };
             }
 
             return new OperationResult { Success = true };
         }
-
 
         private async Task<OperationResult> ValidateRolUsuarioRestoreBusinessRules(RolUsuario rolUsuario)
         {
@@ -285,32 +283,11 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Ya existe un rol activo con la misma descripción."
+                    Message = _messageMapper.ErrorMessages["RolUsuario"]["DuplicateDescriptionRestore"]
                 };
             }
 
             return new OperationResult { Success = true };
-        }
-
-        // Función auxiliar para validar caracteres en la descripción
-        private bool ContainsInvalidCharacters(string text)
-        {
-            // Definir caracteres no permitidos (ejemplo)
-            var invalidChars = new[] { '<', '>', '&', '\'', '\"', '\\', '/' };
-            return text.Any(c => invalidChars.Contains(c));
-        }
-
-        // Fix: Modificada para evitar que los roles de test sean considerados como roles del sistema
-        private bool IsSystemRole(RolUsuario rolUsuario)
-        {
-            // Implementar lógica con IDs específicos para evitar falsos positivos en tests
-            var systemRoleIds = new[] { 1, 2, 3 }; // IDs específicos de roles del sistema
-
-            // Nombres específicos que sean poco probables de colisionar con datos de prueba
-            var systemRoleNames = new[] { "AdministradorSistema", "UsuarioSistema", "InvitadoSistema" };
-
-            return systemRoleIds.Contains(rolUsuario.Id) &&
-                   systemRoleNames.Contains(rolUsuario.Descripcion);
         }
     }
 }

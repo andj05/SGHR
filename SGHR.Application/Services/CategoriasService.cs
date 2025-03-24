@@ -283,7 +283,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "Categoría inválida"
+                    Message = _messageMapper.ErrorMessages["Categorias"]["NullCategoria"]
                 };
 
             // Validación de negocio: Descripción requerida y con longitud adecuada
@@ -291,14 +291,14 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción de la categoría es obligatoria"
+                    Message = _messageMapper.ErrorMessages["Categorias"]["EmptyDescription"]
                 };
 
             if (categoria.Descripcion.Length > 50)
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción no puede exceder los 50 caracteres"
+                    Message = _messageMapper.ErrorMessages["Categorias"]["DescriptionTooLong"]
                 };
 
             // Validación de negocio: Descripción debe tener caracteres válidos
@@ -306,7 +306,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción contiene caracteres no permitidos"
+                    Message = _messageMapper.ErrorMessages["Categorias"]["InvalidDescriptionCharacters"]
                 };
 
             // Validación de negocio: Usuario responsable debe ser válido
@@ -317,7 +317,7 @@ namespace SGHR.Application.Services
                     return new OperationResult
                     {
                         Success = false,
-                        Message = "El usuario responsable es obligatorio"
+                        Message = _messageMapper.ErrorMessages["Categorias"]["InvalidUser"]
                     };
             }
 

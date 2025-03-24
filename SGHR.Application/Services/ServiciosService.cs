@@ -191,7 +191,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El servicio no puede estar vacío."
+                    Message = _messageMapper.ErrorMessages["Servicios"]["EmptyService"]
                 };
             }
 
@@ -200,7 +200,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El nombre del servicio no puede estar vacío."
+                    Message = _messageMapper.ErrorMessages["Servicios"]["EmptyName"]
                 };
             }
 
@@ -209,7 +209,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del servicio no puede estar vacía y debe tener menos de 255 caracteres."
+                    Message = _messageMapper.ErrorMessages["Servicios"]["InvalidDescriptionLength"]
                 };
             }
 
@@ -221,7 +221,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El nombre del servicio debe tener al menos 10 caracteres."
+                    Message = _messageMapper.ErrorMessages["Servicios"]["ShortName"]
                 };
             }
 
@@ -231,7 +231,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "El nombre del servicio contiene caracteres no permitidos."
+                    Message = _messageMapper.ErrorMessages["Servicios"]["InvalidNameCharacters"]
                 };
             }
 
@@ -241,7 +241,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La descripción del servicio debe tener al menos 25 caracteres."
+                    Message = _messageMapper.ErrorMessages["Servicios"]["ShortDescription"]
                 };
             }
 
@@ -259,7 +259,7 @@ namespace SGHR.Application.Services
                     return new OperationResult
                     {
                         Success = false,
-                        Message = "Ya existe un servicio con este nombre."
+                        Message = _messageMapper.ErrorMessages["Servicios"]["DuplicateName"]
                     };
                 }
             }
@@ -277,7 +277,7 @@ namespace SGHR.Application.Services
                     return new OperationResult
                     {
                         Success = false,
-                        Message = "Ya existe otro servicio con este nombre."
+                        Message = _messageMapper.ErrorMessages["Servicios"]["DuplicateNameUpdate"]
                     };
                 }
             }

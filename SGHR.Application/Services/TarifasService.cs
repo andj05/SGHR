@@ -261,7 +261,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La fecha de inicio debe ser anterior a la fecha de fin"
+                    Message = _messageMapper.ErrorMessages["Tarifas"]["InvalidStartDate"]
                 };
             }
 
@@ -272,10 +272,9 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "No se pueden crear tarifas con fechas pasadas"
+                    Message = _messageMapper.ErrorMessages["Tarifas"]["PastStartDate"]
                 };
             }
-
 
             // 3. Validar la duración mínima y máxima de la tarifa
             TimeSpan duration = tarifas.FechaFin.ToDateTime(TimeOnly.MinValue) - tarifas.FechaInicio.ToDateTime(TimeOnly.MinValue);
@@ -284,7 +283,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La duración de la tarifa debe ser de al menos 7 días"
+                    Message = _messageMapper.ErrorMessages["Tarifas"]["ShortDuration"]
                 };
             }
 
@@ -293,7 +292,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La duración de la tarifa no puede exceder 1 año"
+                    Message = _messageMapper.ErrorMessages["Tarifas"]["LongDuration"]
                 };
             }
 
@@ -303,7 +302,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "No se puede aplicar un descuento mayor al 20% para estancias menores a 30 días"
+                    Message = _messageMapper.ErrorMessages["Tarifas"]["HighDiscount"]
                 };
             }
 
@@ -314,7 +313,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "En temporada alta el descuento máximo permitido es del 15%"
+                    Message = _messageMapper.ErrorMessages["Tarifas"]["HighSeasonDiscount"]
                 };
             }
 
@@ -340,7 +339,7 @@ namespace SGHR.Application.Services
                 return new OperationResult
                 {
                     Success = false,
-                    Message = "La tarifa se solapa con otra tarifa existente para la misma habitación"
+                    Message = _messageMapper.ErrorMessages["Tarifas"]["OverlappingTarifa"]
                 };
             }
 
@@ -356,7 +355,7 @@ namespace SGHR.Application.Services
                         return new OperationResult
                         {
                             Success = false,
-                            Message = "El cambio de precio no puede exceder el 30% del precio actual"
+                            Message = _messageMapper.ErrorMessages["Tarifas"]["ExcessivePriceChange"]
                         };
                     }
                 }

@@ -115,7 +115,7 @@ namespace SGHR.Application.Test
 
             var dto = new SaveHabitacionDto
             {
-                Numero = "101", // Duplicate number
+                Numero = "101", 
                 IdEstadoHabitacion = 1,
                 IdPiso = 1,
                 IdCategoria = 1,
@@ -269,7 +269,7 @@ namespace SGHR.Application.Test
             var dto = new UpdateHabitacionDto
             {
                 Id = 2,
-                Numero = "101", // Duplicate number
+                Numero = "101", 
                 IdEstadoHabitacion = 1,
                 IdPiso = 1,
                 IdCategoria = 1,

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Users;
 using SGHR.Infraestructure.Logging.Interfaces;
@@ -23,6 +24,69 @@ namespace SGHR.Persistence.Repositories
             _context = context;
             _logger = logger;
             _messageMapper = messageMapper;
+        }
+
+        /// <summary>
+        /// Valida la entidad Usuario para operaciones de creación o actualización.
+        /// Se agregan validaciones para el correo y la contraseña.
+        /// </summary>
+        /// <param name="usuario">Entidad a validar.</param>
+        /// <param name="isUpdate">Indica si la validación es para una actualización (se valida que el ID sea mayor a 0).</param>
+        /// <returns>OperationResult con el resultado de la validación.</returns>
+        private OperationResult ValidateUsuario(Usuario usuario, bool isUpdate = false)
+        {
+            var result = new OperationResult();
+
+            if (usuario == null)
+            {
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                _logger.LogWarn(result.Message);
+                return result;
+            }
+
+            if (isUpdate && usuario.Id <= 0)
+            {
+                result.Success = false;
+                result.Message = $"{_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]} Valor recibido: {usuario.Id}";
+                _logger.LogWarn(result.Message);
+                return result;
+            }
+
+            // Validación de correo obligatorio.
+            if (string.IsNullOrWhiteSpace(usuario.Correo))
+            {
+                result.Success = false;
+                result.Message = "El campo 'Correo' es obligatorio.";
+                _logger.LogWarn(result.Message);
+                return result;
+            }
+
+            // Validar el formato del correo utilizando una expresión regular.
+            var emailRegex = new Regex(@"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+            if (!emailRegex.IsMatch(usuario.Correo))
+            {
+                result.Success = false;
+                result.Message = "El formato del correo electrónico es inválido.";
+                _logger.LogWarn(result.Message);
+                return result;
+            }
+
+            // Validación de contraseña obligatoria y su longitud mínima.
+            if (string.IsNullOrWhiteSpace(usuario.Clave) || usuario.Clave.Length < 6)
+            {
+                result.Success = false;
+                result.Message = "La contraseña es obligatoria y debe tener al menos 6 caracteres.";
+                _logger.LogWarn(result.Message);
+                return result;
+            }
+
+            // Aquí podrías agregar más validaciones, por ejemplo:
+            // - Verificar que el correo no exista ya en la base de datos (si la lógica lo requiere).
+            // - Validar otros campos obligatorios o reglas de negocio específicas.
+
+            result.Success = true;
+            return result;
         }
 
         public override async Task<List<Usuario>> GetAllAsync()
@@ -97,18 +161,19 @@ namespace SGHR.Persistence.Repositories
                 if (idEstadoUsuario is not (0 or 1))
                 {
                     string invalidState = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
-                    return new OperationResult { Success = false, Message = $"{invalidState} Estado de usuario inválido. Debe ser 0 o 1." };
+                    string msg = $"{invalidState} Estado de usuario inválido. Debe ser 0 o 1.";
+                    _logger.LogWarn(msg);
+                    return new OperationResult { Success = false, Message = msg };
                 }
 
                 bool estado = idEstadoUsuario == 1;
-                var usuario = await _context.Set<Usuario>()
+                var usuarios = await _context.Set<Usuario>()
                     .AsNoTracking()
-                    .Where(c => c.Estado == estado)
+                    .Where(u => u.Estado == estado)
                     .ToListAsync();
 
-                _logger.LogInfo($"Se recuperaron {usuario.Count} usuario con el estado {idEstadoUsuario}");
-
-                return new OperationResult { Success = true, Data = usuario };
+                _logger.LogInfo($"Se recuperaron {usuarios.Count} usuario(s) con el estado {idEstadoUsuario}");
+                return new OperationResult { Success = true, Data = usuarios };
             }
             catch (Exception ex)
             {
@@ -125,6 +190,12 @@ namespace SGHR.Persistence.Repositories
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    _logger.LogWarn("El correo electrónico proporcionado es nulo o vacío.");
+                    return null;
+                }
+
                 var usuario = await _context.Set<Usuario>().FirstOrDefaultAsync(u => u.Correo == email);
                 if (usuario == null)
                 {
@@ -142,13 +213,14 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> SaveEntityAsync(Usuario usuario)
         {
-            if (usuario == null)
+            // Validación del objeto Usuario antes de guardarlo.
+            var validationResult = ValidateUsuario(usuario, isUpdate: false);
+            if (!validationResult.Success)
             {
-                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"] + " - " + validationResult.Message
                 };
             }
 
@@ -156,7 +228,7 @@ namespace SGHR.Persistence.Repositories
             {
                 usuario.FechaCreacion = DateTime.UtcNow;
                 usuario.ModifyDate = DateTime.UtcNow;
-                usuario.ModifyUser = 1;
+                usuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
 
                 await _context.Set<Usuario>().AddAsync(usuario);
                 await _context.SaveChangesAsync();
@@ -182,15 +254,27 @@ namespace SGHR.Persistence.Repositories
         public override async Task<OperationResult> UpdateEntityAsync(Usuario usuario)
         {
             var result = new OperationResult();
+
+            // Validación de la entidad Usuario para actualización.
+            var validationResult = ValidateUsuario(usuario, isUpdate: true);
+            if (!validationResult.Success)
+            {
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"] + " - " + validationResult.Message;
+                return result;
+            }
+
             try
             {
                 var existingUsuario = await _context.Set<Usuario>().FindAsync(usuario.Id);
                 if (existingUsuario == null)
                 {
+                    string msg = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _logger.LogWarn(msg);
                     return new OperationResult
                     {
                         Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        Message = msg
                     };
                 }
 
@@ -203,9 +287,8 @@ namespace SGHR.Persistence.Repositories
 
                 // Actualizar ModifyDate y ModifyUser
                 existingUsuario.ModifyDate = DateTime.UtcNow;
-                existingUsuario.ModifyUser = 1; // Obtener el usuario autenticado en producción
+                existingUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
-                // Guardar cambios
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
@@ -223,15 +306,29 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> DeleteEntityAsync(Usuario usuario)
         {
+            // Validación básica del objeto
+            if (usuario == null || usuario.Id <= 0)
+            {
+                string msg = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                _logger.LogWarn(msg);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = msg
+                };
+            }
+
             try
             {
                 var existingUsuario = await _context.Set<Usuario>().FindAsync(usuario.Id);
                 if (existingUsuario == null)
                 {
+                    string msg = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _logger.LogWarn(msg);
                     return new OperationResult
                     {
                         Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        Message = msg
                     };
                 }
 
@@ -275,21 +372,35 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> RestoreEntityAsync(Usuario usuario)
         {
+            // Validación básica del objeto
+            if (usuario == null || usuario.Id <= 0)
+            {
+                string msg = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                _logger.LogWarn(msg);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = msg
+                };
+            }
+
             try
             {
                 var existingUsuario = await _context.Set<Usuario>().FindAsync(usuario.Id);
                 if (existingUsuario == null)
                 {
+                    string msg = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _logger.LogWarn(msg);
                     return new OperationResult
                     {
                         Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        Message = msg
                     };
                 }
 
                 existingUsuario.Deleted = false;
                 existingUsuario.ModifyDate = DateTime.UtcNow;
-                existingUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado.
+                existingUsuario.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
                 await _context.SaveChangesAsync();
                 return new OperationResult
@@ -308,7 +419,5 @@ namespace SGHR.Persistence.Repositories
                 };
             }
         }
-
-
     }
 }

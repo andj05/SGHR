@@ -15,6 +15,7 @@ namespace SGHR.Persistence.Repositories
         private readonly SGHRContext _context;
         private readonly ILoggerManager _logger;
         private readonly MessageMapper _messageMapper;
+
         public ClienteRepository(SGHRContext context,
                                 ILoggerManager logger,
                                 MessageMapper messageMapper) : base(context)
@@ -24,6 +25,39 @@ namespace SGHR.Persistence.Repositories
             _messageMapper = messageMapper;
         }
 
+        private OperationResult ValidateCliente(Cliente cliente, bool isUpdate = false)
+        {
+            var result = new OperationResult();
+
+            if (cliente == null)
+            {
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                _logger.LogWarn(result.Message);
+                return result;
+            }
+
+            if (isUpdate && cliente.Id <= 0)
+            {
+                result.Success = false;
+                result.Message = $"{_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]} Valor recibido: {cliente.Id}";
+                _logger.LogWarn(result.Message);
+                return result;
+            }
+
+            // Validar otros campos obligatorios del cliente
+            // Ejemplo:
+            // if (string.IsNullOrWhiteSpace(cliente.Nombre))
+            // {
+            //     result.Success = false;
+            //     result.Message = "El campo 'Nombre' es obligatorio.";
+            //     _logger.LogWarn(result.Message);
+            //     return result;
+            // }
+
+            result.Success = true;
+            return result;
+        }
 
         public override async Task<List<Cliente>> GetAllAsync()
         {
@@ -42,7 +76,8 @@ namespace SGHR.Persistence.Repositories
         {
             if (id <= 0)
             {
-                _logger.LogWarn($"{_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]} Valor recibido: {id}");
+                string msg = $"{_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]} Valor recibido: {id}";
+                _logger.LogWarn(msg);
                 return null;
             }
 
@@ -70,9 +105,10 @@ namespace SGHR.Persistence.Repositories
             {
                 if (filter == null)
                 {
-                    _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
+                    string msg = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                    _logger.LogWarn(msg);
                     result.Success = false;
-                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                    result.Message = msg;
                     return result;
                 }
 
@@ -97,7 +133,9 @@ namespace SGHR.Persistence.Repositories
                 if (idEstadoCliente is not (0 or 1))
                 {
                     string invalidState = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
-                    return new OperationResult { Success = false, Message = $"{invalidState} Estado de cliente inválido. Debe ser 0 o 1." };
+                    string msg = $"{invalidState} Estado de cliente inválido. Debe ser 0 o 1.";
+                    _logger.LogWarn(msg);
+                    return new OperationResult { Success = false, Message = msg };
                 }
 
                 bool estado = idEstadoCliente == 1;
@@ -107,7 +145,6 @@ namespace SGHR.Persistence.Repositories
                     .ToListAsync();
 
                 _logger.LogInfo($"Se recuperaron {clientes.Count} clientes con el estado {idEstadoCliente}");
-
                 return new OperationResult { Success = true, Data = clientes };
             }
             catch (Exception ex)
@@ -123,19 +160,20 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> SaveEntityAsync(Cliente cliente)
         {
-            // Validación de null al inicio
-            if (cliente == null)
+            // Validar que el objeto no sea null y que cumpla con las reglas de negocio.
+            var validationResult = ValidateCliente(cliente, isUpdate: false);
+            if (!validationResult.Success)
             {
-                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NullEntity"]);
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"] + " - " + validationResult.Message
                 };
             }
 
             try
             {
+                // Asignar fechas y usuario de modificación (se recomienda obtener el usuario actual en producción)
                 cliente.FechaCreacion = DateTime.UtcNow;
                 cliente.ModifyDate = DateTime.UtcNow;
                 cliente.ModifyUser = 1;
@@ -156,7 +194,6 @@ namespace SGHR.Persistence.Repositories
                 return new OperationResult
                 {
                     Success = false,
-                    // Mensaje sin concatenar la excepción
                     Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
                 };
             }
@@ -165,15 +202,27 @@ namespace SGHR.Persistence.Repositories
         public override async Task<OperationResult> UpdateEntityAsync(Cliente cliente)
         {
             var result = new OperationResult();
+
+            // Validar que el objeto y su ID sean válidos, y otros campos obligatorios
+            var validationResult = ValidateCliente(cliente, isUpdate: true);
+            if (!validationResult.Success)
+            {
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"] + " - " + validationResult.Message;
+                return result;
+            }
+
             try
             {
                 var existingCliente = await _context.Set<Cliente>().FindAsync(cliente.Id);
                 if (existingCliente == null)
                 {
+                    string msg = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _logger.LogWarn(msg);
                     return new OperationResult
                     {
                         Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        Message = msg
                     };
                 }
 
@@ -184,11 +233,10 @@ namespace SGHR.Persistence.Repositories
                 _context.Entry(existingCliente).Property(x => x.FechaCreacion).IsModified = false;
                 _context.Entry(existingCliente).Property(x => x.CreationUser).IsModified = false;
 
-                // Actualizar ModifyDate y ModifyUser
+                // Actualizar fecha y usuario de modificación
                 existingCliente.ModifyDate = DateTime.UtcNow;
-                existingCliente.ModifyUser = 1; // Obtener el usuario autenticado en producción
+                existingCliente.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
-                // Guardar cambios
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
@@ -206,15 +254,29 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> DeleteEntityAsync(Cliente cliente)
         {
+            // Validar que el objeto no sea null y tenga un ID válido.
+            if (cliente == null || cliente.Id <= 0)
+            {
+                string msg = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                _logger.LogWarn(msg);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = msg
+                };
+            }
+
             try
             {
                 var existingCliente = await _context.Set<Cliente>().FindAsync(cliente.Id);
                 if (existingCliente == null)
                 {
+                    string msg = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _logger.LogWarn(msg);
                     return new OperationResult
                     {
                         Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        Message = msg
                     };
                 }
 
@@ -258,21 +320,35 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<OperationResult> RestoreEntityAsync(Cliente cliente)
         {
+            // Validar que el objeto no sea null y tenga un ID válido.
+            if (cliente == null || cliente.Id <= 0)
+            {
+                string msg = _messageMapper.ErrorMessages["EntityBase"]["NullEntity"];
+                _logger.LogWarn(msg);
+                return new OperationResult
+                {
+                    Success = false,
+                    Message = msg
+                };
+            }
+
             try
             {
                 var existingCliente = await _context.Set<Cliente>().FindAsync(cliente.Id);
                 if (existingCliente == null)
                 {
+                    string msg = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _logger.LogWarn(msg);
                     return new OperationResult
                     {
                         Success = false,
-                        Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        Message = msg
                     };
                 }
 
                 existingCliente.Deleted = false;
                 existingCliente.ModifyDate = DateTime.UtcNow;
-                existingCliente.ModifyUser = 1; // En producción, obtener el cliente autenticado.
+                existingCliente.ModifyUser = 1; // En producción, obtener el usuario autenticado
 
                 await _context.SaveChangesAsync();
                 return new OperationResult
@@ -291,6 +367,5 @@ namespace SGHR.Persistence.Repositories
                 };
             }
         }
-
     }
 }

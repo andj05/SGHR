@@ -2,6 +2,5 @@
 {
     public class UpdateHabitacionDto : HabitacionDto
     {
-        public int Id { get; set; }
     }
 }

@@ -158,7 +158,8 @@ namespace SGHR.Application.Services
             try
             {
                 var recepcion = await _recepcionRepository.GetEntityByIdAsync(dto.Id);
-                if (recepcion.Deleted)
+
+                if (recepcion == null || recepcion.Deleted)
                 {
                     _logger.LogWarn(_messageMapper.ErrorMessages["Operations"]["AlreadyDeleted"]);
                     result.Success = false;

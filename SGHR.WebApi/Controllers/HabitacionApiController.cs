@@ -1,14 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.WebApi.Models;
 using SGHR.WebApi.Models.Habitacion;
-using System.Net.Http.Json;
 
 namespace SGHR.WebApi.Controllers
 
-    //finalizado Habitacion sin optimizar, seguir con recepcion. 
-    //Aunque actualizar tenga [HttpPut] y borrar tenga [HttpDelete] en la capa API,
-    //al declarar entre brackets aqui en el web controller usar [HttpPost]
 {
     public class HabitacionApiController : Controller
     {

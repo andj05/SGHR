@@ -1,7 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.WebApi.Models;
-using SGHR.WebApi.Models.Habitacion;
 using SGHR.WebApi.Models.Recepcion;
 
 namespace SGHR.WebApi.Controllers

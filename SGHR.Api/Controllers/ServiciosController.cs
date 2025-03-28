@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.Servicios;
-using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
-using SGHR.Application.Services;
+using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
@@ -36,19 +34,16 @@ namespace SGHR.Api.Controllers
             return Ok(servicios);
         }
 
-        // GET api/Servicios/GetServiciosByID/5
-        [HttpGet("GetServiciosByID/{id}")]
-        public async Task<IActionResult> Get(int id)
+        // GET: api/Servicios/GetServiciosByid?id=5
+        [HttpGet("GetServiciosByID")]
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _serviciosService.GetById(id);
-            if (result.Success != true)
-                return NotFound(result.Message);
-
-            var servicio = (Servicios)result.Data;
-            if (servicio.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            return Ok(servicio);
+            OperationResult result = await _serviciosService.GetById(id);
+            if (result.Success == true)
+            {
+                return Ok(result.Data);
+            }
+            return NotFound(result.Message);
         }
 
         // GET api/Servicios/GetDeletedServicios
@@ -103,23 +98,17 @@ namespace SGHR.Api.Controllers
         [HttpPut("UpdateServicio/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] UpdateServiciosDto serviciosDto)
         {
-            if (id <= 0)
-                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+            if (id != serviciosDto.IdServicio)
+            {
+                return BadRequest("El ID de la URL y el del serviciosDto no coinciden.");
+            }
 
-            var existingResult = await _serviciosService.GetById(id);
-            if (existingResult.Success != true || existingResult.Data == null)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            var existingServicio = (Servicios)existingResult.Data;
-            if (existingServicio.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            serviciosDto.IdServicio = id;
-            var updateResult = await _serviciosService.Update(serviciosDto);
-            if (updateResult.Success == true)
-                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
+            OperationResult result = await _serviciosService.Update(serviciosDto);
+            if (result.Success == true)
+            {
+                return Ok("Servicio actualizado.");
+            }
+            return BadRequest(result.Message);
         }
 
         // DELETE api/Servicios/DeleteServicio/5

@@ -73,29 +73,37 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetById(int id)
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
             try
             {
                 var tarifa = await _tarifasRepository.GetEntityByIdAsync(id);
-                if (tarifa == null)
+                if (tarifa == null || tarifa.Deleted)
                 {
-                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
-                    operationResult.Success = false;
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    operationResult.Data = tarifa;
-                    operationResult.Success = true;
-                }
+                result.Data = TarifasMapper.ToDto(tarifa);
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            return operationResult;
+            return result;
         }
+
+
 
         public async Task<OperationResult> Save(SaveTarifasDto dto)
         {
@@ -121,27 +129,44 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateTarifasDto dto)
         {
-            if (dto.IdTarifa <= 0)
-                return new OperationResult
+            var result = new OperationResult();
+            try
+            {
+                if (dto.IdTarifa <= 0)
                 {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                };
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return result;
+                }
 
-            var tarifa = await _tarifasRepository.GetEntityByIdAsync(dto.IdTarifa);
-            if (tarifa == null || tarifa.Deleted)
-                return new OperationResult
+                var tarifa = await _tarifasRepository.GetEntityByIdAsync(dto.IdTarifa);
+                if (tarifa == null || tarifa.Deleted)
                 {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                };
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
 
-            var validationResult = await ValidateTarifas(dto);
-            if (validationResult.Success != true)
-                return validationResult;
+                var validationResult = await ValidateTarifas(dto);
+                if (validationResult.Success != true)
+                {
+                    return validationResult;
+                }
 
-            tarifa.UpdateFromDto(dto);
-            return await _tarifasRepository.UpdateEntityAsync(tarifa);
+                tarifa.UpdateFromDto(dto);
+                await _tarifasRepository.UpdateEntityAsync(tarifa);
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError($"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex}");
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
+            }
+            return result;
         }
 
 

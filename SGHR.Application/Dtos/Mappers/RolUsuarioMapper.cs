@@ -3,7 +3,7 @@ using SGHR.Domain.Entities.Configuration;
 
 public static class RolUsuarioMapper
 {
-    // Convert RolUsuario entity to RolUsuarioDto
+    // Convertir RolUsuario a RolUsuarioDto
     public static RolUsuarioDto ToDto(RolUsuario entity)
     {
         return new RolUsuarioDto
@@ -17,7 +17,7 @@ public static class RolUsuarioMapper
         };
     }
 
-    // Convert SaveRolUsuarioDto to a new RolUsuario entity
+    // Convertir SaveRolUsuarioDto a una nueva RolUsuario
     public static RolUsuario ToEntity(SaveRolUsuarioDto dto)
     {
         return new RolUsuario
@@ -30,25 +30,25 @@ public static class RolUsuarioMapper
         };
     }
 
-    // Update existing RolUsuario entity from UpdateRolUsuarioDto
+    // Actualizar RolUsuario existente desde UpdateRolUsuarioDto
     public static void UpdateFromDto(this RolUsuario entity, UpdateRolUsuarioDto dto)
     {
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeDate;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
         entity.ModifyUser = dto.ChangeUser;
     }
 
-    // Update existing RolUsuario entity for Remove operation
+    // Marcar como borrada RolUsuario existente desde RemoveRolUsuarioDto
     public static void RemoveFromDto(this RolUsuario entity, RemoveRolUsuarioDto dto)
     {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeDate;
-        entity.ModifyUser = dto.ChangeUser;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
+        entity.ModifyUser = dto.ChangeUser ?? 1;
     }
 
-    // Update existing RolUsuario entity for Restore operation
+    // Restaurar RolUsuario existente desde RestoreRolUsuarioDto
     public static void RestoreFromDto(this RolUsuario entity, int userId)
     {
         entity.Estado = true;
@@ -57,3 +57,4 @@ public static class RolUsuarioMapper
         entity.ModifyUser = userId;
     }
 }
+

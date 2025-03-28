@@ -3,6 +3,7 @@ using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.RolUsuario;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
+using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
@@ -36,18 +37,15 @@ namespace SGHR.Api.Controllers
         }
 
         // GET api/RolUsuario/GetRolByID/5
-        [HttpGet("GetRolByID/{id}")]
-        public async Task<IActionResult> Get(int id)
+        [HttpGet("GetRolByID")]
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _rolUsuarioService.GetById(id);
-            if (result.Success != true)
-                return NotFound(result.Message);
-
-            var rolUsuario = (RolUsuario)result.Data;
-            if (rolUsuario.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            return Ok(rolUsuario);
+            OperationResult result = await _rolUsuarioService.GetById(id);
+            if (result.Success == true)
+            {
+                return Ok(result.Data);
+            }
+            return NotFound(result.Message);
         }
 
         // GET api/RolUsuario/GetDeletedRolUsuario
@@ -102,28 +100,17 @@ namespace SGHR.Api.Controllers
         [HttpPut("UpdateRol/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] UpdateRolUsuarioDto rolUsuarioDto)
         {
-            if (id <= 0)
-                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-
-            var existingResult = await _rolUsuarioService.GetById(id);
-            if (existingResult.Success != true || existingResult.Data == null)
+            if (id != rolUsuarioDto.IdRolUsuario)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest("El ID de la URL y el del rolUsuarioDto no coinciden.");
             }
 
-            var existingRolUsuario = (RolUsuario)existingResult.Data;
-            if (existingRolUsuario.Deleted)
+            OperationResult result = await _rolUsuarioService.Update(rolUsuarioDto);
+            if (result.Success == true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return Ok("Rol de usuario actualizado.");
             }
-
-            rolUsuarioDto.IdRolUsuario = id;
-            var updateResult = await _rolUsuarioService.Update(rolUsuarioDto);
-            if (updateResult.Success == true)
-            {
-                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-            }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
+            return BadRequest(result.Message);
         }
 
         // DELETE api/RolUsuario/DeleteRolUsuario/5

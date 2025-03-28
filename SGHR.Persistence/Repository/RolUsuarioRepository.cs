@@ -57,32 +57,19 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<RolUsuario> GetEntityByIdAsync(int id)
         {
-            if (id <= 0)
-            {
-                _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-                return null;
-            }
-
             try
             {
                 var rolUsuario = await _context.Set<RolUsuario>()
-                                               .IgnoreQueryFilters() 
-                                               .FirstOrDefaultAsync(r => r.Id == id);
+                            .FirstOrDefaultAsync(r => r.Id == id);
 
-                if (rolUsuario == null)
-                {
-                    _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-                    return null;
-                }
                 return rolUsuario;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["RolUsuario"]["GetByIdError"]);
-                throw;
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return null;
             }
         }
-
 
         public override async Task<bool> ExistsAsync(Expression<Func<RolUsuario, bool>> filter)
         {

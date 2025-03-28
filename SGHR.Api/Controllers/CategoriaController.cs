@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Interfaces;
+using SGHR.Application.Services;
+using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
@@ -32,18 +34,15 @@ namespace SGHR.Api.Controllers
         }
 
         // GET api/Categoria/GetCategoriaByID/5
-        [HttpGet("GetCategoriaByID/{id}")]
-        public async Task<IActionResult> Get(int id)
+        [HttpGet("GetCategoriaByID")]
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _categoriaService.GetById(id);
-            if (result.Success != true)
-                return NotFound(result.Message);
-
-            var categoria = (Categoria)result.Data;
-            if (categoria.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            return Ok(categoria);
+            OperationResult result = await _categoriaService.GetById(id);
+            if (result.Success == true)
+            {
+                return Ok(result.Data);
+            }
+            return NotFound(result.Message);
         }
 
         // GET api/Cliente/GetDeletedCategorias
@@ -99,28 +98,17 @@ namespace SGHR.Api.Controllers
         [HttpPut("UpdateCategoria/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] UpdateCategoriasDto categoriaDto)
         {
-            if (id <= 0)
-                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-
-            var existingResult = await _categoriaService.GetById(id);
-            if (existingResult.Success != true || existingResult.Data == null)
+            if (id != categoriaDto.IdCategoria)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest("El ID de la URL y el del categoriaDto no coinciden.");
             }
 
-            var existingCategoria = (Categoria)existingResult.Data;
-            if (existingCategoria.Deleted)
+            OperationResult result = await _categoriaService.Update(categoriaDto);
+            if (result.Success == true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return Ok("Categoría actualizada.");
             }
-
-            categoriaDto.IdCategoria = id;
-            var updateResult = await _categoriaService.Update(categoriaDto);
-            if (updateResult.Success == true)
-            {
-                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-            }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
+            return BadRequest(result.Message);
         }
 
         // DELETE api/Categoria/DeleteCategoria/5

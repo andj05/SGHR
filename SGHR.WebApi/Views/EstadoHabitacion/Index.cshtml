@@ -1,0 +1,65 @@
+﻿@model IEnumerable<SGHR.WebApi.Models.EstadoHabitacion.EstadoHabitacionApiModel>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Lista de Estados de Habitacion</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.IdEstadoHabitacion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Descripcion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Estado)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FechaCreacion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeUser)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdEstadoHabitacion)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Descripcion)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Estado)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FechaCreacion)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangeDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangeUser)
+            </td>
+            <td>
+                    @Html.ActionLink("Edit", "Edit", new { id = item.IdEstadoHabitacion }) |
+                    @Html.ActionLink("Details", "Details", new { id = item.IdEstadoHabitacion }) |
+                    @Html.ActionLink("Delete", "Delete", new { id = item.IdEstadoHabitacion })
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

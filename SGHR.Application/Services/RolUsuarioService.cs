@@ -69,41 +69,44 @@ namespace SGHR.Application.Services
             }
             return result;
         }
-
         public async Task<OperationResult> GetById(int id)
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
             try
             {
                 var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(id);
-                if (rolUsuario == null)
+                if (rolUsuario == null || rolUsuario.Deleted)
                 {
-                    operationResult.Success = false;
-                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    operationResult.Data = rolUsuario;
-                    operationResult.Success = true;
-                }
+                result.Data = RolUsuarioMapper.ToDto(rolUsuario);
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> Save(SaveRolUsuarioDto dto)
         {
-            // Validaciones básicas del objeto
             var validationResult = ValidateRolUsuario(dto);
             if (validationResult.Success != true)
                 return validationResult;
 
-            // Validaciones de negocio específicas para guardar
             var businessValidationResult = await ValidateRolUsuarioBusinessRules(dto);
             if (businessValidationResult.Success != true)
                 return businessValidationResult;
@@ -123,53 +126,56 @@ namespace SGHR.Application.Services
                 };
             }
         }
-
         public async Task<OperationResult> Update(UpdateRolUsuarioDto dto)
         {
-            if (dto.IdRolUsuario <= 0)
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                };
-
-            var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
-            if (rolUsuario == null || rolUsuario.Deleted)
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                };
-
-            // Validación básica del objeto
-            var validationResult = ValidateRolUsuario(dto);
-            if (validationResult.Success != true)
-                return validationResult;
-
-            // Validaciones de negocio específicas para actualizar
-            var businessValidationResult = await ValidateRolUsuarioUpdateBusinessRules(dto, rolUsuario);
-            if (businessValidationResult.Success != true)
-                return businessValidationResult;
-
+            var result = new OperationResult();
             try
             {
-                // Fix: Implementar UpdateFromDto manualmente en lugar de usar un método de extensión
+                if (dto.IdRolUsuario <= 0)
+                {
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return result;
+                }
+
+                var rolUsuario = await _rolUsuarioRepository.GetEntityByIdAsync(dto.IdRolUsuario);
+                if (rolUsuario == null || rolUsuario.Deleted)
+                {
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
+
+                var validationResult = ValidateRolUsuario(dto);
+                if (validationResult.Success != true)
+                {
+                    return validationResult;
+                }
+
+                var businessValidationResult = await ValidateRolUsuarioUpdateBusinessRules(dto, rolUsuario);
+                if (businessValidationResult.Success != true)
+                {
+                    return businessValidationResult;
+                }
+
                 rolUsuario.Descripcion = dto.Descripcion;
                 rolUsuario.Estado = dto.Estado;
 
-                // Llamada al repositorio para actualizar
-                return await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+                await _rolUsuarioRepository.UpdateEntityAsync(rolUsuario);
+
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["UpdateFailed"]);
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = $"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex.Message}"
-                };
+                _loggerManager.LogError($"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex}");
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
             }
+            return result;
         }
+
 
         public async Task<OperationResult> Remove(RemoveRolUsuarioDto dto)
         {

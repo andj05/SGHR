@@ -52,29 +52,17 @@ namespace SGHR.Persistence.Repositories
 
         public override async Task<Tarifas> GetEntityByIdAsync(int id)
         {
-            if (id <= 0)
-            {
-                _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-                return null;
-            }
-
             try
             {
-                var tarifas = await _context.Set<Tarifas>()
-                    .IgnoreQueryFilters() 
+                var entity = await _context.Set<Tarifas>()
                     .FirstOrDefaultAsync(t => t.Id == id);
 
-                if (tarifas == null)
-                {
-                    _logger.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-                    return null;
-                }
-                return tarifas;
+                return entity;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["Tarifas"]["GetByIdError"]);
-                throw;
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return null;
             }
         }
 

@@ -1,0 +1,78 @@
+﻿@model SGHR.WebApi.Models.Tarifas.TarifasApiModel
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Editar</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="IdTarifa" class="control-label"></label>
+                <input asp-for="IdTarifa" class="form-control" />
+                <span asp-validation-for="IdTarifa" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FechaInicio" class="control-label"></label>
+                <input asp-for="FechaInicio" class="form-control" />
+                <span asp-validation-for="FechaInicio" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FechaFin" class="control-label"></label>
+                <input asp-for="FechaFin" class="form-control" />
+                <span asp-validation-for="FechaFin" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="PrecioPorNoche" class="control-label"></label>
+                <input asp-for="PrecioPorNoche" class="form-control" />
+                <span asp-validation-for="PrecioPorNoche" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Descuento" class="control-label"></label>
+                <input asp-for="Descuento" class="form-control" />
+                <span asp-validation-for="Descuento" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Descripcion" class="control-label"></label>
+                <input asp-for="Descripcion" class="form-control" />
+                <span asp-validation-for="Descripcion" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="IdHabitacion" class="control-label"></label>
+                <input asp-for="IdHabitacion" class="form-control" />
+                <span asp-validation-for="IdHabitacion" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="Estado" /> @Html.DisplayNameFor(model => model.Estado)
+                </label>
+            </div>
+            <div class="form-group">
+                <label asp-for="ChangeDate" class="control-label"></label>
+                <input asp-for="ChangeDate" class="form-control" />
+                <span asp-validation-for="ChangeDate" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ChangeUser" class="control-label"></label>
+                <input asp-for="ChangeUser" class="form-control" />
+                <span asp-validation-for="ChangeUser" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

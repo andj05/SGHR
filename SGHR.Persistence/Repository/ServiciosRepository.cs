@@ -57,29 +57,17 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<Servicios> GetEntityByIdAsync(int id)
         {
-            if (id <= 0)
-            {
-                _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-                return null;
-            }
-
             try
             {
                 var servicio = await _context.Set<Servicios>()
-                                             .IgnoreQueryFilters() // Include deleted entities
                                              .FirstOrDefaultAsync(s => s.Id == id);
 
-                if (servicio == null)
-                {
-                    _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-                    return null;
-                }
                 return servicio;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["Servicios"]["GetByIdError"]);
-                throw;
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return null;
             }
         }
 

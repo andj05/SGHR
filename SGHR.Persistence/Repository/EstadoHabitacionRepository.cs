@@ -57,32 +57,19 @@ namespace SGHR.Persistence.Repository
 
         public override async Task<EstadoHabitacion> GetEntityByIdAsync(int id)
         {
-            if (id <= 0)
-            {
-                _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-                return null;
-            }
-
             try
             {
                 var estadoHabitacion = await _context.Set<EstadoHabitacion>()
-                                                     .IgnoreQueryFilters() 
                                                      .FirstOrDefaultAsync(e => e.Id == id);
 
-                if (estadoHabitacion == null)
-                {
-                    _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-                    return null;
-                }
                 return estadoHabitacion;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["EstadoHabitacion"]["GetByIdError"]);
-                throw;
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return null;
             }
         }
-
 
         // Verificar existencia
         public override async Task<bool> ExistsAsync(Expression<Func<EstadoHabitacion, bool>> filter)

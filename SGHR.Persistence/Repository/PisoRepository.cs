@@ -54,35 +54,21 @@ namespace SGHR.Persistence.Repository
                 throw;
             }
         }
-
         public override async Task<Piso> GetEntityByIdAsync(int id)
         {
-            if (id <= 0)
-            {
-                _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-                return null;
-            }
-
             try
             {
                 var piso = await _context.Set<Piso>()
-                                         .IgnoreQueryFilters() // Include deleted entities
                                          .FirstOrDefaultAsync(p => p.Id == id);
 
-                if (piso == null)
-                {
-                    _logger.LogWarning(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-                    return null;
-                }
                 return piso;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, _messageMapper.ErrorMessages["Piso"]["GetByIdError"]);
-                throw;
+                _logger.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                return null;
             }
         }
-
 
         public override async Task<bool> ExistsAsync(Expression<Func<Piso, bool>> filter)
         {

@@ -71,29 +71,36 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetById(int id)
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
             try
             {
                 var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
-                if (servicio == null)
+                if (servicio == null || servicio.Deleted)
                 {
-                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
-                    operationResult.Success = false;
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    operationResult.Data = servicio;
-                    operationResult.Success = true;
-                }
+                result.Data = ServiciosMapper.ToDto(servicio);
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            return operationResult;
+            return result;
         }
+
 
         public async Task<OperationResult> Save(SaveServiciosDto dto)
         {
@@ -119,29 +126,46 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateServiciosDto dto)
         {
-            if (dto.IdServicio <= 0)
-                return new OperationResult
+            var result = new OperationResult();
+            try
+            {
+                if (dto.IdServicio <= 0)
                 {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                };
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return result;
+                }
 
-            var servicio = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
-            if (servicio == null || servicio.Deleted)
-                return new OperationResult
+                var servicio = await _serviciosRepository.GetEntityByIdAsync(dto.IdServicio);
+                if (servicio == null || servicio.Deleted)
                 {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                };
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
 
-            // Validación de negocio antes de actualizar
-            var validation = await ValidateServicios(dto);
-            if (validation.Success != true)
-                return validation;
+                var validationResult = await ValidateServicios(dto);
+                if (validationResult.Success != true)
+                {
+                    return validationResult;
+                }
 
-            servicio.UpdateFromDto(dto);
-            return await _serviciosRepository.UpdateEntityAsync(servicio);
+                servicio.UpdateFromDto(dto);
+                await _serviciosRepository.UpdateEntityAsync(servicio);
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError($"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex}");
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
+            }
+            return result;
         }
+
 
         public async Task<OperationResult> Remove(RemoveServiciosDto dto)
         {

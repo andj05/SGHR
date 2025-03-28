@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
-using SGHR.Application.Services;
+using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
@@ -35,20 +34,18 @@ namespace SGHR.Api.Controllers
             return Ok(tarifas);
         }
 
-        // GET api/Tarifas/GetTarifasByID/5
-        [HttpGet("GetTarifasByID/{id}")]
-        public async Task<IActionResult> Get(int id)
+        // GET: api/Tarifas/GetTarifasById?id=5
+        [HttpGet("GetTarifasByID")]
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _tarifasService.GetById(id);
-            if (result.Success != true)
-                return NotFound(result.Message);
-
-            var tarifa = (Tarifas)result.Data;
-            if (tarifa.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            return Ok(tarifa);
+            OperationResult result = await _tarifasService.GetById(id);
+            if (result.Success == true)
+            {
+                return Ok(result.Data);
+            }
+            return NotFound(result.Message);
         }
+
 
         // GET api/Tarifas/GetDeletedTarifas
         [HttpGet("GetDeletedTarifas")]
@@ -103,28 +100,17 @@ namespace SGHR.Api.Controllers
         [HttpPut("UpdateTarifa/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] UpdateTarifasDto tarifaDto)
         {
-            if (id <= 0)
-                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-
-            var existingResult = await _tarifasService.GetById(id);
-            if (existingResult.Success != true || existingResult.Data == null)
+            if (id != tarifaDto.IdTarifa)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest("El ID de la URL y el del tarifaDto no coinciden.");
             }
 
-            var existingTarifa = (Tarifas)existingResult.Data;
-            if (existingTarifa.Deleted)
+            OperationResult result = await _tarifasService.Update(tarifaDto);
+            if (result.Success == true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return Ok("Tarifa actualizada.");
             }
-
-            tarifaDto.IdTarifa = id;
-            var updateResult = await _tarifasService.Update(tarifaDto);
-            if (updateResult.Success == true)
-            {
-                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-            }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
+            return BadRequest(result.Message);
         }
 
         // DELETE api/Tarifas/DeleteTarifa/5

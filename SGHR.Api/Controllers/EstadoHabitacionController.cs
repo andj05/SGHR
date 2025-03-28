@@ -3,6 +3,7 @@ using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.EstadoHabitacion;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
+using SGHR.Domain.Base;
 using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers
@@ -37,18 +38,15 @@ namespace SGHR.Api.Controllers
         }
 
         // GET api/EstadoHabitacion/GetEstadoByID/5
-        [HttpGet("GetEstadoByID/{id}")]
-        public async Task<IActionResult> Get(int id)
+        [HttpGet("GetEstadoByID")]
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _estadoHabitacionService.GetById(id);
-            if (result.Success != true)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            var estadoHabitacion = (EstadoHabitacion)result.Data;
-            if (estadoHabitacion.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            return Ok(estadoHabitacion);
+            OperationResult result = await _estadoHabitacionService.GetById(id);
+            if (result.Success == true)
+            {
+                return Ok(result.Data);
+            }
+            return NotFound(result.Message);
         }
 
         // GET api/EstadoHabitacion/GetDeletedEstadoHabitacion
@@ -104,28 +102,17 @@ namespace SGHR.Api.Controllers
         [HttpPut("UpdateEstadoHabitacion/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] UpdateEstadoHabitacionDto estadoHabitacionDto)
         {
-            if (id <= 0)
-                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-
-            var existingResult = await _estadoHabitacionService.GetById(id);
-            if (existingResult.Success != true || existingResult.Data == null)
+            if (id != estadoHabitacionDto.IdEstadoHabitacion)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest("El ID de la URL y el del estadoHabitacionDto no coinciden.");
             }
 
-            var existingEstadoHabitacion = (EstadoHabitacion)existingResult.Data;
-            if (existingEstadoHabitacion.Deleted)
+            OperationResult result = await _estadoHabitacionService.Update(estadoHabitacionDto);
+            if (result.Success == true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return Ok("Estado de habitación actualizado.");
             }
-
-            estadoHabitacionDto.IdEstadoHabitacion = id;
-            var updateResult = await _estadoHabitacionService.Update(estadoHabitacionDto);
-            if (updateResult.Success == true)
-            {
-                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-            }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
+            return BadRequest(result.Message);
         }
 
         // DELETE api/EstadoHabitacion/DeleteEstado/5

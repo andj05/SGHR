@@ -3,7 +3,7 @@ using SGHR.Domain.Entities.Configuration;
 
 public static class CategoriaMapper
 {
-    // Convert Categoria entity to CategoriaDto
+    // Convertir Categoria a CategoriasDto
     public static CategoriasDto ToDto(Categoria entity)
     {
         return new CategoriasDto
@@ -17,7 +17,7 @@ public static class CategoriaMapper
         };
     }
 
-    // Convert SaveCategoriaDto to a new Categoria entity
+    // Convertir SaveCategoriasDto a una nueva Categoria
     public static Categoria ToEntity(SaveCategoriasDto dto)
     {
         return new Categoria
@@ -30,25 +30,25 @@ public static class CategoriaMapper
         };
     }
 
-    // Update existing Categoria entity from UpdateCategoriaDto
+    // Actualizar Categoria existente desde UpdateCategoriasDto
     public static void UpdateFromDto(this Categoria entity, UpdateCategoriasDto dto)
     {
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeDate;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
         entity.ModifyUser = dto.ChangeUser;
     }
 
-    // Update existing Categoria entity for Remove operation
+    // Marcar como borrada Categoria existente desde RemoveCategoriasDto
     public static void RemoveFromDto(this Categoria entity, RemoveCategoriasDto dto)
     {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeDate;
-        entity.ModifyUser = dto.ChangeUser;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
+        entity.ModifyUser = dto.ChangeUser ?? 1;
     }
 
-    // Update existing Categoria entity for Restore operation
+    // Restaurar Categoria existente desde RestoreCategoriasDto
     public static void RestoreFromDto(this Categoria entity, int userId)
     {
         entity.Estado = true;
@@ -57,3 +57,6 @@ public static class CategoriaMapper
         entity.ModifyUser = userId;
     }
 }
+
+
+

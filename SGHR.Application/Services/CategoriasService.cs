@@ -70,36 +70,34 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetById(int id)
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
             try
             {
-                // Validación de negocio: ID debe ser válido
-                if (id <= 0)
-                {
-                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
-                    operationResult.Success = false;
-                    return operationResult;
-                }
-
                 var categoria = await _categoriaRepository.GetEntityByIdAsync(id);
-                if (categoria == null)
+                if (categoria == null || categoria.Deleted)
                 {
-                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
-                    operationResult.Success = false;
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    operationResult.Data = categoria;
-                    operationResult.Success = true;
-                }
+                result.Data = CategoriaMapper.ToDto(categoria);
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> Save(SaveCategoriasDto dto)
@@ -139,54 +137,68 @@ namespace SGHR.Application.Services
                 };
             }
         }
-
         public async Task<OperationResult> Update(UpdateCategoriasDto dto)
         {
-            // Validación de negocio: ID debe ser válido
-            if (dto.IdCategoria <= 0)
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                };
-
-            var categoria = await _categoriaRepository.GetEntityByIdAsync(dto.IdCategoria);
-            if (categoria == null || categoria.Deleted)
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                };
-
-            // Validación de datos a actualizar
-            var validationResult = ValidateCategoria(dto);
-            if (validationResult.Success != true)
-                return validationResult;
-
-            // Validar duplicidad con datos existentes (validación de negocio)
-            if (!string.IsNullOrEmpty(dto.Descripcion) &&
-                !string.Equals(categoria.Descripcion, dto.Descripcion, StringComparison.OrdinalIgnoreCase))
+            var result = new OperationResult();
+            try
             {
-                var existingCategorias = await _categoriaRepository.GetAllAsync();
-                var duplicateCategoria = existingCategorias
-                    .Where(c => c.Id!= dto.IdCategoria &&
-                           !c.Deleted &&
-                           string.Equals(c.Descripcion, dto.Descripcion, StringComparison.OrdinalIgnoreCase))
-                    .FirstOrDefault();
-
-                if (duplicateCategoria != null)
+                if (dto.IdCategoria <= 0)
                 {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        Message = "Ya existe una categoría activa con esta descripción"
-                    };
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return result;
                 }
-            }
 
-            categoria.UpdateFromDto(dto);
-            return await _categoriaRepository.UpdateEntityAsync(categoria);
+                var categoria = await _categoriaRepository.GetEntityByIdAsync(dto.IdCategoria);
+                if (categoria == null || categoria.Deleted)
+                {
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
+
+                var validationResult = ValidateCategoria(dto);
+                if (!validationResult.Success)
+                {
+                    return validationResult;
+                }
+
+                if (!string.IsNullOrEmpty(dto.Descripcion) &&
+                    !string.Equals(categoria.Descripcion, dto.Descripcion, StringComparison.OrdinalIgnoreCase))
+                {
+                    var existingCategorias = await _categoriaRepository.GetAllAsync();
+                    var duplicateCategoria = existingCategorias
+                        .Where(c => c.Id != dto.IdCategoria &&
+                                    !c.Deleted &&
+                                    string.Equals(c.Descripcion, dto.Descripcion, StringComparison.OrdinalIgnoreCase))
+                        .FirstOrDefault();
+
+                    if (duplicateCategoria != null)
+                    {
+                        return new OperationResult
+                        {
+                            Success = false,
+                            Message = "Ya existe una categoría activa con esta descripción"
+                        };
+                    }
+                }
+
+                categoria.UpdateFromDto(dto);
+                await _categoriaRepository.UpdateEntityAsync(categoria);
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError($"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex}");
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
+            }
+            return result;
         }
+
 
         public async Task<OperationResult> Remove(RemoveCategoriasDto dto)
         {

@@ -71,29 +71,36 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetById(int id)
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
             try
             {
                 var estadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(id);
-                if (estadoHabitacion == null)
+                if (estadoHabitacion == null || estadoHabitacion.Deleted)
                 {
-                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
-                    operationResult.Success = false;
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    operationResult.Data = estadoHabitacion;
-                    operationResult.Success = true;
-                }
+                result.Data = EstadoHabitacionMapper.ToDto(estadoHabitacion);
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            return operationResult;
+            return result;
         }
+
 
         public async Task<OperationResult> Save(SaveEstadoHabitacionDto dto)
         {
@@ -136,45 +143,61 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> Update(UpdateEstadoHabitacionDto dto)
         {
-            if (dto.IdEstadoHabitacion <= 0)
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                };
-
-            // Validar datos básicos del estado de habitación
-            var validationResult = ValidateEstadoHabitacion(dto);
-            if (validationResult.Success != true)
-                return validationResult;
-
-            // Obtener la entidad a actualizar
-            var estadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(dto.IdEstadoHabitacion);
-            if (estadoHabitacion == null || estadoHabitacion.Deleted)
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                };
-
-            // Validar que no exista duplicado (excluyendo el ID actual)
-            var isDuplicateResult = await IsDuplicateDescripcion(dto.Descripcion, dto.IdEstadoHabitacion);
-            if (!isDuplicateResult.Success)
-                return isDuplicateResult;
-
-            // Validar nombre reservado o palabras clave del sistema
-            if (IsReservedStateName(dto.Descripcion))
+            var result = new OperationResult();
+            try
             {
-                return new OperationResult
+                if (dto.IdEstadoHabitacion <= 0)
                 {
-                    Success = false,
-                    Message = "Nombre de estado reservado para el sistema."
-                };
-            }
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return result;
+                }
 
-            estadoHabitacion.UpdateFromDto(dto);
-            return await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
+                var estadoHabitacion = await _estadoHabitacionRepository.GetEntityByIdAsync(dto.IdEstadoHabitacion);
+                if (estadoHabitacion == null || estadoHabitacion.Deleted)
+                {
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
+
+                var validationResult = ValidateEstadoHabitacion(dto);
+                if (!validationResult.Success)
+                {
+                    return validationResult;
+                }
+
+                var isDuplicateResult = await IsDuplicateDescripcion(dto.Descripcion, dto.IdEstadoHabitacion);
+                if (!isDuplicateResult.Success)
+                {
+                    return isDuplicateResult;
+                }
+
+                if (IsReservedStateName(dto.Descripcion))
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        Message = "Nombre de estado reservado para el sistema."
+                    };
+                }
+
+                estadoHabitacion.UpdateFromDto(dto);
+                await _estadoHabitacionRepository.UpdateEntityAsync(estadoHabitacion);
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError($"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex}");
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
+            }
+            return result;
         }
+
 
         public async Task<OperationResult> Remove(RemoveEstadoHabitacionDto dto)
         {

@@ -4,6 +4,7 @@ using SGHR.Application.Dtos.Pisos;
 using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
+using SGHR.Domain.Base;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 using SGHR.Persistence.Interfaces;
@@ -39,18 +40,15 @@ namespace SGHR.Api.Controllers
         }
 
         // GET api/Piso/GetPisoByID/5
-        [HttpGet("GetPisoByID/{id}")]
-        public async Task<IActionResult> Get(int id)
+        [HttpGet("GetPisoByID")]
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _pisosService.GetById(id);
-            if (result.Success != true)
-                return NotFound(result.Message);
-
-            var piso = (Piso)result.Data;
-            if (piso.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            return Ok(piso);
+            OperationResult result = await _pisosService.GetById(id);
+            if (result.Success == true)
+            {
+                return Ok(result.Data);
+            }
+            return NotFound(result.Message);
         }
 
         // GET api/Piso/GetDeletedPiso
@@ -106,28 +104,17 @@ namespace SGHR.Api.Controllers
         [HttpPut("UpdatePiso/{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] UpdatePisosDto pisosDto)
         {
-            if (id <= 0)
-                return BadRequest(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
-
-            var existingResult = await _pisosService.GetById(id);
-            if (existingResult.Success != true || existingResult.Data == null)
+            if (id != pisosDto.IdPiso)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest("El ID de la URL y el del pisosDto no coinciden.");
             }
 
-            var existingPiso = (Piso)existingResult.Data;
-            if (existingPiso.Deleted)
+            OperationResult result = await _pisosService.Update(pisosDto);
+            if (result.Success == true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return Ok("Piso actualizado.");
             }
-
-            pisosDto.IdPiso = id;
-            var updateResult = await _pisosService.Update(pisosDto);
-            if (updateResult.Success == true)
-            {
-                return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-            }
-            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
+            return BadRequest(result.Message);
         }
 
         // DELETE api/Piso/DeletePiso/5

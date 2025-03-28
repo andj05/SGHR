@@ -1,0 +1,90 @@
+﻿@model IEnumerable<SGHR.WebApi.Models.Tarifas.TarifasApiModel>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Lista de Tarifas</h1>
+
+<p>
+    <a asp-action="Create">Crear Nuevo</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.IdTarifa)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FechaInicio)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FechaFin)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.PrecioPorNoche)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Descuento)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Descripcion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IdHabitacion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Estado)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeUser)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.IdTarifa)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.FechaInicio)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.FechaFin)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.PrecioPorNoche)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Descuento)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Descripcion)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.IdHabitacion)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Estado)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.ChangeDate)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.ChangeUser)
+                </td>
+                <td>
+                    @Html.ActionLink("Editar", "Edit", new { id = item.IdTarifa }) |
+                    @Html.ActionLink("Detalles", "Details", new { id = item.IdTarifa }) |
+                    @Html.ActionLink("Eliminar", "Delete", new { id = item.IdTarifa })
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

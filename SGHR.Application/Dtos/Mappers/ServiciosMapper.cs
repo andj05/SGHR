@@ -3,7 +3,7 @@ using SGHR.Domain.Entities.Configuration;
 
 public static class ServiciosMapper
 {
-    // Convert Servicios entity to ServiciosDto
+    // Convertir Servicios a ServiciosDto
     public static ServiciosDto ToDto(Servicios entity)
     {
         return new ServiciosDto
@@ -17,7 +17,7 @@ public static class ServiciosMapper
         };
     }
 
-    // Convert SaveServiciosDto to a new Servicios entity
+    // Convertir SaveServiciosDto a una nueva Servicios
     public static Servicios ToEntity(SaveServiciosDto dto)
     {
         return new Servicios
@@ -31,28 +31,28 @@ public static class ServiciosMapper
         };
     }
 
-    // Update existing Servicios entity from UpdateServiciosDto
+    // Actualizar Servicios existente desde UpdateServiciosDto
     public static void UpdateFromDto(this Servicios entity, UpdateServiciosDto dto)
     {
         entity.Nombre = dto.Nombre;
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeDate;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
         entity.ModifyUser = dto.ChangeUser;
     }
 
-    // Update existing Servicios entity for Remove operation
+    // Marcar como borrada Servicios existente desde RemoveServiciosDto
     public static void RemoveFromDto(this Servicios entity, RemoveServiciosDto dto)
-    {   
+    {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeDate;
-        entity.ModifyUser = dto.ChangeUser;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
+        entity.ModifyUser = dto.ChangeUser ?? 1;
     }
 
-    // Update existing Servicios entity for Restore operation
+    // Restaurar Servicios existente desde RestoreServiciosDto
     public static void RestoreFromDto(this Servicios entity, int userId)
-    {   
+    {
         entity.Estado = true;
         entity.Deleted = false;
         entity.ModifyDate = DateTime.Now;

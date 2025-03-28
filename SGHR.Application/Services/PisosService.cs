@@ -74,28 +74,34 @@ namespace SGHR.Application.Services
 
         public async Task<OperationResult> GetById(int id)
         {
-            var operationResult = new OperationResult();
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
             try
             {
                 var piso = await _pisoRepository.GetEntityByIdAsync(id);
-                if (piso == null)
+                if (piso == null || piso.Deleted)
                 {
-                    operationResult.Success = false;
-                    operationResult.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
                 }
-                else
-                {
-                    operationResult.Data = piso;
-                    operationResult.Success = true;
-                }
+                result.Data = PisoMapper.ToDto(piso);
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
-                operationResult.Success = false;
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
             }
-            return operationResult;
+            return result;
         }
 
         public async Task<OperationResult> Save(SavePisosDto dto)
@@ -125,37 +131,54 @@ namespace SGHR.Application.Services
                 };
             }
         }
-
         public async Task<OperationResult> Update(UpdatePisosDto dto)
         {
-            if (dto.IdPiso <= 0)
-                return new OperationResult
+            var result = new OperationResult();
+            try
+            {
+                if (dto.IdPiso <= 0)
                 {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"]
-                };
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                    return result;
+                }
 
-            var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
-            if (piso == null || piso.Deleted)
-                return new OperationResult
+                var piso = await _pisoRepository.GetEntityByIdAsync(dto.IdPiso);
+                if (piso == null || piso.Deleted)
                 {
-                    Success = false,
-                    Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                };
+                    _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
 
-            // Validación básica del objeto
-            var validationResult = ValidatePiso(dto);
-            if (validationResult.Success != true)
-                return validationResult;
+                var validationResult = ValidatePiso(dto);
+                if (!validationResult.Success)
+                {
+                    return validationResult;
+                }
 
-            // Validaciones de negocio específicas para actualizar
-            var businessValidationResult = await ValidatePisoUpdateBusinessRules(dto, piso);
-            if (businessValidationResult.Success != true)
-                return businessValidationResult;
+                var businessValidationResult = await ValidatePisoUpdateBusinessRules(dto, piso);
+                if (!businessValidationResult.Success)
+                {
+                    return businessValidationResult;
+                }
 
-            piso.UpdateFromDto(dto);
-            return await _pisoRepository.UpdateEntityAsync(piso);
+                piso.UpdateFromDto(dto);
+                await _pisoRepository.UpdateEntityAsync(piso);
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError($"{_messageMapper.ErrorMessages["Operations"]["UpdateFailed"]}: {ex}");
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
+            }
+            return result;
         }
+
 
         public async Task<OperationResult> Remove(RemovePisosDto dto)
         {

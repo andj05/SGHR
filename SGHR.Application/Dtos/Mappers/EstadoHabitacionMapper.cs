@@ -2,7 +2,7 @@
 
 public static class EstadoHabitacionMapper
 {
-    // Convert EstadoHabitacion entity to EstadoHabitacionDto
+    // Convertir EstadoHabitacion a EstadoHabitacionDto
     public static EstadoHabitacionDto ToDto(EstadoHabitacion entity)
     {
         return new EstadoHabitacionDto
@@ -10,13 +10,13 @@ public static class EstadoHabitacionMapper
             IdEstadoHabitacion = entity.Id,
             Descripcion = entity.Descripcion,
             Estado = entity.Estado,
-            FechaCreacion = DateTime.UtcNow,
+            FechaCreacion = entity.FechaCreacion,
             ChangeDate = entity.ModifyDate,
             ChangeUser = entity.ModifyUser
         };
     }
 
-    // Convert SaveEstadoHabitacionDto to a new EstadoHabitacion entity
+    // Convertir SaveEstadoHabitacionDto a una nueva EstadoHabitacion
     public static EstadoHabitacion ToEntity(SaveEstadoHabitacionDto dto)
     {
         return new EstadoHabitacion
@@ -29,25 +29,25 @@ public static class EstadoHabitacionMapper
         };
     }
 
-    // Update existing EstadoHabitacion entity from UpdateEstadoHabitacionDto
+    // Actualizar EstadoHabitacion existente desde UpdateEstadoHabitacionDto
     public static void UpdateFromDto(this EstadoHabitacion entity, UpdateEstadoHabitacionDto dto)
     {
         entity.Descripcion = dto.Descripcion;
         entity.Estado = dto.Estado;
-        entity.ModifyDate = dto.ChangeDate;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
         entity.ModifyUser = dto.ChangeUser;
     }
 
-    // Update existing EstadoHabitacion entity for Remove operation
+    // Marcar como borrada EstadoHabitacion existente desde RemoveEstadoHabitacionDto
     public static void RemoveFromDto(this EstadoHabitacion entity, RemoveEstadoHabitacionDto dto)
     {
         entity.Estado = false;
         entity.Deleted = true;
-        entity.ModifyDate = dto.ChangeDate;
-        entity.ModifyUser = dto.ChangeUser;
+        entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
+        entity.ModifyUser = dto.ChangeUser ?? 1;
     }
 
-    // Update existing EstadoHabitacion entity for Restore operation
+    // Restaurar EstadoHabitacion existente desde RestoreEstadoHabitacionDto
     public static void RestoreFromDto(this EstadoHabitacion entity, int userId)
     {
         entity.Estado = true;
@@ -56,3 +56,5 @@ public static class EstadoHabitacionMapper
         entity.ModifyUser = userId;
     }
 }
+
+

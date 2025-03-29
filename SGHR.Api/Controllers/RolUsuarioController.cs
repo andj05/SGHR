@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.RolUsuario;
+using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
 using SGHR.Domain.Base;
@@ -65,16 +66,13 @@ namespace SGHR.Api.Controllers
 
         // GET api/RolUsuario/GetDeletedRolUsuarioByID/5
         [HttpGet("GetDeletedRolUsuarioByID/{id}")]
-        public async Task<IActionResult> GetDeletedRoleByID(int id)
+        public async Task<IActionResult> GetDeletedRolUsuarioByID(int id)
         {
-            var result = await _rolUsuarioService.GetById(id);
+            var result = await _rolUsuarioService.GetDeletedById(id);
             if (result.Success != true || result.Data == null)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            var rolUsuario = (RolUsuario)result.Data;
-            if (!rolUsuario.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
+            var rolUsuario = (RolUsuarioDto)result.Data;
             return Ok(rolUsuario);
         }
 
@@ -139,18 +137,13 @@ namespace SGHR.Api.Controllers
         [HttpPut("RestoreRol/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            var result = await _rolUsuarioService.GetById(id);
-            if (result.Success != true || result.Data == null)
+            var result = await _rolUsuarioService.Restore(id);
+            if (result.Success != true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest(result.Message);
             }
 
-            var restoreResult = await _rolUsuarioService.Restore(id);
-            if (restoreResult.Success == true)
-            {
-                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
-            }
-            return BadRequest(restoreResult.Message);
+            return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
         }
     }
 }

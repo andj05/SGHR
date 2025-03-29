@@ -101,6 +101,37 @@ namespace SGHR.Application.Services
             return result;
         }
 
+        public async Task<OperationResult> GetDeletedById(int id)
+        {
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
+            try
+            {
+                var servicio = await _serviciosRepository.GetEntityByIdAsync(id);
+                if (servicio == null || !servicio.Deleted)
+                {
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
+                result.Data = ServiciosMapper.ToDto(servicio);
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
+            }
+            return result;
+        }
 
         public async Task<OperationResult> Save(SaveServiciosDto dto)
         {
@@ -165,7 +196,6 @@ namespace SGHR.Application.Services
             }
             return result;
         }
-
 
         public async Task<OperationResult> Remove(RemoveServiciosDto dto)
         {

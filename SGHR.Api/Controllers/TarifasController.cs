@@ -66,14 +66,11 @@ namespace SGHR.Api.Controllers
         [HttpGet("GetDeletedTarifasByID/{id}")]
         public async Task<IActionResult> GetDeletedTarifasByID(int id)
         {
-            var result = await _tarifasService.GetById(id);
+            var result = await _tarifasService.GetDeletedById(id);
             if (result.Success != true || result.Data == null)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            var tarifa = (Tarifas)result.Data;
-            if (!tarifa.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
+            var tarifa = (TarifasDto)result.Data;
             return Ok(tarifa);
         }
 
@@ -139,18 +136,13 @@ namespace SGHR.Api.Controllers
         [HttpPut("RestoreTarifa/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            var result = await _tarifasService.GetById(id);
-            if (result.Success != true || result.Data == null)
+            var result = await _tarifasService.Restore(id);
+            if (result.Success != true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest(result.Message);
             }
 
-            var restoreResult = await _tarifasService.Restore(id);
-            if (restoreResult.Success == true)
-            {
-                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
-            }
-            return BadRequest(restoreResult.Message);
+            return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.EstadoHabitacion;
+using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
 using SGHR.Domain.Base;
@@ -66,16 +67,13 @@ namespace SGHR.Api.Controllers
 
         // GET api/EstadoHabitacion/GetDeletedEstadoHabitacionByID/5
         [HttpGet("GetDeletedEstadoHabitacionByID/{id}")]
-        public async Task<IActionResult> GetDeletedClienteByID(int id)
+        public async Task<IActionResult> GetDeletedEstadoHabitacionByID(int id)
         {
-            var result = await _estadoHabitacionService.GetById(id);
+            var result = await _estadoHabitacionService.GetDeletedById(id);
             if (result.Success != true || result.Data == null)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            var estadoHabitacion = (EstadoHabitacion)result.Data;
-            if (!estadoHabitacion.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
+            var estadoHabitacion = (EstadoHabitacionDto)result.Data;
             return Ok(estadoHabitacion);
         }
 
@@ -141,18 +139,13 @@ namespace SGHR.Api.Controllers
         [HttpPut("RestoreEstado/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            var result = await _estadoHabitacionService.GetById(id);
-            if (result.Success != true || result.Data == null)
+            var result = await _estadoHabitacionService.Restore(id);
+            if (result.Success != true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest(result.Message);
             }
 
-            var restoreResult = await _estadoHabitacionService.Restore(id);
-            if (restoreResult.Success == true)
-            {
-                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
-            }
-            return BadRequest(restoreResult.Message);
+            return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
         }
     }
 }

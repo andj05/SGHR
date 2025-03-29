@@ -31,7 +31,7 @@ namespace SGHR.Persistence.Repositories
                 return new OperationResult
                 {
                     Success = false,
-                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"] 
+                    Message = _messageMapper.ErrorMessages["Operations"]["SaveFailed"]
                 };
             }
             return new OperationResult { Success = true };
@@ -241,8 +241,8 @@ namespace SGHR.Persistence.Repositories
             try
             {
                 var existingTarifa = await _context.Set<Tarifas>()
-                                               .IgnoreQueryFilters()
-                                               .FirstOrDefaultAsync(t => t.Id == tarifa.Id);
+                                                   .IgnoreQueryFilters()
+                                                   .FirstOrDefaultAsync(t => t.Id == tarifa.Id);
 
                 if (existingTarifa == null)
                 {

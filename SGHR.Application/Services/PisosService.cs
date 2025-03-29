@@ -104,6 +104,38 @@ namespace SGHR.Application.Services
             return result;
         }
 
+        public async Task<OperationResult> GetDeletedById(int id)
+        {
+            var result = new OperationResult();
+            if (id <= 0)
+            {
+                _loggerManager.LogWarn(_messageMapper.ErrorMessages["EntityBase"]["InvalidID"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["EntityBase"]["InvalidID"];
+                return result;
+            }
+            try
+            {
+                var piso = await _pisoRepository.GetEntityByIdAsync(id);
+                if (piso == null || !piso.Deleted)
+                {
+                    _loggerManager.LogError(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                    result.Success = false;
+                    result.Message = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return result;
+                }
+                result.Data = PisoMapper.ToDto(piso);
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Generic"]["GenericError"]);
+                result.Success = false;
+                result.Message = _messageMapper.ErrorMessages["Generic"]["GenericError"];
+            }
+            return result;
+        }
+
         public async Task<OperationResult> Save(SavePisosDto dto)
         {
             // Validaciones básicas del objeto
@@ -382,7 +414,7 @@ namespace SGHR.Application.Services
         // Método para verificar si un piso está en uso
         private async Task<bool> IsPisoInUse(int pisoId)
         {
-            return false; 
+            return false;
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Categorias;
+using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Application.Services;
 using SGHR.Domain.Base;
@@ -63,17 +64,14 @@ namespace SGHR.Api.Controllers
 
         // GET api/Categoria/GetDeletedCategoriaByID/5
         [HttpGet("GetDeletedCategoriasByID/{id}")]
-        public async Task<IActionResult> GetDeletedClienteByID(int id)
+        public async Task<IActionResult> GetDeletedCategoriasByID(int id)
         {
-            var result = await _categoriaService.GetById(id);
+            var result = await _categoriaService.GetDeletedById(id);
             if (result.Success != true || result.Data == null)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            var categoria = (Categoria)result.Data;
-            if (!categoria.Deleted)
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-
-            return Ok(categoria);
+            var categorias = (CategoriasDto)result.Data;
+            return Ok(categorias);
         }
 
         // POST api/Categoria/SaveCategoria
@@ -137,18 +135,13 @@ namespace SGHR.Api.Controllers
         [HttpPut("RestoreCategoria/{id}")]
         public async Task<IActionResult> Restore(int id)
         {
-            var result = await _categoriaService.GetById(id);
-            if (result.Success != true || result.Data == null)
+            var result = await _categoriaService.Restore(id);
+            if (result.Success != true)
             {
-                return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
+                return BadRequest(result.Message);
             }
 
-            var restoreResult = await _categoriaService.Restore(id);
-            if (restoreResult.Success != true)
-            {
-                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
-            }
-            return BadRequest(restoreResult.Message);
+            return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
         }
     }
 }

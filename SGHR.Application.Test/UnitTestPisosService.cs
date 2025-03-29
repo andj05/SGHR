@@ -85,8 +85,6 @@ namespace SGHR.Application.Tests.Services
             Assert.DoesNotContain(pisos, p => p.Descripcion == "Piso Eliminado");
         }
 
-
-
         [Fact]
         public async Task GetById_WithValidId_ReturnsPiso()
         {
@@ -99,7 +97,7 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal(piso.Descripcion, ((Piso)result.Data).Descripcion);
+            Assert.Equal(piso.Descripcion, ((PisosDto)result.Data).Descripcion);
         }
 
         [Fact]

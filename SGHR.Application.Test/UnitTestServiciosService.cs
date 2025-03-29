@@ -114,7 +114,7 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal(servicio.Nombre, ((Servicios)result.Data).Nombre);
+            Assert.Equal(servicio.Nombre, ((ServiciosDto)result.Data).Nombre);
         }
 
         [Fact]

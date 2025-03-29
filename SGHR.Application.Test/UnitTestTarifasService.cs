@@ -96,7 +96,7 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal(tarifa.Descripcion, ((Tarifas)result.Data).Descripcion);
+            Assert.Equal(tarifa.Descripcion, ((TarifasDto)result.Data).Descripcion);
         }
 
         [Fact]

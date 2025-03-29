@@ -84,7 +84,6 @@ namespace SGHR.Application.Tests.Services
             Assert.DoesNotContain(estados, e => e.Descripcion == "Eliminado");
         }
 
-
         [Fact]
         public async Task GetById_WithValidId_ReturnsEstado()
         {
@@ -97,7 +96,7 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal(estado.Descripcion, ((EstadoHabitacion)result.Data).Descripcion);
+            Assert.Equal(estado.Descripcion, ((EstadoHabitacionDto)result.Data).Descripcion);
         }
 
         [Fact]

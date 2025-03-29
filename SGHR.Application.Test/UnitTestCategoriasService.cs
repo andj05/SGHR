@@ -97,7 +97,7 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal(categoria.Descripcion, ((Categoria)result.Data).Descripcion);
+            Assert.Equal(categoria.Descripcion, ((CategoriasDto)result.Data).Descripcion);
         }
 
         [Fact]

@@ -84,8 +84,6 @@ namespace SGHR.Application.Tests.Services
             Assert.DoesNotContain(roles, r => r.Descripcion == "Eliminado");
         }
 
-
-
         [Fact]
         public async Task GetById_WithValidId_ReturnsRolUsuario()
         {
@@ -98,7 +96,7 @@ namespace SGHR.Application.Tests.Services
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal(rol.Descripcion, ((RolUsuario)result.Data).Descripcion);
+            Assert.Equal(rol.Descripcion, ((RolUsuarioDto)result.Data).Descripcion);
         }
 
         [Fact]

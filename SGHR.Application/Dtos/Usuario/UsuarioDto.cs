@@ -12,5 +12,6 @@ namespace SGHR.Application.Dtos.Usuario
         public int? IdRolUsuario { get; set; }
         public bool Estado { get; set; }
         public bool Delete { get; set; }
+        public bool Deleted { get; set; }
     }
 }

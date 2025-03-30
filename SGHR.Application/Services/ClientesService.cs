@@ -167,13 +167,19 @@ namespace SGHR.Application.Services
         {
             var cliente = await _clienteRepository.GetEntityByIdAsync(id);
             if (cliente == null || !cliente.Deleted)
+            {
+                var message = cliente == null
+                    ? _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                    : _messageMapper.ErrorMessages["EntityBase"].ContainsKey("AlreadyActive")
+                        ? _messageMapper.ErrorMessages["EntityBase"]["AlreadyActive"]
+                        : "Entity is already active.";
+
                 return new OperationResult
                 {
                     Success = false,
-                    Message = cliente == null
-                        ? _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                        : _messageMapper.ErrorMessages["EntityBase"]["AlreadyActive"]
+                    Message = message
                 };
+            }
 
             cliente.RestoreFromDto(1);
             return await _clienteRepository.UpdateEntityAsync(cliente);

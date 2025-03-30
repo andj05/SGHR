@@ -13,5 +13,6 @@ namespace SGHR.Application.Dtos.Cliente
         public string? TipoDocumento { get; set; }
         public string? Documento { get; set; }
         public bool Estado { get; set; }
+        public bool Deleted { get; set; }
     }
 }

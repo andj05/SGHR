@@ -33,11 +33,12 @@ namespace SGHR.Application.Mappers
 
         public static void UpdateFromDto(this Usuario entity, UpdateUsuarioDto dto)
         {
-            entity.NombreCompleto = dto.NombreCompleto ?? entity.NombreCompleto;
-            entity.Correo = dto.Correo ?? entity.Correo;
-            entity.IdRolUsuario = dto.IdRolUsuario ?? entity.IdRolUsuario;
-            entity.Clave = dto.Clave ?? entity.Clave;
-            entity.ModifyDate = dto.ChangeDate ?? DateTime.Now;
+            entity.NombreCompleto = dto.NombreCompleto;
+            entity.Correo = dto.Correo;
+            entity.IdRolUsuario = dto.IdRolUsuario;
+            if (!string.IsNullOrEmpty(dto.Clave))
+                entity.Clave = dto.Clave;
+            entity.ModifyDate = DateTime.Now;
             entity.ModifyUser = dto.ChangeUser ?? 1;
         }
 

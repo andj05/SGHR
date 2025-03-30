@@ -107,19 +107,26 @@ namespace SGHR.Application.Services
                 if (usuario == null || usuario.Deleted || usuario.Clave != loginRequest.Clave)
                 {
                     operationResult.Success = false;
-                    operationResult.Message = _messageMapper.ErrorMessages["User"]["InvalidCredentials"];
+                    operationResult.Message = _messageMapper.ErrorMessages["User"].ContainsKey("InvalidCredentials")
+                        ? _messageMapper.ErrorMessages["User"]["InvalidCredentials"]
+                        : "Invalid credentials.";
                     return operationResult;
                 }
 
                 operationResult.Success = true;
-                operationResult.Message = _messageMapper.SuccessMessages["LoginSuccess"];
+                operationResult.Message = _messageMapper.SuccessMessages.ContainsKey("LoginSuccess")
+                    ? _messageMapper.SuccessMessages["LoginSuccess"]
+                    : "Login successful.";
                 operationResult.Data = UsuarioMapper.ToDto(usuario);
             }
             catch (Exception ex)
             {
-                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["LoginFailed"]);
+                var errorMessage = _messageMapper.ErrorMessages["Operations"].ContainsKey("LoginFailed")
+                    ? _messageMapper.ErrorMessages["Operations"]["LoginFailed"]
+                    : "Login failed due to an unexpected error.";
+                _loggerManager.LogError(ex, errorMessage);
                 operationResult.Success = false;
-                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["LoginFailed"]}: {ex.Message}";
+                operationResult.Message = $"{errorMessage}: {ex.Message}";
             }
             return operationResult;
         }
@@ -167,6 +174,48 @@ namespace SGHR.Application.Services
             return await _usuarioRepository.UpdateEntityAsync(usuario);
         }
 
+        public async Task<OperationResult> Restore(int id)
+        {
+            var operationResult = new OperationResult();
+            try
+            {
+                var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
+                if (usuario == null || !usuario.Deleted)
+                {
+                    var message = usuario == null
+                        ? _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
+                        : _messageMapper.ErrorMessages["EntityBase"].ContainsKey("AlreadyActive")
+                            ? _messageMapper.ErrorMessages["EntityBase"]["AlreadyActive"]
+                            : "Entity is already active.";
+
+                    operationResult.Success = false;
+                    operationResult.Message = message;
+                    return operationResult;
+                }
+
+                usuario.Deleted = false;
+                var updateResult = await _usuarioRepository.UpdateEntityAsync(usuario);
+                if (updateResult.Success)
+                {
+                    operationResult.Success = true;
+                    operationResult.Message = _messageMapper.SuccessMessages["RestoreSuccess"];
+                    operationResult.Data = updateResult.Data;
+                }
+                else
+                {
+                    operationResult.Success = false;
+                    operationResult.Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"];
+                }
+            }
+            catch (Exception ex)
+            {
+                _loggerManager.LogError(ex, _messageMapper.ErrorMessages["Operations"]["DbException"]);
+                operationResult.Success = false;
+                operationResult.Message = $"{_messageMapper.ErrorMessages["Operations"]["DbException"]}: {ex.Message}";
+            }
+            return operationResult;
+        }
+
         public async Task<OperationResult> Remove(RemoveUsuarioDto dto)
         {
             if (dto.IdUsuario <= 0)
@@ -185,22 +234,6 @@ namespace SGHR.Application.Services
                 };
 
             usuario.RemoveFromDto(dto);
-            return await _usuarioRepository.UpdateEntityAsync(usuario);
-        }
-
-        public async Task<OperationResult> Restore(int id)
-        {
-            var usuario = await _usuarioRepository.GetEntityByIdAsync(id);
-            if (usuario == null || !usuario.Deleted)
-                return new OperationResult
-                {
-                    Success = false,
-                    Message = usuario == null
-                        ? _messageMapper.ErrorMessages["EntityBase"]["NotFound"]
-                        : _messageMapper.ErrorMessages["EntityBase"]["AlreadyActive"]
-                };
-
-            usuario.RestoreFromDto(1);
             return await _usuarioRepository.UpdateEntityAsync(usuario);
         }
 

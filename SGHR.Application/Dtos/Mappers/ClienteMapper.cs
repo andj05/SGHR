@@ -45,12 +45,13 @@ namespace SGHR.Application.Mappers
             entity.Documento = dto.Documento;
             entity.NombreCompleto = dto.NombreCompleto;
             entity.Correo = dto.Correo;
-            entity.Clave = dto.Clave;
+            if (!string.IsNullOrEmpty(dto.Clave))
+                entity.Clave = dto.Clave;
             entity.Telefono = dto.Telefono;
             entity.Nacionalidad = dto.Nacionalidad;
             entity.Estado = dto.Estado;
-            entity.ModifyDate = dto.ChangeDate;
-            entity.ModifyUser = dto.ChangeUser;
+            entity.ModifyDate = DateTime.Now;
+            entity.ModifyUser = dto.ChangeUser ?? 1;
         }
 
         public static void RemoveFromDto(this Cliente entity, RemoveClienteDto dto)

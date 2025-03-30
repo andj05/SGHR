@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using SGHR.Persistence.Configurations;
 using SGHR.Application.Intefaces; // Para MessageMapper
+using SGHR.Application.Mappers;
 
 namespace SGHR.Api.Controllers
 {
@@ -85,7 +86,7 @@ namespace SGHR.Api.Controllers
             if (usuario.Deleted)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            return Ok(usuario);
+            return Ok(UsuarioMapper.ToDto(usuario));
         }
 
         // GET api/Usuario/GetDeletedUsuarios
@@ -115,7 +116,7 @@ namespace SGHR.Api.Controllers
             if (!usuario.Deleted)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            return Ok(usuario);
+            return Ok(UsuarioMapper.ToDto(usuario));
         }
 
         // POST: api/Usuarios/Login
@@ -150,6 +151,7 @@ namespace SGHR.Api.Controllers
             });
         }
 
+
         // POST api/Usuario/SaveUsuario
         [HttpPost("SaveUsuario")]
         public async Task<IActionResult> Post([FromBody] SaveUsuarioDto usuarioDto)
@@ -177,22 +179,17 @@ namespace SGHR.Api.Controllers
 
             var existingResult = await _usuariosService.GetById(id);
             if (existingResult.Success != true || existingResult.Data == null)
-            {
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-            }
 
-            var existingCliente = (Usuario)existingResult.Data;
-            if (existingCliente.Deleted)
-            {
+            var usuario = (Usuario)existingResult.Data;
+            if (usuario.Deleted)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-            }
 
             usuarioDto.IdUsuario = id;
             var updateResult = await _usuariosService.Update(usuarioDto);
-            if (updateResult.Success == true)
-            {
+            if (updateResult.Success)
                 return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-            }
+            
             return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
@@ -207,11 +204,11 @@ namespace SGHR.Api.Controllers
             }
 
             var restoreResult = await _usuariosService.Restore(id);
-            if (restoreResult.Success != true)
+            if (restoreResult.Success == true)
             {
-                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
+                return Ok(new { Message = _messageMapper.SuccessMessages["RestoreSuccess"], Data = restoreResult.Data });
             }
-            return BadRequest(restoreResult.Message);
+            return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"], Error = restoreResult.Message });
         }
 
         // DELETE api/Usuario/DeleteUsuario/5

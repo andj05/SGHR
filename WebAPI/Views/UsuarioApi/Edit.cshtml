@@ -1,0 +1,47 @@
+﻿@model WebAPI.Models.Usuario.UsuarioModel
+@{
+    ViewData["Title"] = "Edit";
+}
+<h1>Edit Usuario</h1>
+<h4>UsuarioModel</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <input type="hidden" asp-for="IdUsuario" />
+            <input type="hidden" asp-for="FechaCreacion" />
+
+            <div class="form-group mb-3">
+                <label asp-for="NombreCompleto" class="control-label"></label>
+                <input asp-for="NombreCompleto" class="form-control" />
+                <span asp-validation-for="NombreCompleto" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Correo" class="control-label"></label>
+                <input asp-for="Correo" class="form-control" />
+                <span asp-validation-for="Correo" class="text-danger"></span>
+            </div>
+
+            <input type="hidden" asp-for="Clave" />
+
+            <div class="form-group mb-3">
+                <label class="control-label">Nueva Contraseña (Opcional)</label>
+                <input name="NewPassword" type="password" class="form-control" placeholder="Dejar en blanco para mantener la actual" />
+                <small class="text-muted">Dejar en blanco para mantener la contraseña actual</small>
+            </div>
+
+            <form asp-action="Edit" method="post">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </form>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

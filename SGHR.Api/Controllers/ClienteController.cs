@@ -3,6 +3,7 @@ using SGHR.Domain.Entities.Users;
 using SGHR.Application.Intefaces;
 using SGHR.Application.Dtos.Cliente;
 using SGHR.Persistence.Configurations;
+using SGHR.Application.Mappers;
 
 namespace SGHR.Api.Controllers
 {
@@ -48,7 +49,7 @@ namespace SGHR.Api.Controllers
             if (cliente.Deleted)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            return Ok(cliente);
+            return Ok(ClienteMapper.ToDto(cliente));
         }
 
         // GET api/Cliente/GetDeletedClientes
@@ -78,7 +79,7 @@ namespace SGHR.Api.Controllers
             if (!cliente.Deleted)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
 
-            return Ok(cliente);
+            return Ok(ClienteMapper.ToDto(cliente));
         }
 
         // POST api/Cliente/SaveCliente
@@ -108,22 +109,17 @@ namespace SGHR.Api.Controllers
 
             var existingResult = await _clienteService.GetById(id);
             if (existingResult.Success != true || existingResult.Data == null)
-            {
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-            }
 
-            var existingCliente = (Cliente)existingResult.Data;
-            if (existingCliente.Deleted)
-            {
+            var cliente = (Cliente)existingResult.Data;
+            if (cliente.Deleted)
                 return NotFound(_messageMapper.ErrorMessages["EntityBase"]["NotFound"]);
-            }
 
             clienteDto.IdCliente = id;
             var updateResult = await _clienteService.Update(clienteDto);
-            if (updateResult.Success == true)
-            {
+            if (updateResult.Success)
                 return Ok(new { Message = _messageMapper.SuccessMessages["UpdateSuccess"], Data = updateResult.Data });
-            }
+            
             return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"], Error = updateResult.Message ?? "Error desconocido" });
         }
 
@@ -138,11 +134,17 @@ namespace SGHR.Api.Controllers
             }
 
             var restoreResult = await _clienteService.Restore(id);
-            if (restoreResult.Success != true)
+            if (restoreResult.Success)
             {
-                return Ok(_messageMapper.SuccessMessages["RestoreSuccess"]);
+                return Ok(new { 
+                    Message = _messageMapper.SuccessMessages["RestoreSuccess"], 
+                    Data = restoreResult.Data 
+                });
             }
-            return BadRequest(restoreResult.Message);
+            return BadRequest(new { 
+                Message = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"], 
+                Error = restoreResult.Message 
+            });
         }
 
         [HttpDelete("DeleteCliente/{id}")]

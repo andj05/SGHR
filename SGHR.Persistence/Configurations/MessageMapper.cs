@@ -4,14 +4,8 @@ namespace SGHR.Persistence.Configurations
 {
     public class MessageMapper
     {
-        /// <summary>
-        /// Diccionario de mensajes de error agrupados por categoría.
-        /// </summary>
         public Dictionary<string, Dictionary<string, string>> ErrorMessages { get; }
 
-        /// <summary>
-        /// Diccionario de mensajes de éxito.
-        /// </summary>
         public Dictionary<string, string> SuccessMessages { get; }
 
         public MessageMapper()
@@ -30,7 +24,8 @@ namespace SGHR.Persistence.Configurations
                     ["NotFound"] = "Registro no encontrado.",
                     ["DuplicateEntry"] = "Registro duplicado detectado.",
                     ["ProtectedDelete"] = "El registro no puede ser eliminado porque está siendo referenciado.",
-                    ["NullEntity"] = "Objeto de entidad nulo."
+                    ["NullEntity"] = "Objeto de entidad nulo.",
+                    ["AlreadyActive"] = "El registro esta activo."
                 },
                 // Errores de operaciones CRUD
                 ["Operations"] = new Dictionary<string, string>

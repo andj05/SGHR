@@ -1,65 +1,47 @@
 ﻿@model IEnumerable<SGHR.WebApi.Models.Categorias.CategoriasApiModel>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Lista de Categorías";
 }
 
-<h1>Lista de categorias</h1>
+<div class="container py-4">
+    <h1 class="text-center mb-4">Lista de Categorías</h1>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.IdCategoria)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FechaCreacion)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Descripcion)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Estado)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ChangeDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ChangeUser)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.IdCategoria)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FechaCreacion)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Descripcion)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Estado)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ChangeDate)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ChangeUser)
-            </td>
-            <td>
-                    @Html.ActionLink("Edit", "Edit", new { id = item.IdCategoria  }) |
-                    @Html.ActionLink("Details", "Details", new { id = item.IdCategoria }) |
-                    @Html.ActionLink("Delete", "Delete", new { id = item.IdCategoria })
-            </td>
-        </tr>
-}
-    </tbody>
-</table>
+    <div class="d-flex justify-content-start mb-3">
+        <a asp-action="Create" class="btn btn-primary">Crear Nuevo</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>@Html.DisplayNameFor(model => model.IdCategoria)</th>
+                    <th>@Html.DisplayNameFor(model => model.FechaCreacion)</th>
+                    <th>@Html.DisplayNameFor(model => model.Descripcion)</th>
+                    <th>@Html.DisplayNameFor(model => model.Estado)</th>
+                    <th>@Html.DisplayNameFor(model => model.ChangeDate)</th>
+                    <th>@Html.DisplayNameFor(model => model.ChangeUser)</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@Html.DisplayFor(modelItem => item.IdCategoria)</td>
+                        <td>@Html.DisplayFor(modelItem => item.FechaCreacion)</td>
+                        <td>@Html.DisplayFor(modelItem => item.Descripcion)</td>
+                        <td>@Html.DisplayFor(modelItem => item.Estado)</td>
+                        <td>@Html.DisplayFor(modelItem => item.ChangeDate)</td>
+                        <td>@Html.DisplayFor(modelItem => item.ChangeUser)</td>
+                        <td>
+                            <a asp-action="Edit" asp-route-id="@item.IdCategoria" class="btn btn-outline-warning btn-sm">✏️</a>
+                            <a asp-action="Details" asp-route-id="@item.IdCategoria" class="btn btn-outline-info btn-sm">ℹ️</a>
+                            <a asp-action="Delete" asp-route-id="@item.IdCategoria" class="btn btn-outline-danger btn-sm">🗑️</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

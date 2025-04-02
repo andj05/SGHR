@@ -1,52 +1,56 @@
 ﻿@model SGHR.WebApi.Models.Servicios.ServiciosApiModel
 
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "Crear Servicio";
 }
 
-<h1>Crear</h1>
+<div class="container py-4">
+    <h1 class="text-center mb-4">Crear Servicio</h1>
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <form asp-action="Create" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="Nombre" class="control-label"></label>
-                <input asp-for="Nombre" class="form-control" />
-                <span asp-validation-for="Nombre" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Descripcion" class="control-label"></label>
-                <input asp-for="Descripcion" class="form-control" />
-                <span asp-validation-for="Descripcion" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="Estado" /> @Html.DisplayNameFor(model => model.Estado)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="ChangeDate" class="control-label"></label>
-                <input asp-for="ChangeDate" class="form-control" />
-                <span asp-validation-for="ChangeDate" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="ChangeUser" class="control-label"></label>
-                <input asp-for="ChangeUser" class="form-control" />
-                <span asp-validation-for="ChangeUser" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
+                <div class="mb-3">
+                    <label asp-for="Nombre" class="form-label"></label>
+                    <input asp-for="Nombre" class="form-control" />
+                    <span asp-validation-for="Nombre" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <input asp-for="Descripcion" class="form-control" />
+                    <span asp-validation-for="Descripcion" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input class="form-check-input" asp-for="Estado" />
+                    <label class="form-check-label" asp-for="Estado"></label>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ChangeDate" class="form-label"></label>
+                    <input asp-for="ChangeDate" class="form-control" type="datetime-local" />
+                    <span asp-validation-for="ChangeDate" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ChangeUser" class="form-label"></label>
+                    <input asp-for="ChangeUser" class="form-control" />
+                    <span asp-validation-for="ChangeUser" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+                    <button type="submit" class="btn btn-primary">Crear</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
-
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }

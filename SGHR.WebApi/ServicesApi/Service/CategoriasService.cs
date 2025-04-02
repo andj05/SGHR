@@ -197,20 +197,6 @@ namespace SGHR.WebApi.ServicesApi.Service
                 }
             }
 
-            var todasLasEntidades = await _categoriasRepository.GetAllAsync();
-            var tieneEntidadesAsociadas = todasLasEntidades.Any(e =>
-                e.GetType().GetProperty("IdCategoria") != null &&
-                (int)e.GetType().GetProperty("IdCategoria").GetValue(e, null) == dto.IdCategoria);
-
-            if (tieneEntidadesAsociadas)
-            {
-                return new OperationResult
-                {
-                    success = false,
-                    message = "No se puede eliminar la categoría porque tiene entidades asociadas"
-                };
-            }
-
             try
             {
                 await _categoriasRepository.DeleteAsync(dto.IdCategoria);

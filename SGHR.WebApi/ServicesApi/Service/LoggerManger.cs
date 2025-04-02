@@ -1,5 +1,4 @@
 ﻿using SGHR.WebApi.PersistenApi.Interface;
-using Microsoft.Extensions.Logging;
 
 namespace SGHR.WebApi.ServicesApi.Service
 {

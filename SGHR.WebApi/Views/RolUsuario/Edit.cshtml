@@ -1,58 +1,55 @@
 ﻿@model SGHR.WebApi.Models.RolUsuario.RolUsuarioApiModel
 
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "Editar Rol de Usuario";
 }
 
-<h1>Editar</h1>
+<div class="container py-4">
+    <h1 class="text-center mb-4">Editar Rol de Usuario</h1>
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <form asp-action="Edit" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-<h4>RolUsuarioApiModel</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="IdRolUsuario" class="control-label"></label>
-                <input asp-for="IdRolUsuario" class="form-control" />
-                <span asp-validation-for="IdRolUsuario" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Descripcion" class="control-label"></label>
-                <input asp-for="Descripcion" class="form-control" />
-                <span asp-validation-for="Descripcion" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Estado" class="control-label"></label>
-                <input asp-for="Estado" class="form-control" />
-                <span asp-validation-for="Estado" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FechaCreacion" class="control-label"></label>
-                <input asp-for="FechaCreacion" class="form-control" />
-                <span asp-validation-for="FechaCreacion" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="ChangeDate" class="control-label"></label>
-                <input asp-for="ChangeDate" class="form-control" />
-                <span asp-validation-for="ChangeDate" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="ChangeUser" class="control-label"></label>
-                <input asp-for="ChangeUser" class="form-control" />
-                <span asp-validation-for="ChangeUser" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
+                <div class="mb-3">
+                    <label asp-for="IdRolUsuario" class="form-label"></label>
+                    <input asp-for="IdRolUsuario" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <input asp-for="Descripcion" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Estado" class="form-label"></label>
+                    <input asp-for="Estado" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="FechaCreacion" class="form-label"></label>
+                    <input asp-for="FechaCreacion" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ChangeDate" class="form-label"></label>
+                    <input asp-for="ChangeDate" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ChangeUser" class="form-label"></label>
+                    <input asp-for="ChangeUser" class="form-control" />
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
-
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @await Html.PartialAsync("_ValidationScriptsPartial");
 }

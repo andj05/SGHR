@@ -108,5 +108,3 @@ namespace SGHR.WebApi.PersistenApi.Repository
         }
     }
 }
-
-

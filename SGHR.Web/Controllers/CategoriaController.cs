@@ -1,9 +1,6 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Categorias;
-using SGHR.Application.Dtos.RolUsuario;
 using SGHR.Application.Interfaces;
-using SGHR.Application.Services;
 using SGHR.Domain.Entities.Configuration;
 
 namespace SGHR.Web.Controllers

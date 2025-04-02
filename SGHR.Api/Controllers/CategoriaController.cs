@@ -121,12 +121,13 @@ namespace SGHR.Api.Controllers
 
             var removeDto = new RemoveCategoriasDto { IdCategoria = id };
             var deleteResult = await _categoriaService.Remove(removeDto);
-            if (deleteResult.Success != true)
+            if (deleteResult.Success == true)
             {
                 return Ok(new { Message = _messageMapper.SuccessMessages["DeleteSuccess"], Data = deleteResult.Data });
             }
             return BadRequest(new { Message = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"], Error = deleteResult.Message });
         }
+
 
         // PUT api/Categoria/RestoreCategoria/5
         [HttpPut("RestoreCategoria/{id}")]

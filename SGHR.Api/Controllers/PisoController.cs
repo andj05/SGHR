@@ -1,14 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.Pisos;
-using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
-using SGHR.Application.Services;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
-using SGHR.Persistence.Interfaces;
-using System.Linq;
 
 namespace SGHR.Api.Controllers
 {

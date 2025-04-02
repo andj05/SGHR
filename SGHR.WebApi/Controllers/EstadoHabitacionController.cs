@@ -1,47 +1,44 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using SGHR.WebApi.Models;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.WebApi.Models.EstadoHabitacion;
+using SGHR.WebApi.PersistenApi.Interface;
 
 namespace SGHR.WebApi.Controllers
 {
     public class EstadoHabitacionController : Controller
     {
+        private readonly IEstadoHabitacionService _estadoHabitacionService;
+
+        public EstadoHabitacionController(IEstadoHabitacionService estadoHabitacionService)
+        {
+            _estadoHabitacionService = estadoHabitacionService;
+        }
+
         // GET: EstadoHabitacionController
         public async Task<IActionResult> Index()
         {
-            List<EstadoHabitacionApiModel> estadoHabitacion = new List<EstadoHabitacionApiModel>();
-            using (var client = new HttpClient())
+            var result = await _estadoHabitacionService.GetAll();
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync("EstadoHabitacion/GetEstadoHabitacion");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    estadoHabitacion = await response.Content.ReadFromJsonAsync<List<EstadoHabitacionApiModel>>();
-                }
+                return View(result.data);
             }
-            return View(estadoHabitacion);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: EstadoHabitacionController/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            EstadoHabitacionApiModel estadoHabitacion = new EstadoHabitacionApiModel();
-            using (var client = new HttpClient())
+            var result = await _estadoHabitacionService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"EstadoHabitacion/GetEstadoByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    estadoHabitacion = await response.Content.ReadFromJsonAsync<EstadoHabitacionApiModel>();
-                }
+                return View(result.data);
             }
-            return View(estadoHabitacion);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: EstadoHabitacionController/Create
-        public ActionResult Create()
+        public IActionResult Create()
         {
             return View();
         }
@@ -51,49 +48,25 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(EstadoHabitacionApiModel estadoHabitacion)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _estadoHabitacionService.Save(estadoHabitacion);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PostAsJsonAsync("EstadoHabitacion/SaveEstadoHabitacion", estadoHabitacion);
-                    if (response.IsSuccessStatusCode)
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                    else
-                    {
-                        ViewBag.Message = "Error al guardar el estado de habitación";
-                        return View();
-                    }
-                }
                 return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = "Error al guardar el estado de habitación";
-                return View();
-            }
+            ViewBag.Message = result.message;
+            return View(estadoHabitacion);
         }
 
         // GET: EstadoHabitacionController/Edit/5
         public async Task<IActionResult> Edit(int id)
         {
-            EstadoHabitacionApiModel estadoHabitacion = new EstadoHabitacionApiModel();
-            using (var client = new HttpClient())
+            var result = await _estadoHabitacionService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"EstadoHabitacion/GetEstadoByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    estadoHabitacion = await response.Content.ReadFromJsonAsync<EstadoHabitacionApiModel>() ?? new EstadoHabitacionApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al obtener los detalles del estado de habitación";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(estadoHabitacion);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: EstadoHabitacionController/Edit/5
@@ -101,98 +74,40 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, EstadoHabitacionApiModel estadoHabitacionApiModel)
         {
-            OperationResult? operationResult = null;
-            try
+            var result = await _estadoHabitacionService.Update(estadoHabitacionApiModel);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PutAsJsonAsync($"EstadoHabitacion/UpdateEstadoHabitacion/{id}", estadoHabitacionApiModel);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al actualizar el estado de habitación: " + operationResult?.message;
-                            return View(estadoHabitacionApiModel);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al actualizar el estado de habitación: " + response.ReasonPhrase;
-                        return View(estadoHabitacionApiModel);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al actualizar el estado de habitación: {ex.Message}";
-                return View(estadoHabitacionApiModel);
-            }
+            ViewBag.Message = result.message;
+            return View(estadoHabitacionApiModel);
         }
 
         // GET: EstadoHabitacionController/Delete/5
+        [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
-            EstadoHabitacionApiModel estadoHabitacion = new EstadoHabitacionApiModel();
-            using (var client = new HttpClient())
+            var result = await _estadoHabitacionService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"EstadoHabitacion/GetEstadoByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    estadoHabitacion = await response.Content.ReadFromJsonAsync<EstadoHabitacionApiModel>() ?? new EstadoHabitacionApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al eliminar el estado de habitación";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(estadoHabitacion);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: EstadoHabitacionController/Delete/5
-        [HttpPost]
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id, EstadoHabitacionApiModel removeEstadoHabitacion)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _estadoHabitacionService.Remove(new EstadoHabitacionApiModel { IdEstadoHabitacion = id });
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.DeleteAsync($"EstadoHabitacion/DeleteEstado/{id}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al eliminar el estado de habitación: ";
-                            return View(removeEstadoHabitacion);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al eliminar el estado de habitación: ";
-                        return View(removeEstadoHabitacion);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al eliminar el estado de habitación: {ex.Message}";
-                return View(removeEstadoHabitacion);
-            }
+            ViewBag.Message = result.message;
+            return View();
         }
     }
 }

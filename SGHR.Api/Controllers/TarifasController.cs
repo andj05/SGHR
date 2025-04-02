@@ -2,7 +2,6 @@
 using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers

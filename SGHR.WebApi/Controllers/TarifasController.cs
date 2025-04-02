@@ -1,45 +1,45 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SGHR.WebApi.Models;
 using SGHR.WebApi.Models.Tarifas;
+using SGHR.WebApi.PersistenApi.Interface;
+
 
 namespace SGHR.WebApi.Controllers
 {
     public class TarifasController : Controller
     {
+        private readonly ITarifasService _tarifasService;
+
+        public TarifasController(ITarifasService tarifasService)
+        {
+            _tarifasService = tarifasService;
+        }
+
         // GET: TarifasController
         public async Task<IActionResult> Index()
         {
-            List<TarifasApiModel> tarifas = new List<TarifasApiModel>();
-            using (var client = new HttpClient())
+            var result = await _tarifasService.GetAll();
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync("Tarifas/GetTarifas");
-                if (response.IsSuccessStatusCode)
-                {
-                    tarifas = await response.Content.ReadFromJsonAsync<List<TarifasApiModel>>();
-                }
+                return View(result.data);
             }
-            return View(tarifas);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: TarifasController/Details/5
-        public async Task <IActionResult> Details(int id)
+        public async Task<IActionResult> Details(int id)
         {
-            TarifasApiModel tarifa = new TarifasApiModel();
-            using (var client = new HttpClient())
+            var result = await _tarifasService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Tarifas/GetTarifasByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    tarifa = await response.Content.ReadFromJsonAsync<TarifasApiModel>();
-                }
+                return View(result.data);
             }
-            return View(tarifa);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: TarifasController/Create
-        public ActionResult Create()
+        public IActionResult Create()
         {
             return View();
         }
@@ -49,50 +49,25 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TarifasApiModel tarifas)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _tarifasService.Save(tarifas);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PostAsJsonAsync("Tarifas/SaveTarifas", tarifas);
-                    if (response.IsSuccessStatusCode)
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                    else
-                    {
-                        ViewBag.Message = "Error al guardar la tarifa";
-                        return View();
-                    }
-                }
                 return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = "Error al guardar la tarifa";
-                return View();
-            }
+            ViewBag.Message = result.message;
+            return View(tarifas);
         }
 
         // GET: TarifasController/Edit/5
         public async Task<IActionResult> Edit(int id)
         {
-            TarifasApiModel tarifas = new TarifasApiModel();
-            using (var client = new HttpClient())
+            var result = await _tarifasService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"Tarifas/GetTarifasByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    tarifas = await response.Content.ReadFromJsonAsync<TarifasApiModel>() ?? new TarifasApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al obtener los detalles de la Tarifa";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(tarifas);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: TarifasController/Edit/5
@@ -100,100 +75,40 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, TarifasApiModel tarifasApiModel)
         {
-            OperationResult? operationResult = null;
-            try
+            var result = await _tarifasService.Update(tarifasApiModel);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PutAsJsonAsync($"Tarifas/UpdateTarifa/{id}", tarifasApiModel);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al actualizar la tarifa: " + operationResult?.message;
-                            return View(tarifasApiModel);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al actualizar la tarifa: " + response.ReasonPhrase;
-                        return View(tarifasApiModel);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al actualizar la tarifa: {ex.Message}";
-                return View(tarifasApiModel);
-            }
+            ViewBag.Message = result.message;
+            return View(tarifasApiModel);
         }
 
-
         // GET: TarifasController/Delete/5
+        [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
-            TarifasApiModel tarifas = new TarifasApiModel();
-            using (var client = new HttpClient())
+            var result = await _tarifasService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"Tarifas/GetTarifasByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    tarifas = await response.Content.ReadFromJsonAsync<TarifasApiModel>() ?? new TarifasApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al elimiar la Tarifa";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(tarifas);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: TarifasController/Delete/5
-        [HttpPost]
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id, TarifasApiModel removetarifas)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _tarifasService.Remove(new TarifasApiModel { IdTarifa = id });
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.DeleteAsync($"Tarifas/DeleteTarifa/{id}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al eliminar la tarifa: ";
-                            return View(removetarifas);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al eliminar la tarifa: ";
-                        return View(removetarifas);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al eliminar la tarifa: {ex.Message}";
-                return View(removetarifas);
-            }
+            ViewBag.Message = result.message;
+            return View();
         }
     }
 }

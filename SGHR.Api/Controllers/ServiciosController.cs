@@ -1,10 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.Application.Dtos.Servicios;
-using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
-using SGHR.Application.Services;
 using SGHR.Domain.Base;
-using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Configurations;
 
 namespace SGHR.Api.Controllers

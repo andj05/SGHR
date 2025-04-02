@@ -1,48 +1,45 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using SGHR.WebApi.Models;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.WebApi.Models.RolUsuario;
-using SGHR.WebApi.Models.Tarifas;
+using SGHR.WebApi.PersistenApi.Interface;
+
 
 namespace SGHR.WebApi.Controllers
 {
     public class RolUsuarioController : Controller
     {
+        private readonly IRolUsuarioService _rolUsuarioService;
+
+        public RolUsuarioController(IRolUsuarioService rolUsuarioService)
+        {
+            _rolUsuarioService = rolUsuarioService;
+        }
+
         // GET: RolUsuarioController
         public async Task<IActionResult> Index()
         {
-            List<RolUsuarioApiModel> rolUsuario = new List<RolUsuarioApiModel>();
-            using (var client = new HttpClient())
-            { 
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync("RolUsuario/GetRolUsuario");
-
-                if (response.IsSuccessStatusCode) 
-                { 
-                    rolUsuario = await response.Content.ReadFromJsonAsync<List<RolUsuarioApiModel>>();
-                }
+            var result = await _rolUsuarioService.GetAll();
+            if (result.success)
+            {
+                return View(result.data);
             }
-                return View(rolUsuario);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: RolUsuarioController/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            RolUsuarioApiModel rolUsuario = new RolUsuarioApiModel();
-            using (var client = new HttpClient())
+            var result = await _rolUsuarioService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"RolUsuario/GetRolByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    rolUsuario = await response.Content.ReadFromJsonAsync<RolUsuarioApiModel>();
-                }
+                return View(result.data);
             }
-            return View(rolUsuario);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: RolUsuarioController/Create
-        public ActionResult Create()
+        public IActionResult Create()
         {
             return View();
         }
@@ -52,50 +49,25 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(RolUsuarioApiModel rolUsuario)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _rolUsuarioService.Save(rolUsuario);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PostAsJsonAsync("RolUsuario/SaveRolUsuario", rolUsuario);
-                    if (response.IsSuccessStatusCode)
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                    else
-                    {
-                        ViewBag.Message = "Error al guardar el Rol del Usuario";
-                        return View();
-                    }
-                }
                 return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = "Error al guardar el Rol del Usuario";
-                return View();
-            }
+            ViewBag.Message = result.message;
+            return View(rolUsuario);
         }
 
         // GET: RolUsuarioController/Edit/5
         public async Task<IActionResult> Edit(int id)
         {
-            RolUsuarioApiModel rolUsuario = new RolUsuarioApiModel();
-            using (var client = new HttpClient())
+            var result = await _rolUsuarioService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"RolUsuario/GetRolByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    rolUsuario = await response.Content.ReadFromJsonAsync<RolUsuarioApiModel>() ?? new RolUsuarioApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al obtener los detalles del rol del usuario";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(rolUsuario);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: RolUsuarioController/Edit/5
@@ -103,99 +75,40 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, RolUsuarioApiModel rolUsuarioApiModel)
         {
-            OperationResult? operationResult = null;
-            try
+            var result = await _rolUsuarioService.Update(rolUsuarioApiModel);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PutAsJsonAsync($"RolUsuario/UpdateRol/{id}", rolUsuarioApiModel);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al actualizar rol del usuario: " + operationResult?.message;
-                            return View(rolUsuarioApiModel);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al actualizar rol del usuario: " + response.ReasonPhrase;
-                        return View(rolUsuarioApiModel);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al actualizar rol del usuario: {ex.Message}";
-                return View(rolUsuarioApiModel);
-            }
+            ViewBag.Message = result.message;
+            return View(rolUsuarioApiModel);
         }
 
         // GET: RolUsuarioController/Delete/5
+        [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
-            RolUsuarioApiModel rolUsuario = new RolUsuarioApiModel();
-            using (var client = new HttpClient())
+            var result = await _rolUsuarioService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"RolUsuario/GetRolByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    rolUsuario = await response.Content.ReadFromJsonAsync<RolUsuarioApiModel>() ?? new RolUsuarioApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al elimiar el rol Usuario";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(rolUsuario);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: RolUsuarioController/Delete/5
-        [HttpPost]
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id, RolUsuarioApiModel removeRolUsuario)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _rolUsuarioService.Remove(new RolUsuarioApiModel { IdRolUsuario = id });
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.DeleteAsync($"RolUsuario/DeleteRolUsuario/{id}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al eliminar el rol usuario: ";
-                            return View(removeRolUsuario);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al eliminar el rol usuario: ";
-                        return View(removeRolUsuario);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al eliminar rol usuario: {ex.Message}";
-                return View(removeRolUsuario);
-            }
+            ViewBag.Message = result.message;
+            return View();
         }
     }
 }

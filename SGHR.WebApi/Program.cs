@@ -1,9 +1,12 @@
+using SGHR.WebApi.IOCApi;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 // Añade esto en la configuración de servicios
 builder.Services.AddHttpClient();
+builder.Services.AddProjectDependencies(builder.Configuration); 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

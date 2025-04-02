@@ -1,47 +1,44 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using SGHR.WebApi.Models;
+﻿using Microsoft.AspNetCore.Mvc;
 using SGHR.WebApi.Models.Categorias;
+using SGHR.WebApi.PersistenApi.Interface;
 
 namespace SGHR.WebApi.Controllers
 {
     public class CategoriasController : Controller
     {
+        private readonly ICategoriasService _categoriasService;
+
+        public CategoriasController(ICategoriasService categoriasService)
+        {
+            _categoriasService = categoriasService;
+        }
+
         // GET: CategoriasController
         public async Task<IActionResult> Index()
         {
-            List<CategoriasApiModel> categorias = new List<CategoriasApiModel>();
-            using (var client = new HttpClient())
+            var result = await _categoriasService.GetAll();
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync("Categoria/GetCategoria");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    categorias = await response.Content.ReadFromJsonAsync<List<CategoriasApiModel>>();
-                }
+                return View(result.data);
             }
-            return View(categorias);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: CategoriasController/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            CategoriasApiModel categoria = new CategoriasApiModel();
-            using (var client = new HttpClient())
+            var result = await _categoriasService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Categoria/GetCategoriaByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    categoria = await response.Content.ReadFromJsonAsync<CategoriasApiModel>();
-                }
+                return View(result.data);
             }
-            return View(categoria);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // GET: CategoriasController/Create
-        public ActionResult Create()
+        public IActionResult Create()
         {
             return View();
         }
@@ -51,49 +48,25 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CategoriasApiModel categoria)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _categoriasService.Save(categoria);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PostAsJsonAsync("Categoria/SaveCategoria", categoria);
-                    if (response.IsSuccessStatusCode)
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                    else
-                    {
-                        ViewBag.Message = "Error al guardar la categoría";
-                        return View();
-                    }
-                }
                 return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = "Error al guardar la categoría";
-                return View();
-            }
+            ViewBag.Message = result.message;
+            return View(categoria);
         }
 
         // GET: CategoriasController/Edit/5
         public async Task<IActionResult> Edit(int id)
         {
-            CategoriasApiModel categoria = new CategoriasApiModel();
-            using (var client = new HttpClient())
+            var result = await _categoriasService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Categoria/GetCategoriaByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    categoria = await response.Content.ReadFromJsonAsync<CategoriasApiModel>() ?? new CategoriasApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al obtener los detalles de la categoría";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(categoria);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: CategoriasController/Edit/5
@@ -101,100 +74,41 @@ namespace SGHR.WebApi.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, CategoriasApiModel categoriaApiModel)
         {
-            OperationResult? operationResult = null;
-            try
+            var result = await _categoriasService.Update(categoriaApiModel);
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PutAsJsonAsync($"Categoria/UpdateCategoria/{id}", categoriaApiModel);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al actualizar la categoría: " + operationResult?.message;
-                            return View(categoriaApiModel);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al actualizar la categoría: " + response.ReasonPhrase;
-                        return View(categoriaApiModel);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al actualizar la categoría: {ex.Message}";
-                return View(categoriaApiModel);
-            }
+            ViewBag.Message = result.message;
+            return View(categoriaApiModel);
         }
 
         // GET: CategoriasController/Delete/5
+        [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
-            CategoriasApiModel categoria = new CategoriasApiModel();
-            using (var client = new HttpClient())
+            var result = await _categoriasService.GetById(id);
+            if (result.success)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Categoria/GetCategoriaByID?id={id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    categoria = await response.Content.ReadFromJsonAsync<CategoriasApiModel>() ?? new CategoriasApiModel();
-                }
-                else
-                {
-                    ViewBag.Message = "Error al eliminar la categoría";
-                    return View("Error");
-                }
+                return View(result.data);
             }
-            return View(categoria);
+            ViewBag.Message = result.message;
+            return View("Error");
         }
 
         // POST: CategoriasController/Delete/5
-        [HttpPost]
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id, CategoriasApiModel removeCategoria)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            OperationResult operationResult = new OperationResult();
-            try
+            var result = await _categoriasService.Remove(new CategoriasApiModel { IdCategoria = id });
+            if (result.success)
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.DeleteAsync($"Categoria/DeleteCategoria/{id}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        operationResult = await response.Content.ReadFromJsonAsync<OperationResult>();
-                        if (operationResult != null && operationResult.success)
-                        {
-                            return RedirectToAction(nameof(Index));
-                        }
-                        else
-                        {
-                            ViewBag.Message = "Error al eliminar la categoría: ";
-                            return View(removeCategoria);
-                        }
-                    }
-                    else
-                    {
-                        ViewBag.Message = "Error al eliminar la categoría: ";
-                        return View(removeCategoria);
-                    }
-                }
+                return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
-            {
-                ViewBag.Message = $"Error al eliminar la categoría: {ex.Message}";
-                return View(removeCategoria);
-            }
+            ViewBag.Message = result.message;
+            return View();
         }
     }
 }
-
 

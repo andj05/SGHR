@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SGHR.Application.Dtos.Categorias;
 using SGHR.Application.Dtos.EstadoHabitacion;
-using SGHR.Application.Dtos.Tarifas;
 using SGHR.Application.Interfaces;
-using SGHR.Application.Services;
 using SGHR.Domain.Base;
 using SGHR.Persistence.Configurations;
 

@@ -2,7 +2,7 @@
 {
     public class OperationResult
     {
-        public object message { get; set; }
+        public string message { get; set; }
         public bool success { get; set; }
         public object data { get; set; }
 

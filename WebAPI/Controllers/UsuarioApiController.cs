@@ -1,126 +1,62 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using System.Text;
-using System.Text.Json;
+﻿using Microsoft.AspNetCore.Mvc;
 using WebAPI.Models;
-using WebAPI.Models.Cliente;
 using WebAPI.Models.Usuario;
+using WebAPI.Models.Interfaces;
+using WebAPI.Services;
+using WebAPI.Interfaces;
+using WebAPI.Models.Cliente;
 
 namespace WebAPI.Controllers
 {
     public class UsuarioApiController : Controller
     {
+        private readonly IUsuarioRepository _usuarioRepository;
+        private readonly ILoggerManager _logger;
+        private readonly MessageMapper _messageMapper;
 
-        // GET: UsuarioApiController1
+        public UsuarioApiController(IUsuarioRepository usuarioRepository, ILoggerManager logger, MessageMapper messageMapper)
+        {
+            _usuarioRepository = usuarioRepository;
+            _logger = logger;
+            _messageMapper = messageMapper;
+        }
+
+        // GET: UsuarioApiController
         public async Task<IActionResult> Index()
         {
-            List<UsuarioModel> usuarios = new List<UsuarioModel>();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync("Usuario/GetUsuarios");
-                if (response.IsSuccessStatusCode)
-                {
-                    usuarios = await response.Content.ReadFromJsonAsync<List<UsuarioModel>>();
-                }
-                else
-                {
-                    TempData["Error"] = "Error al obtener la lista de usuarios";
-                }
+                _logger.LogInfo("Obteniendo lista de usuarios");
+                var usuarios = await _usuarioRepository.GetAllAsync();
+                return View(usuarios);
             }
-            return View(usuarios);
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener la lista de usuarios: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return View(new List<UsuarioModel>());
+            }
         }
 
-        // GET: UsuarioApiController1/Details/5
+        // GET: UsuarioApiController/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            UsuarioModel usuario = new UsuarioModel();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"Usuario/GetUsuarioByID/{id}");
-                if (response.IsSuccessStatusCode)
+                var usuario = await _usuarioRepository.GetByIdAsync(id);
+                if (usuario == null)
                 {
-                    usuario = await response.Content.ReadFromJsonAsync<UsuarioModel>();
-                }
-                else
-                {
-                    TempData["Error"] = "Error al obtener los detalles del usuario";
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     return RedirectToAction(nameof(Index));
                 }
+                return View(usuario);
             }
-            return View(usuario);
-        }
-
-        // GET: UsuarioApiController1/Deleted
-        public async Task<IActionResult> Deleted()
-        {
-            List<UsuarioModel> usuarios = new List<UsuarioModel>();
-            using (var client = new HttpClient())
+            catch (Exception ex)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync("Usuario/GetDeletedUsuarios");
-                if (response.IsSuccessStatusCode)
-                {
-                    usuarios = await response.Content.ReadFromJsonAsync<List<UsuarioModel>>();
-                }
+                _logger.LogError($"Error al obtener usuario {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Index));
             }
-            return View(usuarios);
-        }
-
-        // GET: UsuarioApiController1/DeletedDetails/5
-        public async Task<IActionResult> DeletedDetails(int id)
-        {
-            UsuarioModel usuario = new UsuarioModel();
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"Usuario/GetDeletedUsuarioByID/{id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    usuario = await response.Content.ReadFromJsonAsync<UsuarioModel>();
-                }
-                else
-                {
-                    TempData["Error"] = "Error al obtener los detalles del usuario";
-                    return RedirectToAction(nameof(Index));
-                }
-            }
-            return View(usuario);
-        }
-
-        // GET: UsuarioApiController1/Login
-        [HttpGet]
-        public IActionResult Login()
-        {
-            return View();
-        }
-
-        // POST: UsuarioApiController1/Login
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(LoginModel login)
-        {
-            if (ModelState.IsValid)
-            {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var content = JsonContent.Create(login);
-                    var response = await client.PostAsync("Usuario/Login", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var result = await response.Content.ReadFromJsonAsync<LoginResponseModel>();
-                        return RedirectToAction("Details", new { id = result.Usuario.IdUsuario });
-                    }
-                }
-            }
-            return View(login);
         }
 
         // GET: UsuarioApiController/Create
@@ -141,227 +77,106 @@ namespace WebAPI.Controllers
                     return View(usuario);
                 }
 
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
+                usuario.FechaCreacion = DateTime.Now;
+                usuario.Estado = true;
+                usuario.Deleted = false;
+                usuario.CreationUser = 1;
+                usuario.ModifyUser = 1;
+                usuario.ModifyDate = DateTime.Now;
+                usuario.IdRolUsuario = 5; // Asigna el rol de usuario predeterminado
 
-                    var saveDto = new
-                    {
-                        NombreCompleto = usuario.NombreCompleto,
-                        Correo = usuario.Correo,
-                        Clave = usuario.Clave,
-                        IdRolUsuario = 1, // Rol por defecto
-                        ChangeUser = 1 // Usuario por defecto
-                    };
+                var createdUsuario = await _usuarioRepository.CreateAsync(usuario);
 
-                    var content = new StringContent(
-                        JsonSerializer.Serialize(saveDto),
-                        Encoding.UTF8,
-                        "application/json");
-
-                    var response = await client.PostAsync("Usuario/SaveUsuario", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Usuario creado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    TempData["Error"] = $"Error al crear el usuario: {errorContent}";
-                    return View(usuario);
-                }
+                TempData["Success"] = _messageMapper.SuccessMessages["SaveSuccess"];
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Error inesperado: {ex.Message}";
+                _logger.LogError($"Error al crear usuario: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["SaveFailed"];
                 return View(usuario);
             }
         }
 
-
         // GET: UsuarioApiController/Edit/5
         public async Task<IActionResult> Edit(int id)
         {
-            UsuarioModel usuario = new UsuarioModel();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Usuario/GetUsuarioByID/{id}");
-                if (response.IsSuccessStatusCode)
+                var usuario = await _usuarioRepository.GetByIdAsync(id);
+                if (usuario == null)
                 {
-                    usuario = await response.Content.ReadFromJsonAsync<UsuarioModel>();
-                }
-                else
-                {
-                    TempData["Error"] = "No se pudo encontrar el usuario";
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     return RedirectToAction(nameof(Index));
                 }
+                return View(usuario);
             }
-            return View(usuario);
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener usuario para editar {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Index));
+            }
         }
-
 
         // POST: UsuarioApiController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, UsuarioModel usuario)
         {
-            try
+            if (string.IsNullOrWhiteSpace(usuario.Clave))
             {
-                if (usuario.IdUsuario <= 0)
-                {
-                    usuario.IdUsuario = id;
-                }
-
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                    if (string.IsNullOrEmpty(usuario.Clave))
-                    {
-                        var getResponse = await client.GetAsync($"Usuario/GetUsuarioByID/{id}");
-                        if (getResponse.IsSuccessStatusCode)
-                        {
-                            var existingUser = await getResponse.Content.ReadFromJsonAsync<UsuarioModel>();
-                            usuario.Clave = existingUser.Clave;
-                        }
-                        else
-                        {
-                            TempData["Error"] = "No se pudo recuperar la información del usuario";
-                            return View(usuario);
-                        }
-                    }
-
-                    var updateDto = new
-                    {
-                        IdUsuario = id,
-                        NombreCompleto = usuario.NombreCompleto,
-                        Correo = usuario.Correo,
-                        Clave = usuario.Clave,
-                        IdRolUsuario = 1,
-                        Estado = true,
-                        ChangeUser = 1,
-                        ChangeDate = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")
-                    };
-
-                    var jsonContent = System.Text.Json.JsonSerializer.Serialize(updateDto);
-                    var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
-
-                    System.Diagnostics.Debug.WriteLine($"Enviando actualización: {jsonContent}");
-
-                    var response = await client.PutAsync($"Usuario/UpdateUsuario/{id}", content);
-                    System.Diagnostics.Debug.WriteLine($"Respuesta: {response.StatusCode}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Usuario actualizado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    TempData["Error"] = $"Error al actualizar el usuario: {errorContent}";
-                    return View(usuario);
-                }
+                ModelState.Remove("Clave");
             }
-            catch (Exception ex)
+
+            if (!ModelState.IsValid)
             {
-                TempData["Error"] = $"Error inesperado: {ex.Message}";
-                System.Diagnostics.Debug.WriteLine($"Excepción: {ex.Message}");
                 return View(usuario);
             }
+
+            var existingUsuario = await _usuarioRepository.GetByIdAsync(id);
+            if (existingUsuario == null)
+            {
+                TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                return RedirectToAction(nameof(Index));
+            }
+
+            existingUsuario.NombreCompleto = usuario.NombreCompleto;
+            existingUsuario.Correo = usuario.Correo;
+            if (!string.IsNullOrEmpty(usuario.Clave))
+            {
+                existingUsuario.Clave = usuario.Clave;
+            }
+
+            existingUsuario.IdRolUsuario = usuario.IdRolUsuario;
+            existingUsuario.Estado = usuario.Estado;
+            existingUsuario.ModifyDate = DateTime.Now;
+            existingUsuario.ModifyUser = 1;
+
+            await _usuarioRepository.UpdateAsync(existingUsuario, id);
+            TempData["Success"] = _messageMapper.SuccessMessages["UpdateSuccess"];
+            return RedirectToAction(nameof(Index));
         }
 
-
-        private async Task<UsuarioModel> GetExistingUserById(int id)
-        {
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Usuario/GetUsuarioByID/{id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<UsuarioModel>();
-                }
-                return null;
-            }
-        }
-
-        // GET: UsuarioApiController/Restore/5
-        public async Task<IActionResult> Restore(int id)
-        {
-            UsuarioModel usuario = new UsuarioModel();
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Usuario/GetDeletedUsuarioByID/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    usuario = await response.Content.ReadFromJsonAsync<UsuarioModel>();
-                    return View(usuario);
-                }
-                else
-                {
-                    TempData["Error"] = "No se pudo encontrar el usuario eliminado";
-                    return RedirectToAction(nameof(Deleted));
-                }
-            }
-        }
-
-        // POST: UsuarioApiController/Restore/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RestoreConfirmed(int id)
-        {
-            try
-            {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                    var content = new StringContent("{}", Encoding.UTF8, "application/json");
-                    var response = await client.PutAsync($"Usuario/RestoreUsuario/{id}", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Usuario restaurado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        TempData["Error"] = $"Error al restaurar el usuario: {errorContent}";
-                        return RedirectToAction(nameof(Deleted));
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Error al restaurar el usuario: {ex.Message}";
-                return RedirectToAction(nameof(Deleted));
-            }
-        }
 
         // GET: UsuarioApiController/Delete/5
         public async Task<IActionResult> Delete(int id)
         {
-            UsuarioModel usuario = new UsuarioModel();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Usuario/GetUsuarioByID/{id}");
-
-                if (response.IsSuccessStatusCode)
+                var usuario = await _usuarioRepository.GetByIdAsync(id);
+                if (usuario == null)
                 {
-                    usuario = await response.Content.ReadFromJsonAsync<UsuarioModel>();
-                    return View(usuario);
-                }
-                else
-                {
-                    TempData["Error"] = "No se pudo encontrar el usuario";
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     return RedirectToAction(nameof(Index));
                 }
+                return View(usuario);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener usuario para eliminar {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Index));
             }
         }
 
@@ -372,32 +187,137 @@ namespace WebAPI.Controllers
         {
             try
             {
-                using (var client = new HttpClient())
+                var usuario = await _usuarioRepository.GetByIdAsync(id);
+                if (usuario == null)
                 {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                    var response = await client.DeleteAsync($"Usuario/DeleteUsuario/{id}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Usuario eliminado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        TempData["Error"] = $"Error al eliminar el usuario: {errorContent}";
-                        return RedirectToAction(nameof(Index));
-                    }
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Index));
                 }
+
+                await _usuarioRepository.DeleteAsync(id);
+                TempData["Success"] = _messageMapper.SuccessMessages["DeleteSuccess"];
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Error al eliminar el usuario: {ex.Message}";
+                _logger.LogError($"Error al eliminar usuario {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"];
                 return RedirectToAction(nameof(Index));
             }
         }
 
+        // GET: UsuarioApiController/Deleted
+        public async Task<IActionResult> Deleted()
+        {
+            try
+            {
+                _logger.LogInfo("Obteniendo lista de usuarios eliminados");
+                var usuarios = await _usuarioRepository.GetDeletedAsync();
+                return View(usuarios?.ToList() ?? new List<UsuarioModel>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener la lista de usuarios eliminados: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return View(new List<UsuarioModel>());
+            }
+        }
 
+        // GET: UsuarioApiController/DeletedDetails/5
+        public async Task<IActionResult> DeletedDetails(int id)
+        {
+            try
+            {
+                var usuario = await _usuarioRepository.GetDeletedByIdAsync(id);
+                if (usuario == null)
+                {
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Deleted));
+                }
+                return View(usuario);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener usuario eliminado {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Deleted));
+            }
+        }
+
+        // GET: UsuarioApiController/Restore/5
+        public async Task<IActionResult> Restore(int id)
+        {
+            try
+            {
+                var usuario = await _usuarioRepository.GetDeletedByIdAsync(id);
+                if (usuario == null)
+                {
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Deleted));
+                }
+                return View(usuario);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener usuario para restaurar {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Deleted));
+            }
+        }
+
+        // POST: UsuarioApiController/Restore/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RestoreConfirmed(int id)
+        {
+            try
+            {
+                var usuario = await _usuarioRepository.RestoreAsync(id);
+                TempData["Success"] = _messageMapper.SuccessMessages["RestoreSuccess"];
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al restaurar usuario {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"];
+                return RedirectToAction(nameof(Deleted));
+            }
+        }
+
+        // GET: UsuarioApiController/Login
+        public IActionResult Login()
+        {
+            return View(new LoginModel());
+        }
+
+        // POST: UsuarioApiController/Login
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(LoginModel login)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return View(login);
+                }
+
+                var result = await _usuarioRepository.LoginAsync(login);
+                if (result == null)
+                {
+                    TempData["Error"] = _messageMapper.ErrorMessages["Login"]["InvalidCredentials"];
+                    return View(login);
+                }
+
+                TempData["Success"] = _messageMapper.SuccessMessages["LoginSuccess"];
+                return RedirectToAction("Index", "Home");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error en inicio de sesión: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["LoginFailed"];
+                return View(login);
+            }
+        }
     }
 }

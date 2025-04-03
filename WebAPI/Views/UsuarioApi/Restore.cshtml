@@ -11,9 +11,16 @@
     <h4>Usuario: @Model.NombreCompleto</h4>
     <h4>Email: @Model.Correo</h4>
     <hr />
+    <dt class="col-sm-2">
+        @Html.DisplayNameFor(model => model.FechaCreacion)
+    </dt>
+    <dd class="col-sm-10">
+        @Html.DisplayFor(model => model.FechaCreacion)
+    </dd>
 
     <form asp-action="RestoreConfirmed" method="post">
         <input type="hidden" name="id" value="@Model.IdUsuario" />
+
         @Html.AntiForgeryToken()
         <input type="submit" value="Confirm Restore" class="btn btn-success" />
         <a asp-action="Deleted" class="btn btn-secondary">Back to Deleted List</a>

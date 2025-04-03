@@ -4,7 +4,7 @@
     ViewData["Title"] = "Deleted";
 }
 
-<h1>Cliente Deleted</h1>
+<h1>Deleted Cliente</h1>
 
 <p>
     <a asp-action="Create">Create New</a>
@@ -40,7 +40,7 @@
                 @Html.DisplayNameFor(model => model.Estado)
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.FechaCreacion)
+                @Html.DisplayNameFor(model => model.Deleted)
             </th>
             <th></th>
         </tr>
@@ -72,16 +72,10 @@
             <td>
                 @Html.DisplayFor(modelItem => item.Nacionalidad)
             </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Estado)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FechaCreacion)
-            </td>
-            <td>
+                <td>
                     @Html.ActionLink("Details", "DeletedDetails", new { id = item.IdCliente }) |
                     @Html.ActionLink("Restore", "Restore", new { id = item.IdCliente })
-            </td>
+                </td>
         </tr>
 }
     </tbody>

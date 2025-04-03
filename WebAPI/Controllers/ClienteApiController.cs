@@ -1,82 +1,61 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using System.Text;
-using System.Text.Json;
+﻿using Microsoft.AspNetCore.Mvc;
+using WebAPI.Interfaces;
 using WebAPI.Models;
 using WebAPI.Models.Cliente;
+using WebAPI.Models.Interfaces;
+using WebAPI.Services;
 
 namespace WebAPI.Controllers
 {
     public class ClienteApiController : Controller
     {
+        private readonly IRepository<ClienteModel> _clienteRepository;
+        private readonly ILoggerManager _logger;
+        private readonly MessageMapper _messageMapper;
+
+        public ClienteApiController(IRepository<ClienteModel> clienteRepository, ILoggerManager logger, MessageMapper messageMapper)
+        {
+            _clienteRepository = clienteRepository;
+            _logger = logger;
+            _messageMapper = messageMapper;
+        }
+
         // GET: ClienteApiController
         public async Task<IActionResult> Index()
         {
-            List<ClienteModel> clientes = new List<ClienteModel>();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync("Cliente/GetClientes");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    clientes = await response.Content.ReadFromJsonAsync<List<ClienteModel>>();
-                }
+                _logger.LogInfo("Obteniendo lista de clientes");
+                var clientes = await _clienteRepository.GetAllAsync();
+                return View(clientes);
             }
-            return View(clientes);
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener la lista de clientes: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return View(new List<ClienteModel>());
+            }
         }
 
         // GET: ClienteApiController/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            ClienteModel cliente = new ClienteModel();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"Cliente/GetClienteByID/{id}");
-                if (response.IsSuccessStatusCode)
+                var cliente = await _clienteRepository.GetByIdAsync(id);
+                if (cliente == null)
                 {
-                    cliente = await response.Content.ReadFromJsonAsync<ClienteModel>();
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Index));
                 }
+                return View(cliente);
             }
-            return View(cliente);
-        }
-
-        // GET: ClienteApiController/Deleted
-        public async Task<IActionResult> Deleted()
-        {
-            List<ClienteModel> clientes = new List<ClienteModel>();
-            using (var client = new HttpClient())
+            catch (Exception ex)
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync("Cliente/GetDeletedClientes");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    clientes = await response.Content.ReadFromJsonAsync<List<ClienteModel>>();
-                }
+                _logger.LogError($"Error al obtener cliente {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Index));
             }
-            return View(clientes);
-        }
-
-        // GET: ClienteApiController/DeletedDetails/5
-        public async Task<IActionResult> DeletedDetails(int id)
-        {
-            ClienteModel cliente = new ClienteModel();
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"Cliente/GetDeletedClienteByID/{id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    cliente = await response.Content.ReadFromJsonAsync<ClienteModel>();
-                }
-            }
-            return View(cliente);
         }
 
         // GET: ClienteApiController/Create
@@ -97,41 +76,21 @@ namespace WebAPI.Controllers
                     return View(cliente);
                 }
 
-                // Configurar valores predeterminados
                 cliente.FechaCreacion = DateTime.Now;
+                cliente.Estado = true;
+                cliente.Deleted = false;
+                cliente.CreationUser = 1;
                 cliente.ModifyUser = 1;
+                cliente.ModifyDate = DateTime.Now;
 
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var saveDto = new SaveClienteDto
-                    {
-                        TipoDocumento = cliente.TipoDocumento,
-                        Documento = cliente.Documento,
-                        NombreCompleto = cliente.NombreCompleto,
-                        Correo = cliente.Correo,
-                        Clave = cliente.Clave,
-                        Telefono = cliente.Telefono,
-                        Nacionalidad = cliente.Nacionalidad,
-                        ChangeUser = cliente.ModifyUser
-                    };
-
-                    var response = await client.PostAsJsonAsync("Cliente/SaveCliente", saveDto);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Cliente creado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    TempData["Error"] = $"Error al crear el cliente: {errorContent}";
-                    return View(cliente);
-                }
+                await _clienteRepository.CreateAsync(cliente);
+                TempData["Success"] = _messageMapper.SuccessMessages["SaveSuccess"];
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Error inesperado: {ex.Message}";
+                _logger.LogError($"Error al crear cliente: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["SaveFailed"];
                 return View(cliente);
             }
         }
@@ -139,22 +98,22 @@ namespace WebAPI.Controllers
         // GET: ClienteApiController/Edit/5
         public async Task<IActionResult> Edit(int id)
         {
-            ClienteModel cliente = new ClienteModel();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Cliente/GetClienteByID/{id}");
-                if (response.IsSuccessStatusCode)
+                var cliente = await _clienteRepository.GetByIdAsync(id);
+                if (cliente == null)
                 {
-                    cliente = await response.Content.ReadFromJsonAsync<ClienteModel>();
-                }
-                else
-                {
-                    TempData["Error"] = "No se pudo encontrar el cliente";
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     return RedirectToAction(nameof(Index));
                 }
+                return View(cliente);
             }
-            return View(cliente);
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener cliente para editar {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         // POST: ClienteApiController/Edit/5
@@ -169,86 +128,140 @@ namespace WebAPI.Controllers
                     return View(cliente);
                 }
 
-                if (cliente.IdCliente != id && cliente.IdCliente > 0)
+                var existingCliente = await _clienteRepository.GetByIdAsync(id);
+                if (existingCliente == null)
                 {
-                    id = cliente.IdCliente;
-                }
-                else if (cliente.IdCliente <= 0)
-                {
-                    cliente.IdCliente = id;
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Index));
                 }
 
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
+                existingCliente.TipoDocumento = cliente.TipoDocumento;
+                existingCliente.Documento = cliente.Documento;
+                existingCliente.NombreCompleto = cliente.NombreCompleto;
+                existingCliente.Correo = cliente.Correo;
+                existingCliente.Telefono = cliente.Telefono;
+                existingCliente.Nacionalidad = cliente.Nacionalidad;
+                existingCliente.Clave = cliente.Clave ?? existingCliente.Clave;
+                existingCliente.ModifyDate = DateTime.Now;
+                existingCliente.ModifyUser = 1;
 
-                    var checkResponse = await client.GetAsync($"Cliente/GetClienteByID/{id}");
-                    if (!checkResponse.IsSuccessStatusCode)
-                    {
-                        TempData["Error"] = "El cliente no existe o ya fue eliminado";
-                        return RedirectToAction(nameof(Index));
-                    }
-
-                    var existingCliente = await checkResponse.Content.ReadFromJsonAsync<ClienteModel>();
-
-                    var jsonObject = new
-                    {
-                        IdCliente = id,
-                        TipoDocumento = cliente.TipoDocumento,
-                        Documento = cliente.Documento,
-                        NombreCompleto = cliente.NombreCompleto,
-                        Correo = cliente.Correo,
-                        Clave = cliente.Clave ?? existingCliente.Clave,
-                        Telefono = cliente.Telefono,
-                        Nacionalidad = cliente.Nacionalidad,
-                        Estado = cliente.Estado,
-                        ChangeUser = 1,
-                        ChangeDate = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")
-                    };
-
-                    var jsonContent = System.Text.Json.JsonSerializer.Serialize(jsonObject);
-                    var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
-
-                    var response = await client.PutAsync($"Cliente/UpdateCliente/{id}", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Cliente actualizado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    TempData["Error"] = $"Error al actualizar el cliente: {errorContent}";
-                    return View(cliente);
-                }
+                await _clienteRepository.UpdateAsync(existingCliente, id);
+                TempData["Success"] = _messageMapper.SuccessMessages["UpdateSuccess"];
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Error inesperado: {ex.Message}";
+                _logger.LogError($"Error al actualizar cliente {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["UpdateFailed"];
                 return View(cliente);
             }
         }
 
+        // GET: ClienteApiController/Delete/5
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var cliente = await _clienteRepository.GetByIdAsync(id);
+                if (cliente == null)
+                {
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Index));
+                }
+                return View(cliente);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener cliente para eliminar {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // POST: ClienteApiController/Delete/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            try
+            {
+                var cliente = await _clienteRepository.GetByIdAsync(id);
+                if (cliente == null)
+                {
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Index));
+                }
+
+                cliente.Deleted = true;
+                cliente.DeletedUser = 1;
+                await _clienteRepository.DeleteAsync(id);
+                TempData["Success"] = _messageMapper.SuccessMessages["DeleteSuccess"];
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al eliminar cliente {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DeleteFailed"];
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // GET: ClienteApiController/Deleted
+        public async Task<IActionResult> Deleted()
+        {
+            try
+            {
+                _logger.LogInfo("Obteniendo lista de clientes eliminados");
+                var clientes = await _clienteRepository.GetDeletedAsync();
+                return View(clientes?.ToList() ?? new List<ClienteModel>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener la lista de clientes eliminados: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return View(new List<ClienteModel>());
+            }
+        }
+
+        // GET: ClienteApiController/DeletedDetails/5
+        public async Task<IActionResult> DeletedDetails(int id)
+        {
+            try
+            {
+                var cliente = await _clienteRepository.GetDeletedByIdAsync(id);
+                if (cliente == null)
+                {
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
+                    return RedirectToAction(nameof(Deleted));
+                }
+                return View(cliente);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener cliente eliminado {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Deleted));
+            }
+        }
 
         // GET: ClienteApiController/Restore/5
         public async Task<IActionResult> Restore(int id)
         {
-            ClienteModel cliente = new ClienteModel();
-            using (var client = new HttpClient())
+            try
             {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-                var response = await client.GetAsync($"Cliente/GetDeletedClienteByID/{id}");
-
-                if (response.IsSuccessStatusCode)
+                var cliente = await _clienteRepository.GetDeletedByIdAsync(id);
+                if (cliente == null)
                 {
-                    cliente = await response.Content.ReadFromJsonAsync<ClienteModel>();
-                    return View(cliente);
-                }
-                else
-                {
-                    TempData["Error"] = "No se pudo encontrar el cliente eliminado";
+                    TempData["Error"] = _messageMapper.ErrorMessages["EntityBase"]["NotFound"];
                     return RedirectToAction(nameof(Deleted));
                 }
+                return View(cliente);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error al obtener cliente para restaurar {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["DbException"];
+                return RedirectToAction(nameof(Deleted));
             }
         }
 
@@ -259,91 +272,17 @@ namespace WebAPI.Controllers
         {
             try
             {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var response = await client.PutAsync($"Cliente/RestoreCliente/{id}", null);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Cliente restaurado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        TempData["Error"] = $"Error al restaurar el cliente: {errorContent}";
-                        return RedirectToAction(nameof(Deleted));
-                    }
-                }
+                var cliente = await _clienteRepository.RestoreAsync(id);
+                TempData["Success"] = _messageMapper.SuccessMessages["RestoreSuccess"];
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Error al restaurar el cliente: {ex.Message}";
+                _logger.LogError($"Error al restaurar cliente {id}: {ex.Message}");
+                TempData["Error"] = _messageMapper.ErrorMessages["Operations"]["RestoreFailed"];
                 return RedirectToAction(nameof(Deleted));
             }
         }
-
-        // GET: ClienteController/Delete/5
-        public async Task<IActionResult> Delete(int id)
-        {
-            ClienteModel cliente = new ClienteModel();
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri("http://localhost:5187/api/");
-
-                var response = await client.GetAsync($"Cliente/GetClienteByID/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    cliente = await response.Content.ReadFromJsonAsync<ClienteModel>();
-                    return View(cliente);
-                }
-                else
-                {
-                    TempData["Error"] = "No se pudo encontrar el cliente";
-                    return RedirectToAction(nameof(Index));
-                }
-            }
-        }
-
-        // POST: ClienteController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            try
-            {
-                using (var client = new HttpClient())
-                {
-                    client.BaseAddress = new Uri("http://localhost:5187/api/");
-                    var removeDto = new RemoveClienteDto
-                    {
-                        IdCliente = id,
-                        ChangeUser = 1
-                    };
-
-                    var response = await client.DeleteAsync($"Cliente/DeleteCliente/{id}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        TempData["Success"] = "Cliente eliminado correctamente";
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        TempData["Error"] = $"Error al eliminar el cliente: {errorContent}";
-                        return RedirectToAction(nameof(Index));
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Error al eliminar el cliente: {ex.Message}";
-                return RedirectToAction(nameof(Index));
-            }
-        }
     }
-
 }
+

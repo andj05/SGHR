@@ -1,10 +1,12 @@
 ﻿@model WebAPI.Models.Usuario.UsuarioModel
+
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "Edit Usuario";
 }
+
 <h1>Edit Usuario</h1>
-<h4>UsuarioModel</h4>
 <hr />
+
 <div class="row">
     <div class="col-md-4">
         <form asp-action="Edit" method="post">
@@ -25,17 +27,17 @@
                 <span asp-validation-for="Correo" class="text-danger"></span>
             </div>
 
-            <input type="hidden" asp-for="Clave" />
-
             <div class="form-group mb-3">
-                <label class="control-label">Nueva Contraseña (Opcional)</label>
-                <input name="NewPassword" type="password" class="form-control" placeholder="Dejar en blanco para mantener la actual" />
+                <label asp-for="Clave" class="control-label">Nueva Contraseña (Opcional)</label>
+                <input asp-for="Clave" type="password" class="form-control" value="" placeholder="Dejar en blanco para mantener la actual" />
+                <span asp-validation-for="Clave" class="text-danger"></span>
                 <small class="text-muted">Dejar en blanco para mantener la contraseña actual</small>
             </div>
 
-            <form asp-action="Edit" method="post">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </form>
+            <div class="form-group mt-3">
+                <input type="submit" value="Guardar" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-secondary">Volver</a>
+            </div>
         </form>
     </div>
 </div>

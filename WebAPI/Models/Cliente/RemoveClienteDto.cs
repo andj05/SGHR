@@ -3,6 +3,6 @@
     public class RemoveClienteDto
     {
         public int IdCliente { get; set; }
-        public int? ChangeUser { get; set; }
+        public int DeletedUser { get; set; }
     }
 }

@@ -1,13 +1,35 @@
 
+using Microsoft.EntityFrameworkCore;
+using SGHR.Persistence.Context;
+using SGHR.IOC.Dependencies;
+using SGHR.Infraestructure.Logging.Base;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Persistence.Configurations;
+
 namespace SGHR.Api
 {
     public class Program
     {
         public static void Main(string[] args)
         {
+        
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+
+            builder.Services.AddDbContext<SGHRContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
+            
+            builder.Services.AddTarifasDependency();
+            builder.Services.AddServiciosDependency();
+            builder.Services.AddRolUsuarioDependency();
+            builder.Services.AddPisosDependency();
+            builder.Services.AddEstadoHabitacionDependency();
+            builder.Services.AddCategoriasDependency();
+
+            builder.Services.AddSingleton<ILoggerManager, LoggerManager>();
+
+            // Inyección del MessageMapper como Singleton
+            builder.Services.AddSingleton<MessageMapper>();
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

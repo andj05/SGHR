@@ -1,0 +1,47 @@
+﻿@model SGHR.Application.Dtos.Servicios.ServiciosDto
+
+@{
+    ViewData["Title"] = "Details";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Details - Servicios</title>
+    <link rel="stylesheet" href="path/to/your/css/file.css">
+</head>
+<body>
+    <h1>Detalles del Servicio</h1>
+
+    <div>
+        <h4>Información del Servicio</h4>
+        <hr>
+        <dl class="row">
+            <dt class="col-sm-2">ID Servicio</dt>
+            <dd class="col-sm-10"><span>@Model.IdServicio</span></dd>
+
+            <dt class="col-sm-2">Nombre</dt>
+            <dd class="col-sm-10"><span>@Model.Nombre</span></dd>
+
+            <dt class="col-sm-2">Descripción</dt>
+            <dd class="col-sm-10"><span>@Model.Descripcion</span></dd>
+
+            <dt class="col-sm-2">Estado</dt>
+            <dd class="col-sm-10"><span>@Model.Estado</span></dd>
+
+            <dt class="col-sm-2">Última Modificación</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeDate</span></dd>
+
+            <dt class="col-sm-2">Modificado por</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeUser</span></dd>
+        </dl>
+    </div>
+
+    <div>
+        <a href="/Servicios/Edit/@Model.IdServicio">Editar</a> |
+        <a href="/Servicios/Index">Volver al listado</a>
+    </div>
+</body>
+</html>

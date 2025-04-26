@@ -1,0 +1,72 @@
+﻿@model SGHR.WebApi.Models.Servicios.ServiciosApiModel
+
+@{
+    ViewData["Title"] = "Eliminar";
+}
+
+<h1 class="text-center text-danger mb-4">Eliminar Servicio</h1>
+
+<div class="container">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title text-muted">Confirmación de eliminación</h5>
+            <p class="text-danger"><strong>¡Advertencia!</strong> Esta acción no se puede deshacer.</p>
+            <h3 class="text-center mb-4">¿Estás seguro de que deseas eliminar este servicio?</h3>
+
+            <div class="border p-3 mb-4 rounded">
+                <dl class="row">
+                    <dt class="col-sm-4">
+                        @Html.DisplayNameFor(model => model.IdServicio)
+                    </dt>
+                    <dd class="col-sm-8">
+                        @Html.DisplayFor(model => model.IdServicio)
+                    </dd>
+
+                    <dt class="col-sm-4">
+                        @Html.DisplayNameFor(model => model.Nombre)
+                    </dt>
+                    <dd class="col-sm-8">
+                        @Html.DisplayFor(model => model.Nombre)
+                    </dd>
+
+                    <dt class="col-sm-4">
+                        @Html.DisplayNameFor(model => model.Descripcion)
+                    </dt>
+                    <dd class="col-sm-8">
+                        @Html.DisplayFor(model => model.Descripcion)
+                    </dd>
+
+                    <dt class="col-sm-4">
+                        @Html.DisplayNameFor(model => model.Estado)
+                    </dt>
+                    <dd class="col-sm-8">
+                        @Html.DisplayFor(model => model.Estado)
+                    </dd>
+
+                    <dt class="col-sm-4">
+                        @Html.DisplayNameFor(model => model.ChangeDate)
+                    </dt>
+                    <dd class="col-sm-8">
+                        @Html.DisplayFor(model => model.ChangeDate)
+                    </dd>
+
+                    <dt class="col-sm-4">
+                        @Html.DisplayNameFor(model => model.ChangeUser)
+                    </dt>
+                    <dd class="col-sm-8">
+                        @Html.DisplayFor(model => model.ChangeUser)
+                    </dd>
+                </dl>
+            </div>
+
+            <form asp-action="Delete" method="post">
+                <input type="hidden" name="id" value="@Model.IdServicio" />
+                @Html.AntiForgeryToken()
+                <div class="text-center">
+                    <button type="submit" class="btn btn-danger btn-lg">Confirmar Eliminación</button>
+                    <a asp-action="Index" class="btn btn-secondary btn-lg">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

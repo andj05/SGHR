@@ -1,0 +1,53 @@
+﻿@model IEnumerable<SGHR.Application.Dtos.Tarifas.TarifasDto>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index</title>
+    <link rel="stylesheet" href="path/to/your/css/file.css"> 
+</head>
+<body>
+    <h1>Tarifas List</h1>
+
+    <p>
+        <a href="/Tarifas/Create">Create New</a>
+    </p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>IdTarifa</th>
+                <th>IdHabitacion</th>
+                <th>PrecioPorNoche</th>
+                <th>Descuento</th>
+                <th>Descripcion</th>
+                <th>Estado</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td><span>@item.IdTarifa</span></td>
+                    <td><span>@item.IdHabitacion</span></td>
+                    <td><span>@item.PrecioPorNoche.ToString("C")</span></td>
+                    <td><span>@item.Descuento.ToString("C")</span></td>
+                    <td><span>@item.Descripcion</span></td>
+                    <td><span>@item.Estado</span></td>
+                    <td>
+                        <a href="/Tarifas/Edit/@item.IdTarifa">Edit</a> |
+                        <a href="/Tarifas/Details/@item.IdTarifa">Details</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</body>
+</html>
+

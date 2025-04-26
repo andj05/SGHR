@@ -2,10 +2,11 @@
 
 namespace SGHR.Domain.Entities.Configuration
 {
-    public sealed class RolUsuario : AuditEntity
+    public sealed class RolUsuario : BaseEntity<int>
     {
-        public int IdRolUsuario {  get; set; }
         public string? Descripcion { get; set; }
+
+        public bool? Estado { get; set; }
         public DateTime FechaCreacion { get; set; }
     }
 }

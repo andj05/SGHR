@@ -1,0 +1,47 @@
+﻿@model SGHR.Application.Dtos.EstadoHabitacion.EstadoHabitacionDto
+
+@{
+    ViewData["Title"] = "Details";
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles del Estado de Habitación</title>
+    <link rel="stylesheet" href="path/to/your/css/file.css">
+</head>
+<body>
+    <h1>Detalles del Estado de Habitación</h1>
+
+    <div>
+        <h4>Información del Estado</h4>
+        <hr>
+        <dl class="row">
+            <dt class="col-sm-2">ID Estado</dt>
+            <dd class="col-sm-10"><span>@Model.IdEstadoHabitacion</span></dd>
+
+            <dt class="col-sm-2">Descripción</dt>
+            <dd class="col-sm-10"><span>@Model.Descripcion</span></dd>
+
+            <dt class="col-sm-2">Estado Actual</dt>
+            <dd class="col-sm-10"><span>@Model.Estado</span></dd>
+
+            <dt class="col-sm-2">Fecha de Creación</dt>
+            <dd class="col-sm-10"><span>@Model.FechaCreacion</span></dd>
+
+            <dt class="col-sm-2">Última Modificación</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeDate</span></dd>
+
+            <dt class="col-sm-2">Modificado por</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeUser</span></dd>
+        </dl>
+    </div>
+
+    <div>
+        <a href="/EstadoHabitacion/Edit/@Model.IdEstadoHabitacion">Editar</a> |
+        <a href="/EstadoHabitacion/Index">Volver al listado</a>
+    </div>
+</body>
+</html>

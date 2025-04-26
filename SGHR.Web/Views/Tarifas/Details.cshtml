@@ -1,0 +1,46 @@
+﻿@model SGHR.Application.Dtos.Tarifas.TarifasDto
+
+@{
+    ViewData["Title"] = "Details";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Details</title>
+</head>
+<body>
+    <h1>Details</h1>
+
+    <div>
+        <h4>TarifasDto</h4>
+        <hr />
+        <dl class="row">
+            <dt class="col-sm-2">IdTarifa</dt>
+            <dd class="col-sm-10"><span>@Model.IdTarifa</span></dd>
+            <dt class="col-sm-2">PrecioPorNoche</dt>
+            <dd class="col-sm-10"><span>@Model.PrecioPorNoche.ToString("C")</span></dd>
+            <dt class="col-sm-2">Descuento</dt>
+            <dd class="col-sm-10"><span>@Model.Descuento.ToString("C")</span></dd>
+            <dt class="col-sm-2">Descripcion</dt>
+            <dd class="col-sm-10"><span>@Model.Descripcion</span></dd>
+            <dt class="col-sm-2">IdHabitacion</dt>
+            <dd class="col-sm-10"><span>@Model.IdHabitacion</span></dd>
+            <dt class="col-sm-2">Estado</dt>
+            <dd class="col-sm-10"><span>@Model.Estado</span></dd>
+            <dt class="col-sm-2">ChangeDate</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeDate</span></dd>
+            <dt class="col-sm-2">ChangeUser</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeUser</span></dd>
+        </dl>
+    </div>
+    <div>
+        <a href="/Tarifas/Edit/@Model.IdTarifa">Edit</a> |
+        <a href="/Tarifas/Index">Back to List</a>
+    </div>
+</body>
+</html>
+
+

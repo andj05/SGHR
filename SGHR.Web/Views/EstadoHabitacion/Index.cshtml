@@ -1,0 +1,52 @@
+﻿@model IEnumerable<SGHR.Application.Dtos.EstadoHabitacion.EstadoHabitacionDto>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado Habitacion</title>
+    <link rel="stylesheet" href="path/to/your/css/file.css">
+</head>
+<body>
+    <h1>Estado Habitación</h1>
+
+    <p>
+        <a href="/EstadoHabitacion/Create">Create New</a>
+    </p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID Estado</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Fecha Creación</th>
+                <th>Change Date</th>
+                <th>Change User</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td><span>@item.IdEstadoHabitacion</span></td>
+                    <td><span>@item.Descripcion</span></td>
+                    <td><span>@item.Estado</span></td>
+                    <td><span>@item.FechaCreacion</span></td>
+                    <td><span>@item.ChangeDate</span></td>
+                    <td><span>@item.ChangeUser</span></td>
+                    <td>
+                        <a href="/EstadoHabitacion/Edit/@item.IdEstadoHabitacion">Edit</a> |
+                        <a href="/EstadoHabitacion/Details/@item.IdEstadoHabitacion">Details</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</body>
+</html>

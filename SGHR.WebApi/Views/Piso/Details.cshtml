@@ -1,0 +1,64 @@
+﻿@model SGHR.WebApi.Models.Piso.PisoApiModel
+
+@{
+    ViewData["Title"] = "Detalles";
+}
+
+<h1 class="text-center text-primary mb-4">Detalles del Piso</h1>
+
+<div class="container">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title text-muted">Información del Piso</h5>
+            <hr />
+            <dl class="row">
+                <dt class="col-sm-4">
+                    @Html.DisplayNameFor(model => model.IdPiso)
+                </dt>
+                <dd class="col-sm-8">
+                    @Html.DisplayFor(model => model.IdPiso)
+                </dd>
+
+                <dt class="col-sm-4">
+                    @Html.DisplayNameFor(model => model.Descripcion)
+                </dt>
+                <dd class="col-sm-8">
+                    @Html.DisplayFor(model => model.Descripcion)
+                </dd>
+
+                <dt class="col-sm-4">
+                    @Html.DisplayNameFor(model => model.Estado)
+                </dt>
+                <dd class="col-sm-8">
+                    @Html.DisplayFor(model => model.Estado)
+                </dd>
+
+                <dt class="col-sm-4">
+                    @Html.DisplayNameFor(model => model.FechaCreacion)
+                </dt>
+                <dd class="col-sm-8">
+                    @Html.DisplayFor(model => model.FechaCreacion)
+                </dd>
+
+                <dt class="col-sm-4">
+                    @Html.DisplayNameFor(model => model.ChangeDate)
+                </dt>
+                <dd class="col-sm-8">
+                    @Html.DisplayFor(model => model.ChangeDate)
+                </dd>
+
+                <dt class="col-sm-4">
+                    @Html.DisplayNameFor(model => model.ChangeUser)
+                </dt>
+                <dd class="col-sm-8">
+                    @Html.DisplayFor(model => model.ChangeUser)
+                </dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4 text-center">
+    <a class="btn btn-warning" href="@Url.Action("Edit", new { id = Model.IdPiso })">Editar</a>
+    <a class="btn btn-secondary" href="@Url.Action("Index")">Volver a la lista</a>
+</div>

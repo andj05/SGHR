@@ -1,0 +1,17 @@
+﻿
+using SGHR.Domain.Base;
+
+namespace SGHR.Application.Base
+{
+    public interface IBaseService<TDtoAdd, TDtoupdate, TDtoRemove>
+    {
+        Task<OperationResult> GetAll();
+        Task<OperationResult> GetAllDelete();
+        Task<OperationResult> GetById(int id);
+        Task<OperationResult> Update(TDtoupdate dto);
+        Task<OperationResult> Remove(TDtoRemove dto);
+        Task<OperationResult> Save (TDtoAdd dto);
+        Task<OperationResult> Restore(int id);
+        Task<OperationResult> GetDeletedById(int id);
+    }
+}

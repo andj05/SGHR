@@ -1,0 +1,55 @@
+﻿@model SGHR.WebApi.Models.Piso.PisoApiModel
+
+@{
+    ViewData["Title"] = "Editar Piso";
+}
+
+<div class="container py-4">
+    <h1 class="text-center mb-4">Editar Piso</h1>
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <form asp-action="Edit" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="IdPiso" class="form-label"></label>
+                    <input asp-for="IdPiso" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <input asp-for="Descripcion" class="form-control" />
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input class="form-check-input" asp-for="Estado" />
+                    <label class="form-check-label" asp-for="Estado"></label>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="FechaCreacion" class="form-label"></label>
+                    <input asp-for="FechaCreacion" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ChangeDate" class="form-label"></label>
+                    <input asp-for="ChangeDate" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ChangeUser" class="form-label"></label>
+                    <input asp-for="ChangeUser" class="form-control" />
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial");
+}

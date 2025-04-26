@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using SGHR.Application.Dtos.EstadoHabitacion;
 using SGHR.Application.Services;
-
 using SGHR.Infraestructure.Logging.Base;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Repository;

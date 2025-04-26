@@ -4,9 +4,7 @@ using Microsoft.Extensions.Logging;
 using SGHR.Domain.Entities.Configuration;
 using SGHR.Persistence.Context;
 using SGHR.Persistence.Repository;
-using SGHR.Domain.Base;
 using SGHR.Persistence.Configurations;
-using Xunit;
 
 namespace SGHR.Persistence.Test
 {

@@ -1,12 +1,18 @@
 ﻿using SGHR.Domain.Base;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
 
 
 namespace SGHR.Domain.Entities.Reservation
 {
-    public sealed class Recepcion : AuditEntity
+    public sealed class Recepcion : BaseEntity<int>
     {
-        public int IdRecepcion { get; set; }
-        public int? IdEstadoReserva {  get; set; }
+        [Column("IdRecepcion")]
+        [Key]
+        public override int Id { get; set; }
+        public int? IdCliente { get; set; }
+        public int? IdHabitacion { get; set; }
+        public int? IdEstadoReserva { get; set; }
         public DateTime FechaEntrada { get; set; }
         public DateTime? FechaSalida { get; set; }
         public DateTime? FechaSalidaConfirmacion { get; set; }
@@ -16,6 +22,6 @@ namespace SGHR.Domain.Entities.Reservation
         public decimal? TotalPagado { get; set; }
         public decimal? CostoPenalidad { get; set; }
         public string? Observacion { get; set; }
-        
+
     }
 }

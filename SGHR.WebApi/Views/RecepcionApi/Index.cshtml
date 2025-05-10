@@ -1,0 +1,125 @@
+﻿@model IEnumerable<SGHR.WebApi.Models.Recepcion.RecepcionModel>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Recepciones Api</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeUser)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Id)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IdCliente)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IdHabitacion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IdEstadoReserva)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FechaEntrada)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FechaSalida)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FechaSalidaConfirmacion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.PrecioInicial)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Adelanto)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.PrecioRestante)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.TotalPagado)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.CostoPenalidad)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Observacion)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Estado)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangeDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangeUser)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Id)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdCliente)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdHabitacion)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdEstadoReserva)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FechaEntrada)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FechaSalida)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FechaSalidaConfirmacion)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.PrecioInicial)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Adelanto)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.PrecioRestante)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.TotalPagado)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.CostoPenalidad)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Observacion)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Estado)
+            </td>
+            <td>
+                @Html.ActionLink("Edit", "Edit", new {  id=item.Id  }) |
+                @Html.ActionLink("Details", "Details", new {  id=item.Id  }) |
+                @Html.ActionLink("Delete", "Delete", new {  id=item.Id  })
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

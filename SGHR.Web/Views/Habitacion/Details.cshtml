@@ -1,0 +1,41 @@
+﻿@model SGHR.Application.Dtos.Habitacion.HabitacionDto
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Details</title>
+</head>
+<body>
+    <h1>Details</h1>
+
+    <div>
+        <hr />
+        <dl class="row">
+            <dt class="col-sm-2">Id</dt>
+            <dd class="col-sm-10"><span>@Model.Id</span></dd>
+            <dt class="col-sm-2">Estado</dt>
+            <dd class="col-sm-10"><span>@Model.Estado</span></dd>
+            <dt class="col-sm-2">IdPiso</dt>
+            <dd class="col-sm-10"><span>@Model.IdPiso</span></dd>
+            <dt class="col-sm-2">IdCategoria</dt>
+            <dd class="col-sm-10"><span>@Model.IdCategoria</span></dd>
+            <dt class="col-sm-2">Numero</dt>
+            <dd class="col-sm-10"><span>@Model.Numero</span></dd>
+            <dt class="col-sm-2">Detalle</dt>
+            <dd class="col-sm-10"><span>@Model.Detalle</span></dd>
+            <dt class="col-sm-2">IdEstadoHabitacion</dt>
+            <dd class="col-sm-10"><span>@Model.IdEstadoHabitacion</span></dd>
+            <dt class="col-sm-2">ChangeDate</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeDate</span></dd>
+            <dt class="col-sm-2">ChangeUser</dt>
+            <dd class="col-sm-10"><span>@Model.ChangeUser</span></dd>
+        </dl>
+    </div>
+    <div>
+        <a href="/Habitacion/Edit/@Model.Id">Edit</a> |
+        <a href="/Habitacion/Index">Back to List</a>
+    </div>
+</body>
+</html>

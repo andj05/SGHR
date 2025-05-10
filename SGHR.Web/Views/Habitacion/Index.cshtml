@@ -1,0 +1,53 @@
+﻿@model IEnumerable<SGHR.Application.Dtos.Habitacion.HabitacionDto>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index</title>
+</head>
+<body>
+    <h1>Habitaciones</h1>
+
+    <p>
+        <a href="/Habitacion/Create">Create New</a>
+    </p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Estado</th>
+                <th>IdPiso</th>
+                <th>IdCategoria</th>
+                <th>Numero</th>
+                <th>Detalle</th>
+                <th>IdEstadoHabitacion</th>
+                <th>ChangeDate</th>
+                <th>ChangeUser</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td><span>@item.Id</span></td>
+                    <td><span>@item.Estado</span></td>
+                    <td><span>@item.IdPiso</span></td>
+                    <td><span>@item.IdCategoria</span></td>
+                    <td><span>@item.Numero</span></td>
+                    <td><span>@item.Detalle</span></td>
+                    <td><span>@item.IdEstadoHabitacion</span></td>
+                    <td><span>@item.ChangeDate</span></td>
+                    <td><span>@item.ChangeUser</span></td>
+                    <td>
+                        <a href="/Habitacion/Edit/@item.Id">Edit</a> |
+                        <a href="/Habitacion/Details/@item.Id">Details</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</body>
+</html>

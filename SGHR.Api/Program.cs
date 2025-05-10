@@ -1,3 +1,9 @@
+using Microsoft.EntityFrameworkCore;
+using SGHR.Persistence.Context;
+using SGHR.Persistence.Configurations;
+using SGHR.IOC.Dependencies.Users;
+using SGHR.Infraestructure.Logging.Interfaces;
+using SGHR.Infraestructure.Logging.Base;
 
 namespace SGHR.Api
 {
@@ -7,24 +13,48 @@ namespace SGHR.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            // Agregar el DbContext
+            builder.Services.AddDbContext<SGHRContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DBHotel")));
+
+            // Inyección del MessageMapper como Singleton
+            builder.Services.AddSingleton<MessageMapper>();
+            builder.Services.AddSingleton<ILoggerManager, LoggerManager>();
+
+
+            // Inyecciones de dependencias personalizadas
+            builder.Services.AddClienteDependency();
+            builder.Services.AddUsuarioDependency();
 
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
+            // Configuración de CORS para permitir conexiones desde el frontend
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend",
+                    policy => policy.WithOrigins("http://localhost:5173")
+                                    .AllowAnyMethod()
+                                    .AllowAnyHeader()
+                                    .AllowCredentials());
+            });
+
+            // Configuración de Swagger
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+            // Configurar el pipeline de la API
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
-            app.UseAuthorization();
+            // Habilitar CORS antes de Authorization
+            app.UseCors("AllowFrontend");
 
+            app.UseAuthorization();
 
             app.MapControllers();
 

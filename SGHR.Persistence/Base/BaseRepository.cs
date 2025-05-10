@@ -1,0 +1,165 @@
+﻿
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+using SGHR.Domain.Base;
+using SGHR.Domain.Entities.Users;
+using SGHR.Domain.Repository;
+using SGHR.Persistence.Context;
+
+namespace SGHR.Persistence.Base
+{
+    public abstract class BaseRepository<TEntity> : IBaseRepository<TEntity> where TEntity : class
+    {
+        private readonly SGHRContext _context;
+        private DbSet<TEntity> Entity { get; set; }
+        protected BaseRepository(SGHRContext context)
+        {
+            _context = context;
+            Entity = _context.Set<TEntity>();
+        }
+        public virtual async Task<OperationResult> SaveEntityAsync(TEntity entity)
+        {
+            OperationResult result = new OperationResult();
+
+            try
+            {
+                Entity.Add(entity);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error guardando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
+        public virtual async Task<OperationResult> UpdateEntityAsync(TEntity entity)
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                Entity.Update(entity);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error guardando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
+        public virtual async Task<OperationResult> RestoreEntityAsync(TEntity entity)
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                if (entity is AuditEntity auditEntity)
+                {
+                    auditEntity.Deleted = false;
+                    auditEntity.ModifyDate = DateTime.Now;
+                    Entity.Update(entity);
+                    await _context.SaveChangesAsync();
+                    result.Success = true;
+                    result.Data = entity;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "La entidad no soporta restauración.";
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrió un error restaurando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
+        public virtual async Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter)
+        {
+            OperationResult result = new OperationResult();
+
+            try
+            {
+                var datos = await Entity.Where(filter).ToListAsync();
+                result.Data = datos;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error obteniendo los datos: {ex.Message}";
+            }
+
+            return result;
+        }
+
+        public virtual async Task<TEntity> GetEntityByIdAsync(int id)
+        {
+            return await Entity.FindAsync(id);
+        }
+
+        public virtual async Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> filter)
+        {
+
+            return await Entity.AnyAsync(filter);
+        }
+        public virtual async Task<List<TEntity>> GetAllAsync()
+        {
+            return await Entity.ToListAsync();
+        }
+
+        public virtual async Task<OperationResult> DeleteEntityAsync(TEntity entity)
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                Entity.Remove(entity);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrio un error eliminando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
+        public virtual async Task<OperationResult> DeleteLogicAsync(TEntity entity)
+        {
+            var result = new OperationResult();
+            try
+            {
+                if (entity is AuditEntity auditEntity)
+                {
+                    auditEntity.Deleted = true;
+                    auditEntity.ModifyDate = DateTime.Now;
+                    Entity.Update(entity);
+                    await _context.SaveChangesAsync();
+                    result.Success = true;
+                    result.Data = entity;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "La entidad no soporta eliminación lógica.";
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Ocurrió un error eliminando los datos: {ex.Message}";
+            }
+            return result;
+        }
+
+        public virtual async Task<TEntity?> GetByEmailAsync(string email)
+        {
+            return await Entity.OfType<Usuario>().FirstOrDefaultAsync(u => u.Correo == email) as TEntity;
+        }
+
+
+    }
+}

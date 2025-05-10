@@ -3,14 +3,20 @@ using System.Linq.Expressions;
 
 namespace SGHR.Domain.Repository
 {
-    public interface IBaseRepository <TEntity> where TEntity : class
+    /// <summary>
+    /// Interfaz que deben heredar todos los repositorios.
+    /// </summary>
+    /// <typeparam name="TEntity">Entidad</typeparam>
+    /// <typeparam name="TType">El tipo de dato del primary key para realizarla consulta.</typeparam>
+    public interface IBaseRepository<TEntity> where TEntity : class
     {
-        Task<TEntity> GetByIdAsync(int id);
-        Task UpdateEntityAsync(TEntity entity);
-        Task DeleteEntityAsync(TEntity entity);
-        Task SaveEntityAsync(TEntity entity);
         Task<List<TEntity>> GetAllAsync();
-        Task<OperactionResult> GetAllAsync(Expression<Func<TEntity, bool>> filter);
+        Task<TEntity> GetEntityByIdAsync(int id);
+        Task<OperationResult> GetFilteredAsync(Expression<Func<TEntity, bool>> filter);
+        Task<OperationResult> RestoreEntityAsync(TEntity entity);
+        Task<OperationResult> SaveEntityAsync(TEntity entity);
+        Task<OperationResult> UpdateEntityAsync(TEntity entity);
+        Task<OperationResult> DeleteEntityAsync(TEntity entity);
         Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> filter);
     }
 }
